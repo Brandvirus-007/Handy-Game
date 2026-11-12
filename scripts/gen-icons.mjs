@@ -1,5 +1,5 @@
 // Generates the app icons (SVG + PNG sizes) using the pre-installed Chromium via Playwright.
-import { existsSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, writeFileSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 // Playwright is pre-installed globally in CI/dev containers; resolve it via require (honours NODE_PATH).
 const { chromium } = createRequire(import.meta.url)('playwright');
@@ -59,8 +59,10 @@ const browser = await chromium.launch();
 const page = await browser.newPage();
 async function render(svgText, size, file, height = size) {
   const data = 'data:image/svg+xml;base64,' + Buffer.from(svgText).toString('base64');
+  // Large gradients compress poorly as PNG – splash screens are written as WebP.
+  const mime = file.endsWith('.webp') ? 'image/webp' : 'image/png';
   const png = await page.evaluate(
-    async ({ data, size, height }) => {
+    async ({ data, size, height, mime }) => {
       const img = new Image();
       img.src = data;
       await img.decode();
@@ -68,9 +70,9 @@ async function render(svgText, size, file, height = size) {
       c.width = size;
       c.height = height;
       c.getContext('2d').drawImage(img, 0, 0, size, height);
-      return c.toDataURL('image/png').split(',')[1];
+      return c.toDataURL(mime, 0.9).split(',')[1];
     },
-    { data, size, height },
+    { data, size, height, mime },
   );
   writeFileSync(file, Buffer.from(png, 'base64'));
   console.log('wrote', file);
@@ -89,10 +91,11 @@ if (existsSync(RES)) {
     await render(foreground(), Math.round(108 * k), `${RES}/mipmap-${d}/ic_launcher_foreground.png`);
     const pw = Math.round(320 * k);
     const ph = Math.round(480 * k);
-    await render(splash(pw, ph), pw, `${RES}/drawable-port-${d}/splash.png`, ph);
-    await render(splash(ph, pw), ph, `${RES}/drawable-land-${d}/splash.png`, pw);
+    await render(splash(pw, ph), pw, `${RES}/drawable-port-${d}/splash.webp`, ph);
+    await render(splash(ph, pw), ph, `${RES}/drawable-land-${d}/splash.webp`, pw);
   }
-  await render(splash(480, 320), 480, `${RES}/drawable/splash.png`, 320);
+  await render(splash(480, 320), 480, `${RES}/drawable/splash.webp`, 320);
+  for (const f of readdirSync(RES, { recursive: true })) if (String(f).endsWith('splash.png')) rmSync(`${RES}/${f}`);
   writeFileSync(`${RES}/values/ic_launcher_background.xml`, '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">#0B0820</color>\n</resources>\n');
 }
 
