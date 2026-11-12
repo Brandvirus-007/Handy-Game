@@ -65,4 +65,4 @@ Aktuell `app.lumenloop.game`. Er ist nach dem ersten Upload **unveränderlich**.
 
 In der Play Console unter *Monetarisierung → Produkte → In-App-Produkte* anlegen – IDs exakt wie in
 `src/economy/defs.ts` (`diamonds_80`, `diamonds_450`, `diamonds_1000`, `diamonds_2200`, `diamonds_6000`,
-`starter_pack`, `no_ads`). Zum Testen eigene Google-Konten als *Lizenztester* eintragen.
+`starter_pack`, `no_ads`, `spark_aurora`). Zum Testen eigene Google-Konten als *Lizenztester* eintragen.

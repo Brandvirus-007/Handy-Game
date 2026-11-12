@@ -21,8 +21,8 @@ Berührst du einen Schatten selbst, kostet das ein Herz.
 - **1:1-Relativsteuerung** wie bei einem Trackpad: Der Finger kann überall liegen und verdeckt den Funken nie.
 - **10 Gegnertypen** (u. a. Wächter mit Schildaura, teleportierende Blinker, explodierende Bomber) und **5 Bosse**:
   Schlund, Weberin, Zwillinge, Hydra und Auge. Alle fünf Wellen kommt ein Boss, mit jedem Durchgang stärker.
-- **25 Upgrades** mit Synergien, **6 Funken** (zwei davon Premium) und **5 Gebiete** mit eigener Farbwelt.
-- **Fortschritt:** Lichtstufen, Etappen, 3 Tagesmissionen, 7-Tage-Bonus, Werkstatt, Booster, 26 Erfolge, tägliche Herausforderung.
+- **30 Upgrades** mit Synergien (davon 4 legendäre Fusionen), **10 Funken** (zwei Premium, einer exklusiv im Shop, der Sonnenkern ab Stufe 50) und **5 Gebiete** mit eigener Farbwelt.
+- **Fortschritt:** Lichtstufen mit Stufenpfad (Funken, Upgrades und Werkstatt-Ränge werden bis Stufe 50 freigeschaltet), Etappen, 3 Tagesmissionen, 7-Tage-Bonus, Werkstatt mit 10 Verbesserungen, Booster, 29 Erfolge, tägliche Herausforderung.
 - **Wirtschaft:** Splitter (im Spiel verdient) und Diamanten (Etappen, Erfolge, Stufen, Missionen, Gratis-Werbung oder Kauf).
   Nach dem Tod kann man einmal pro Runde per Werbung weiterspielen, danach mit Splittern oder Diamanten.
 - **Werbung & Käufe:** AdMob (Rewarded und Interstitials nur zwischen Runden, mit DSGVO-Einwilligung) und Google Play Billing.

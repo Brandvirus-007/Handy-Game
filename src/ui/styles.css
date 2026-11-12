@@ -2325,3 +2325,385 @@ body.reduced .toast {
   font-size: 11px;
   font-weight: 800;
 }
+
+/* ───────────── Update 2.1: workshop, level path, new sparks ───────────── */
+
+.buy-col {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  flex: none;
+}
+
+/* Shard price that cannot be paid yet: still clearly readable. */
+.btn.small.short[disabled] {
+  opacity: 0.75;
+  border-style: dashed;
+}
+
+.btn.small.short .price {
+  color: var(--muted);
+}
+
+.btn.gem-btn.mini {
+  min-height: 34px;
+  padding: 5px 10px;
+  font-size: 13.5px;
+}
+
+.btn.lvl-lock {
+  flex: none;
+  gap: 6px;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.btn.lvl-lock[disabled] {
+  opacity: 0.85;
+  border-style: dashed;
+}
+
+button.level-chip {
+  padding: 4px 6px 4px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+button.level-chip:active b {
+  transform: scale(0.94);
+}
+
+.spark-card.locked {
+  opacity: 0.72;
+}
+
+.spark-card.locked .orb {
+  filter: grayscale(0.7) brightness(0.8);
+}
+
+.spark-card.exclusive {
+  position: relative;
+  border-color: transparent;
+  background:
+    linear-gradient(rgba(18, 14, 42, 0.94), rgba(18, 14, 42, 0.94)) padding-box,
+    conic-gradient(from var(--spin, 0deg), #6dffcf, #6ac8ff, #a36bff, #ff7ad9, #6dffcf) border-box;
+  border: 1.5px solid transparent;
+  animation: legend-spin 6s linear infinite;
+}
+
+.premium-tag.exclusive {
+  background: linear-gradient(90deg, #6dffcf, #a36bff, #ff7ad9);
+}
+
+.premium-tag.legend {
+  background: linear-gradient(90deg, #ffe08a, #ff8a3d);
+}
+
+.btn.exclusive-buy {
+  border-color: rgba(163, 107, 255, 0.7);
+  background: linear-gradient(135deg, rgba(60, 160, 140, 0.85), rgba(110, 60, 200, 0.9));
+  color: #fff;
+}
+
+.orb.solar {
+  background: radial-gradient(circle, #fff 0 16%, #ffe08a 32%, #ff8a2a 52%, transparent 72%);
+  box-shadow: 0 0 22px #ff9a3c, 0 0 44px rgba(255, 122, 26, 0.35);
+}
+
+.orb.solar.big {
+  background:
+    radial-gradient(circle, #fff 0 14%, #ffe08a 28%, #ff8a2a 44%, transparent 60%),
+    repeating-conic-gradient(from 0deg, rgba(255, 210, 120, 0.55) 0 6deg, transparent 6deg 30deg);
+  -webkit-mask: radial-gradient(circle, #000 52%, transparent 72%);
+  mask: radial-gradient(circle, #000 52%, transparent 72%);
+  animation: spin 14s linear infinite;
+}
+
+.orb.aurora {
+  background: radial-gradient(circle, #fff 0 16%, transparent 30%), conic-gradient(#6dffcf, #6ac8ff, #a36bff, #ff7ad9, #6dffcf);
+  -webkit-mask: radial-gradient(circle, #000 55%, transparent 72%);
+  mask: radial-gradient(circle, #000 55%, transparent 72%);
+  box-shadow: none;
+  animation: spin 7s linear infinite;
+  filter: drop-shadow(0 0 10px rgba(130, 255, 220, 0.6));
+}
+
+.mini-orb {
+  --c: #7df9ff;
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  flex: none;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0 22%, var(--c) 48%, transparent 74%);
+  box-shadow: 0 0 8px var(--c);
+}
+
+.exclusive-offer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-color: transparent;
+  background:
+    linear-gradient(135deg, rgba(16, 48, 52, 0.96), rgba(40, 20, 70, 0.96)) padding-box,
+    conic-gradient(from var(--spin, 0deg), #6dffcf, #6ac8ff, #a36bff, #ff7ad9, #6dffcf) border-box;
+  border: 1.5px solid transparent;
+  animation: legend-spin 6s linear infinite;
+  overflow: hidden;
+}
+
+.exclusive-offer .tag {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #6dffcf, #a36bff, #ff7ad9);
+  color: #0d1030;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.exclusive-offer .row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.exclusive-offer .body {
+  flex: 1;
+  min-width: 0;
+}
+
+.exclusive-offer .name {
+  font-weight: 800;
+  font-size: 19px;
+  margin-right: 70px;
+}
+
+.exclusive-offer .desc {
+  color: #cfe9ff;
+  font-size: 13.5px;
+  line-height: 1.4;
+  margin-top: 3px;
+}
+
+.exclusive-offer .btn {
+  min-height: 48px;
+  border-color: rgba(163, 107, 255, 0.7);
+  background: linear-gradient(135deg, rgba(60, 170, 150, 0.9), rgba(120, 70, 210, 0.95));
+  color: #fff;
+  font-weight: 800;
+}
+
+.reward-row.unlock {
+  color: #fff;
+  font-weight: 650;
+}
+
+.reward-row.unlock .ico {
+  color: var(--gold);
+}
+
+/* Level path */
+.level-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.level-head .body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.level-head .name {
+  font-weight: 750;
+  font-size: 18px;
+}
+
+.level-head .desc {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.level-head .xpbar {
+  flex: none;
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+}
+
+.lvl-big {
+  width: 64px;
+  height: 64px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle, #2a2160, #140f2e);
+  border: 3px solid var(--accent);
+  box-shadow: 0 0 22px rgba(125, 249, 255, 0.4);
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.lvl-path {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-left: 4px;
+}
+
+.lvl-path::before {
+  content: '';
+  position: absolute;
+  left: 23px;
+  top: 20px;
+  bottom: 20px;
+  width: 2px;
+  background: linear-gradient(var(--accent), rgba(176, 108, 255, 0.4));
+  opacity: 0.35;
+}
+
+.lvl-step {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px 10px 0;
+}
+
+.lvl-badge {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--panel-solid);
+  border: 2px solid var(--line-strong);
+  color: var(--muted);
+  font-weight: 800;
+  font-size: 15px;
+  z-index: 1;
+}
+
+.lvl-step .body {
+  flex: 1;
+  min-width: 0;
+}
+
+.lvl-step .name {
+  font-weight: 700;
+  margin: 2px 0 6px;
+  color: var(--muted);
+}
+
+.lvl-step .chips {
+  justify-content: flex-start;
+}
+
+.lvl-step .chip {
+  gap: 6px;
+}
+
+.lvl-step.done .lvl-badge {
+  border-color: var(--accent);
+  background: rgba(125, 249, 255, 0.15);
+  color: var(--accent);
+}
+
+.lvl-step.done .name {
+  color: var(--text);
+}
+
+.lvl-step.next .lvl-badge {
+  border-color: var(--gold);
+  color: var(--gold);
+  box-shadow: 0 0 16px rgba(255, 209, 102, 0.45);
+  animation: orb-pulse 2.4s ease-in-out infinite;
+}
+
+.lvl-step.next .name {
+  color: var(--gold);
+}
+
+/* What's new */
+.dialog.news {
+  text-align: left;
+}
+
+.dialog.news h2 {
+  text-align: center;
+}
+
+.news-icon {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  margin: 0 auto;
+  border-radius: 18px;
+  background: rgba(125, 249, 255, 0.1);
+  color: var(--accent);
+}
+
+.dialog.news ul {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 14.5px;
+  line-height: 1.4;
+}
+
+.dialog.news li::marker {
+  color: var(--accent);
+}
+
+@media (max-width: 360px) {
+  .item {
+    gap: 9px;
+    padding: 10px;
+  }
+
+  .item .ico-wrap {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  .item .ico-wrap .ico {
+    width: 20px;
+    height: 20px;
+  }
+
+  .item .pips i {
+    width: 10px;
+  }
+
+  .buy-col .btn.small,
+  .btn.lvl-lock {
+    min-height: 36px;
+    padding: 6px 9px;
+    font-size: 13.5px;
+  }
+
+  .btn.gem-btn.mini small {
+    display: none;
+  }
+}

@@ -22,7 +22,8 @@ export interface FrameParams {
   time: number;
   color: string;
   trailColor: string;
-  rainbow: boolean;
+  /** Spark look: plain colours, rainbow (Prism), solar corona or aurora ribbons. */
+  look: 'plain' | 'rainbow' | 'solar' | 'aurora';
   /** 0..1 darkening overlay (menus, upgrade screen). */
   dim: number;
   /** Tutorial target circle. */
@@ -573,15 +574,21 @@ export class Renderer {
         ctx.moveTo(pts[s].x, pts[s].y);
         for (let k = s + 1; k <= e; k++) ctx.lineTo(pts[k].x, pts[k].y);
         if (e === n - 1) ctx.lineTo(w.px, w.py);
-        const hue = (p.time * 120 + s * 6) % 360;
+        const hue =
+          p.look === 'rainbow'
+            ? (p.time * 120 + s * 6) % 360
+            : p.look === 'aurora'
+              ? 150 + 125 * (0.5 + 0.5 * Math.sin(p.time * 1.6 - s * 0.045))
+              : 0;
+        const tinted = p.look === 'rainbow' || p.look === 'aurora';
         if (pass === 0) {
           ctx.globalAlpha = 1;
-          ctx.lineWidth = (ember ? 12 : 9) * (0.45 + 0.55 * pos);
-          ctx.strokeStyle = p.rainbow ? hsl(hue, 100, 60, a * 0.3) : rgba(glowColor, a * (ember ? 0.42 : 0.32));
+          ctx.lineWidth = (ember ? 12 : p.look === 'aurora' ? 13 : 9) * (0.45 + 0.55 * pos);
+          ctx.strokeStyle = tinted ? hsl(hue, 100, 60, a * (p.look === 'aurora' ? 0.36 : 0.3)) : rgba(glowColor, a * (ember ? 0.42 : 0.32));
         } else {
           ctx.globalAlpha = 1;
           ctx.lineWidth = 2.6 * (0.35 + 0.65 * pos);
-          ctx.strokeStyle = p.rainbow ? hsl(hue, 100, 82, a) : rgba(p.color, a);
+          ctx.strokeStyle = tinted ? hsl(hue, 100, 82, a) : rgba(p.color, a);
         }
         ctx.stroke();
       }
@@ -595,10 +602,19 @@ export class Renderer {
     const { ctx } = this;
     const { px, py } = w;
     const blink = w.invuln > 0 && Math.sin(p.time * 32) < 0;
-    const color = p.rainbow ? hsl(p.time * 120, 100, 75) : p.color;
-    const glowColor = p.rainbow ? '#c38bff' : p.color;
+    const auroraHue = 150 + 125 * (0.5 + 0.5 * Math.sin(p.time * 1.6));
+    const color = p.look === 'rainbow' ? hsl(p.time * 120, 100, 75) : p.look === 'aurora' ? hsl(auroraHue, 100, 80) : p.color;
+    const glowColor = p.look === 'rainbow' ? '#c38bff' : p.look === 'aurora' ? hsl(auroraHue, 100, 62) : p.color;
     ctx.globalCompositeOperation = 'lighter';
     const ready = w.pulseReady;
+    if (p.look === 'solar') this.drawCorona(px, py, p.time, blink);
+    if (p.look === 'aurora') {
+      // Slow counter-rotating veils.
+      for (let i = 0; i < 2; i++) {
+        const a = p.time * (i ? -0.9 : 0.7) + i * 2;
+        drawGlow(ctx, hsl(auroraHue + (i ? 60 : -40), 100, 60), px + Math.cos(a) * 9, py + Math.sin(a) * 9, 30, blink ? 0.2 : 0.45);
+      }
+    }
     drawGlow(ctx, glowColor, px, py, 34 + (ready ? 6 * Math.sin(p.time * 8) : 0), blink ? 0.35 : 0.9);
     drawGlow(ctx, '#ffffff', px, py, 11, blink ? 0.4 : 1, true);
     // Three tiny motes orbiting the spark.
@@ -606,6 +622,25 @@ export class Renderer {
       const a = p.time * 3.2 + (i * TAU) / 3;
       const rr = 11 + Math.sin(p.time * 5 + i) * 2;
       drawGlow(ctx, glowColor, px + Math.cos(a) * rr, py + Math.sin(a) * rr * 0.8, 3.2, blink ? 0.3 : 0.85, true);
+    }
+    // Light satellites (upgrade) – real hitboxes, so they get a clear core and a faint orbit line.
+    const sats = w.orbiterPositions();
+    if (sats.length > 0) {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 0.18;
+      ctx.strokeStyle = glowColor;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 5]);
+      ctx.beginPath();
+      ctx.arc(px, py, w.stats.orbitRadius, 0, TAU);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'lighter';
+      for (const o of sats) {
+        drawGlow(ctx, w.stats.galaxy ? '#ffd6ff' : glowColor, o.x, o.y, 19, 0.9);
+        drawGlow(ctx, '#ffffff', o.x, o.y, 7, 1, true);
+      }
     }
     ctx.globalCompositeOperation = 'source-over';
 
@@ -653,6 +688,26 @@ export class Renderer {
       ctx.fill();
     }
     ctx.globalAlpha = 1;
+  }
+
+  /** Sonnenkern: slowly turning corona rays. */
+  private drawCorona(px: number, py: number, time: number, blink: boolean): void {
+    const { ctx } = this;
+    const n = 10;
+    ctx.lineCap = 'round';
+    for (let i = 0; i < n; i++) {
+      const a = time * 0.6 + (i * TAU) / n;
+      const len = 15 + 5 * Math.sin(time * 4 + i * 1.7);
+      ctx.globalAlpha = blink ? 0.2 : 0.55;
+      ctx.strokeStyle = i % 2 ? '#ffb347' : '#fff1a8';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(px + Math.cos(a) * 10, py + Math.sin(a) * 10);
+      ctx.lineTo(px + Math.cos(a) * (10 + len), py + Math.sin(a) * (10 + len));
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    drawGlow(ctx, '#ff8a2a', px, py, 46, blink ? 0.2 : 0.45);
   }
 
   private drawProjectiles(w: World): void {

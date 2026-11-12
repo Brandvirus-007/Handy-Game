@@ -67,6 +67,8 @@ export interface SaveData {
   stats: LifetimeStats;
   settings: Settings;
   tutorialDone: boolean;
+  /** App version whose "What's new" notes were already shown. */
+  seenVersion: string;
 }
 
 export const SAVE_VERSION = 2;
@@ -106,6 +108,7 @@ export const defaultSave = (): SaveData => ({
   stats: { runs: 0, loops: 0, kills: 0, bossKills: 0, playTime: 0, shardsTotal: 0, bestLoop: 0, bestCombo: 0, bestWave: 0 },
   settings: defaultSettings(),
   tutorialDone: false,
+  seenVersion: '',
 });
 
 const num = (v: unknown, def: number, min = -Infinity, max = Infinity): number =>
@@ -209,6 +212,7 @@ export function sanitize(raw: unknown): SaveData {
     stats,
     settings,
     tutorialDone: bool(r.tutorialDone, false),
+    seenVersion: str(r.seenVersion, ''),
   };
 }
 

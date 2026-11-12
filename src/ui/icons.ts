@@ -27,6 +27,11 @@ const P: Record<string, string> = {
   storm: '<path d="M7 15a4 4 0 0 1 .5-8A5.5 5.5 0 0 1 18 8.5a3.5 3.5 0 0 1-.5 6.5"/><path d="M13 12l-3 5h4l-2 5"/>',
   starfrost: '<path d="M12 2l2.2 4.6 5 .7-3.6 3.5.9 5L12 13.4 7.5 15.8l.9-5L4.8 7.3l5-.7z"/><path d="M12 17v5M9.5 19.5h5"/>',
   phoenix: '<path d="M12 21c3.5 0 6-2.5 6-6 0-3-2-4.5-2-7-1.5 1-3 2.5-3 4.5-1-1-1.5-2.5-1-4.5C9 9.5 6 12 6 15c0 3.5 2.5 6 6 6z"/><path d="M3 9c2 0 3 1 4 3M21 9c-2 0-3 1-4 3"/>',
+  gravity: '<circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 3a9 9 0 0 1 9 9M21 12a9 9 0 0 1-9 9M12 21a9 9 0 0 1-9-9M3 12a9 9 0 0 1 9-9" stroke-dasharray="4 3"/><path d="M17 7l-3 3M7 17l3-3"/>',
+  orbit: '<circle cx="12" cy="12" r="2.5" fill="currentColor"/><ellipse cx="12" cy="12" rx="9" ry="5"/><circle cx="20" cy="10" r="1.8" fill="currentColor"/>',
+  galaxy: '<circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 10c4-4 9-1 8 3M14 12c4 4 1 9-3 8M12 14c-4 4-9 1-8-3M10 12c-4-4-1-9 3-8"/>',
+  crown: '<path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/>',
+  news: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h10M7 16h6"/>',
   pause: '<path d="M9 5v14M15 5v14" stroke-width="3"/>',
   play: '<path d="M8 5l11 7-11 7z" fill="currentColor"/>',
   gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1"/>',
@@ -64,6 +69,10 @@ const P: Record<string, string> = {
   'meta.magnet': '<path d="M6 4v8a6 6 0 0 0 12 0V4M6 8h4M14 8h4"/>',
   'meta.reroll': '<path d="M19 12a7 7 0 1 1-2-5M19 4v4h-4"/>',
   'meta.precharge': '<circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/>',
+  'meta.combo': '<path d="M5 6l14 12M19 6L5 18"/><path d="M4 21h16"/>',
+  'meta.score': '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/><path d="M12 9v4M10 11h4"/>',
+  'meta.wisdom': '<path d="M4 5h6a2 2 0 0 1 2 2v13a2 2 0 0 0-2-2H4zM20 5h-6a2 2 0 0 0-2 2v13a2 2 0 0 1 2-2h6z"/>',
+  'meta.luck': '<path d="M12 12c-2-3-6-3-6 0s4 3 6 0zm0 0c3-2 3-6 0-6s-3 4 0 6zm0 0c2 3 6 3 6 0s-4-3-6 0zm0 0c-3 2-3 6 0 6s3-4 0-6z"/><path d="M12 18l2 4"/>',
 };
 
 export function icon(name: string, size = 22, cls = ''): string {

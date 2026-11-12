@@ -1,6 +1,6 @@
 import { t, fmt, fmtShort, type I18nKey } from '../core/i18n';
 import { CHARACTERS, getCharacter } from '../game/characters';
-import { META, metaCost } from '../game/meta';
+import { META, META_VALUES, metaCost, metaLevelReq } from '../game/meta';
 import { ACHIEVEMENTS } from '../game/achievements';
 import { getUpgrade, UPGRADE_VALUES } from '../game/upgrades';
 import { TUNING } from '../game/config';
@@ -22,6 +22,7 @@ import {
   type ProductId,
   type Reward,
 } from '../economy/defs';
+import { anyMetaBuyable, levelPath, nextUnlockLevel, type Unlock } from '../economy/unlocks';
 import { achievementDiamonds, availableBoosters, boosterCost, canClaimMissionBonus, missionsClaimable } from '../economy/profile';
 import { privacyHtml } from './privacy';
 import { icon } from './icons';
@@ -31,7 +32,7 @@ const esc = (s: string): string => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', 
 
 function orb(id: CharacterId, big = false): string {
   const c = getCharacter(id);
-  return `<div class="orb ${big ? 'big' : ''} ${c.rainbow ? 'rainbow' : ''}" style="--c:${c.color}"></div>`;
+  return `<div class="orb ${big ? 'big' : ''} ${c.look !== 'plain' ? c.look : ''}" style="--c:${c.color}"></div>`;
 }
 
 function pips(level: number, max: number, next = false): string {
@@ -73,6 +74,10 @@ export function upgradeDesc(id: UpgradeId, level: number): string {
       return t(key, { v: fmt(UPGRADE_VALUES.slowmoTime(level), 1) });
     case 'supernova':
       return t(key, { v: UPGRADE_VALUES.supernovaEvery(level) });
+    case 'gravity':
+      return t(key, { v: UPGRADE_VALUES.gravityRadius(level) });
+    case 'orbit':
+      return t(key, { v: level + 1 });
     default:
       return t(key);
   }
@@ -261,14 +266,14 @@ export class UI {
     const s = this.app.save.data;
     const daily = this.app.dailyInfo();
     const dailyPlayed = s.daily.date === daily.date;
-    const canAffordAny = META.some((m) => (s.meta[m.id] ?? 0) < m.max && s.bank >= metaCost(m, s.meta[m.id] ?? 0));
+    const canAffordAny = anyMetaBuyable(s);
     const missions = missionsClaimable(s);
     const freeAds = this.app.freeDiamondsLeft() > 0;
     const need = xpForLevel(s.level);
     const html = `
       <div class="topbar">
         <button class="icon-btn" data-act="settings" aria-label="${t('menu.settings')}">${icon('gear')}</button>
-        <div class="level-chip" title="${t('level.title')}"><b>${s.level}</b><span><i style="width:${Math.round((s.xp / need) * 100)}%"></i></span></div>
+        <button class="level-chip" data-act="levels" aria-label="${t('levels.title')}"><b>${s.level}</b><span><i style="width:${Math.round((s.xp / need) * 100)}%"></i></span></button>
         ${this.wallet()}
       </div>
       <div class="screen-inner">
@@ -301,6 +306,7 @@ export class UI {
         else if (act === 'achievements') this.showAchievements();
         else if (act === 'missions') this.showMissions();
         else if (act === 'settings') this.showSettings('menu');
+        else if (act === 'levels') this.showLevels();
         else if (act === 'install') this.app.install();
       },
     });
@@ -313,6 +319,75 @@ export class UI {
   private back(): void {
     this.app.audio.uiBack();
     this.showMenu();
+  }
+
+  // ───────────────────────── Level path ─────────────────────────
+
+  unlockName(u: Unlock): string {
+    if (u.kind === 'char') return t(`char.${u.id}.name` as I18nKey);
+    if (u.kind === 'upgrade') return t('unlock.upgrade', { name: t(`upgrade.${u.id}.name` as I18nKey) });
+    const name = t(`meta.${u.id}.name` as I18nKey);
+    return u.rank <= 1 ? t('unlock.workshop', { name }) : t('unlock.metaRank', { name, n: u.rank });
+  }
+
+  unlockIcon(u: Unlock, size: number): string {
+    if (u.kind === 'char') return `<i class="mini-orb" style="--c:${getCharacter(u.id).color}"></i>`;
+    return icon(u.kind === 'meta' ? `meta.${u.id}` : u.id, size);
+  }
+
+  showLevels(): void {
+    const s = this.app.save.data;
+    const need = xpForLevel(s.level);
+    const next = nextUnlockLevel(s.level);
+    const steps = levelPath()
+      .map((st) => {
+        const reached = s.level >= st.level;
+        const chips = st.unlocks.map((u) => `<span class="chip">${this.unlockIcon(u, 15)}${esc(this.unlockName(u))}</span>`).join('');
+        return `<div class="lvl-step ${reached ? 'done' : st.level === next ? 'next' : ''}">
+          <div class="lvl-badge">${reached ? icon('check', 16) : st.level}</div>
+          <div class="body"><div class="name">${t('menu.level', { n: st.level })}</div><div class="chips">${chips}</div></div></div>`;
+      })
+      .join('');
+    const html = `${this.backBar(t('levels.title'))}
+      <div class="screen-inner top">
+        <div class="panel level-head">
+          <div class="lvl-big">${s.level}</div>
+          <div class="body"><div class="name">${t('menu.level', { n: s.level })}</div>
+            <span class="xpbar"><i style="width:${Math.round((s.xp / need) * 100)}%"></i></span>
+            <div class="desc">${t('levels.xp', { n: fmt(s.xp), max: fmt(need) })}</div></div>
+        </div>
+        <p class="hint" style="margin:0">${t('levels.desc')}</p>
+        <div class="lvl-path">${steps}</div>
+      </div>`;
+    const el = this.open('levels', html, {
+      onAction: (act) => {
+        if (act === 'back') this.back();
+      },
+    });
+    // Bring the next goal into view, but keep the header when it is already visible.
+    el.querySelector('.lvl-step.next')?.scrollIntoView({ block: 'nearest' });
+  }
+
+  /** "What's new" after an app update. */
+  showWhatsNew(onClose: () => void): void {
+    const wrap = document.createElement('div');
+    wrap.className = 'dialog-wrap';
+    const keys: I18nKey[] = ['news.1', 'news.2', 'news.3', 'news.4', 'news.5'];
+    const items = keys.map((k) => `<li>${esc(t(k))}</li>`).join('');
+    wrap.innerHTML = `<div class="dialog news">
+      <div class="news-icon">${icon('news', 30)}</div>
+      <h2>${t('news.title', { v: __APP_VERSION__ })}</h2>
+      <ul>${items}</ul>
+      <button class="btn primary" data-act="close">${t('news.ok')}</button>
+    </div>`;
+    wrap.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('[data-act=close]')) {
+        this.app.audio.uiClick();
+        wrap.remove();
+        onClose();
+      }
+    });
+    document.body.appendChild(wrap);
   }
 
   // ───────────────────────── Preparation (boosters) ─────────────────────────
@@ -449,6 +524,7 @@ export class UI {
             <button class="btn small" data-act="freead" ${left > 0 ? '' : 'disabled'}>${icon('play', 16)}${t('common.free')}</button>
           </div>
         </div>
+        ${s.chars.includes('aurora') ? '' : this.exclusiveOffer()}
         <div class="panel"><h3>${t('shop.offers')}</h3><div class="list">
           ${offer('starter_pack', t('shop.starterDesc'))}
           ${offer('no_ads', t('shop.noAdsDesc'))}
@@ -474,6 +550,17 @@ export class UI {
         }
       },
     });
+  }
+
+  /** Featured store-exclusive spark (real money only). */
+  private exclusiveOffer(): string {
+    return `<div class="panel exclusive-offer">
+      <span class="tag">${t('sparks.exclusive')}</span>
+      <div class="row">${orb('aurora', true)}
+        <div class="body"><div class="name">${t('char.aurora.name')}</div><div class="desc">${t('shop.auroraDesc')}</div></div>
+      </div>
+      <button class="btn buy" data-act="buy" data-id="spark_aurora">${icon('crown', 18)}${esc(this.app.priceOf('spark_aurora'))}</button>
+    </div>`;
   }
 
   // ───────────────────────── Missions ─────────────────────────
@@ -552,16 +639,23 @@ export class UI {
       const cost = metaCost(m, lv);
       const gems = diamondsForCoins(cost);
       const afford = s.bank >= cost;
-      const btn = maxed
-        ? `<button class="btn small" disabled>${t('common.max')}</button>`
-        : afford
-          ? `<button class="btn small" data-act="buy" data-id="${m.id}">${this.price('coins', cost)}</button>`
-          : `<button class="btn small gem-btn" data-act="instant" data-id="${m.id}" ${s.diamonds >= gems ? '' : 'disabled'}>
-              <small>${t('workshop.instant')}</small>${this.price('diamonds', gems)}</button>`;
-      return `<div class="item">
-        <div class="ico-wrap">${icon(`meta.${m.id}`, 24)}</div>
+      const req = metaLevelReq(m, lv);
+      const hidden = m.unlock > s.level;
+      const gated = !maxed && req > s.level;
+      let btn: string;
+      if (maxed) btn = `<button class="btn small" disabled>${t('common.max')}</button>`;
+      else if (gated) btn = `<button class="btn small lvl-lock" disabled>${icon('lock', 15)}${t('common.levelReq', { n: req })}</button>`;
+      else {
+        // Shards are always the main price; diamonds only offer to skip the saving up.
+        btn = `<div class="buy-col">
+          <button class="btn small ${afford ? '' : 'short'}" data-act="buy" data-id="${m.id}" ${afford ? '' : 'disabled'}>${this.price('coins', cost)}</button>
+          ${afford ? '' : `<button class="btn small gem-btn mini" data-act="instant" data-id="${m.id}" ${s.diamonds >= gems ? '' : 'disabled'}><small>${t('workshop.instant')}</small>${this.price('diamonds', gems)}</button>`}
+        </div>`;
+      }
+      return `<div class="item ${hidden ? 'locked' : ''}">
+        <div class="ico-wrap">${icon(hidden ? 'lock' : `meta.${m.id}`, 24)}</div>
         <div class="body"><div class="name">${t(`meta.${m.id}.name` as I18nKey)}</div>
-          <div class="desc">${t(`meta.${m.id}.desc` as I18nKey)}</div>${pips(lv, m.max)}</div>
+          <div class="desc">${this.metaDesc(m.id)}</div>${pips(lv, m.max)}</div>
         ${btn}
       </div>`;
     }).join('');
@@ -580,6 +674,14 @@ export class UI {
     });
   }
 
+  private metaDesc(id: MetaId): string {
+    const pct = (v: number) => Math.round(v * 100);
+    if (id === 'combo') return t('meta.combo.desc', { n: fmt(META_VALUES.combo(1), 2) });
+    if (id === 'score') return t('meta.score.desc', { n: pct(META_VALUES.score(1)) });
+    if (id === 'wisdom') return t('meta.wisdom.desc', { n: pct(META_VALUES.wisdom(1)) });
+    return t(`meta.${id}.desc` as I18nKey);
+  }
+
   // ───────────────────────── Sparks ─────────────────────────
 
   showSparks(returnTo?: () => void): void {
@@ -592,16 +694,28 @@ export class UI {
       const sel = s.selected === c.id;
       const hearts = (TUNING.player.hearts + c.heartsDelta) / 4;
       let btn: string;
+      const product = PRODUCTS.find((p) => p.unlocks === c.id && p.id !== 'starter_pack');
       if (sel) btn = `<button class="btn small" disabled>${icon('check', 18)}${t('common.selected')}</button>`;
       else if (owned) btn = `<button class="btn small" data-act="select" data-id="${c.id}">${t('common.select')}</button>`;
+      else if (c.exclusive && product)
+        btn = `<button class="btn small buy exclusive-buy" data-act="iap" data-id="${product.id}">${icon('crown', 16)}${esc(this.app.priceOf(product.id))}</button>`;
+      else if (c.unlockLevel > s.level) btn = `<button class="btn small lvl-lock" disabled>${icon('lock', 15)}${t('common.levelReq', { n: c.unlockLevel })}</button>`;
       else {
         const coinBtn = c.price > 0 ? `<button class="btn small" data-act="buy" data-cur="coins" data-id="${c.id}" ${s.bank >= c.price ? '' : 'disabled'}>${icon('lock', 15)}${this.price('coins', c.price)}</button>` : '';
         const gemBtn = `<button class="btn small gem-btn" data-act="buy" data-cur="diamonds" data-id="${c.id}" ${s.diamonds >= c.diamondPrice ? '' : 'disabled'}>${this.price('diamonds', c.diamondPrice)}</button>`;
         btn = `<div class="buy-row">${coinBtn}${coinBtn ? `<span class="or">${t('common.or')}</span>` : ''}${gemBtn}</div>`;
       }
-      return `<div class="spark-card ${sel ? 'selected' : ''} ${c.premium ? 'premium' : ''}">${orb(c.id, true)}
+      const tag = c.exclusive
+        ? `<span class="premium-tag exclusive">${t('sparks.exclusive')}</span>`
+        : c.premium
+          ? `<span class="premium-tag">${t('sparks.premium')}</span>`
+          : c.unlockLevel >= 50
+            ? `<span class="premium-tag legend">${t('sparks.legend')}</span>`
+            : '';
+      const locked = !owned && !c.exclusive && c.unlockLevel > s.level;
+      return `<div class="spark-card ${sel ? 'selected' : ''} ${c.premium ? 'premium' : ''} ${c.exclusive ? 'exclusive' : ''} ${locked ? 'locked' : ''}">${orb(c.id, true)}
         <div class="body"><div class="name" style="font-weight:750;font-size:18px">${t(`char.${c.id}.name` as I18nKey)}
-          ${c.premium ? `<span class="premium-tag">${t('sparks.premium')}</span>` : ''}</div>
+          ${tag}</div>
           <div class="desc" style="color:var(--muted);font-size:13.5px;margin-top:2px">${t(`char.${c.id}.desc` as I18nKey)}</div>
           <div class="bars">${bar(t('sparks.agility'), 1 / c.hitMul / 1.45, c.color)}${bar(t('sparks.trail'), c.trailMul / 1.35, c.color)}${bar(t('sparks.hearts'), hearts, '#ff5577')}</div>
           ${btn}</div></div>`;
@@ -622,6 +736,11 @@ export class UI {
           else this.showSparks();
         } else if (act === 'buy') {
           if (this.app.buyChar(id, el.dataset.cur as Currency)) this.showSparks(returnTo);
+        } else if (act === 'iap') {
+          this.app.audio.uiClick();
+          void this.app.buyProduct(el.dataset.id as ProductId).then(() => {
+            if (this.screenName === 'sparks') this.showSparks(returnTo);
+          });
         }
       },
     });
@@ -967,6 +1086,7 @@ export class UI {
     rewards.push(`<div class="reward-row">${icon('star', 18)}<span>${t('over.xp', { n: fmt(r.xp) })}</span>
       <span class="xpbar"><i style="width:${Math.round((s.xp / need) * 100)}%"></i></span><b>${t('menu.level', { n: s.level })}</b></div>`);
     for (const lu of r.levelUps) rewards.push(`<div class="reward-row hl">${icon('star', 18)}<span>${t('over.levelUp', { n: lu.level })}</span>${this.rewardChips(lu.reward)}</div>`);
+    for (const u of r.unlocked) rewards.push(`<div class="reward-row unlock">${this.unlockIcon(u, 18)}<span>${t('over.unlocked', { name: this.unlockName(u) })}</span></div>`);
     for (const m of r.milestones) rewards.push(`<div class="reward-row hl">${icon('gem', 18)}<span>${t('over.milestone', { n: m.wave })}</span>${this.price('diamonds', m.diamonds)}</div>`);
     if (r.missionsDone) rewards.push(`<div class="reward-row">${icon('target', 18)}<span>${t('over.missionsDone', { n: r.missionsDone })}</span></div>`);
     const ach = r.newAchievements.length

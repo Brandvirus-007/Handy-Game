@@ -37,7 +37,7 @@ Schockwelle, Kettenblitz, Echo, Frostschleife, Zeitlupe, Supernova … Nach jede
 Vom Nebelmeer über die Glutwüste und die Tiefsee bis zur Aurora und der Leere – jedes Gebiet mit eigener Farbwelt.
 
 ✦ 6 FUNKEN
-Jeder Funke spielt sich anders: der wendige Komet, die brennende Glut, das schillernde Prisma, die strahlende Nova und das Phantom, das den ersten Treffer jeder Welle ignoriert.
+Jeder Funke spielt sich anders: der wendige Komet, die brennende Glut, das schillernde Prisma, die strahlende Nova, das Phantom, das den ersten Treffer jeder Welle ignoriert, der eisige Frost, der elektrische Volt, der legendäre Sonnenkern ab Stufe 50 – und das exklusive Polarlicht.
 
 ✦ JEDEN TAG ETWAS NEUES
 Tägliche Herausforderung mit festen Modifikatoren, drei Tagesmissionen, ein 7-Tage-Bonus, Lichtstufen, Etappen und 26 Erfolge.
@@ -88,7 +88,7 @@ Shockwave, chain lightning, echo, frost loop, slow motion, supernova … After e
 From the Nebula Sea through the Ember Waste and the Deep to the Aurora and the Void – each with its own colours.
 
 ✦ 6 SPARKS
-Every spark plays differently: the nimble Comet, the burning Ember, the shimmering Prism, the radiant Nova and the Phantom that ignores the first hit of every wave.
+Every spark plays differently: the nimble Comet, the burning Ember, the shimmering Prism, the radiant Nova, the Phantom that ignores the first hit of every wave, icy Frost, electric Volt, the legendary Sun Core at level 50 – and the exclusive Aurora.
 
 ✦ SOMETHING NEW EVERY DAY
 A daily challenge with fixed modifiers, three daily missions, a 7-day bonus, light levels, milestones and 26 achievements.
@@ -105,4 +105,26 @@ The game is free to play and contains ads and optional in-app purchases.
 **Release notes 2.0.0:**
 ```
 Welcome to LUMEN LOOP! Draw circles of light, catch the shadows and survive as many waves as you can.
+```
+
+## Versionshinweise 2.1.0
+
+**Deutsch (max. 500 Zeichen):**
+```
+Das große Funken-Update!
+• 4 neue Funken: Frost, Volt, der legendäre Sonnenkern (ab Stufe 50) und der exklusive Polarlicht-Funke
+• Stufenpfad: sieh genau, was du bis Stufe 50 freischaltest
+• Werkstatt: 4 neue Verbesserungen für Splitter und neue Ränge
+• Neue Upgrades: Sogschleife, Lichtsatelliten und die Fusion Galaxie
+• Mehr Effekte und viele Fehlerbehebungen
+```
+
+**English (max. 500 characters):**
+```
+The big spark update!
+• 4 new sparks: Frost, Volt, the legendary Sun Core (level 50) and the exclusive Aurora
+• Level path: see exactly what you unlock up to level 50
+• Workshop: 4 new shard upgrades and new ranks
+• New upgrades: Gravity Loop, Light Satellites and the Galaxy fusion
+• More effects and lots of bug fixes
 ```

@@ -5,7 +5,9 @@ import { inBounds, pointInPolygon, polygonArea, polygonBounds, segmentCircle, po
 import { BOMB, BOSS_TYPES, ENEMIES, TUNING, WARDEN_AURA } from './config';
 import { Trail } from './trail';
 import { buildWave, type WavePlan } from './waves';
-import { rollOffer, UPGRADE_VALUES, getUpgrade, type UpgradeLevels } from './upgrades';
+import { rollOffer, UPGRADE_VALUES, getUpgrade, type OfferOptions, type UpgradeLevels } from './upgrades';
+import { META_VALUES } from './meta';
+import { getCharacter } from './characters';
 import { computeStats } from './stats';
 import { updateEnemy, splitterBurst, isHarmless } from './enemies';
 import { updateBoss, hazardBeams } from './bosses';
@@ -43,6 +45,8 @@ export interface RunOptions {
   tutorial: boolean;
   /** Boosters bought for this run. */
   boosters?: BoosterId[];
+  /** Player level – gates level-locked upgrades. Omitted = everything unlocked (tests, tools). */
+  level?: number;
 }
 
 export type WavePhase = 'intro' | 'active' | 'cleared' | 'upgrade' | 'idle';
@@ -110,6 +114,9 @@ export class World {
   private grid: SpatialGrid<Enemy>;
   private scratch: Enemy[] = [];
   private emberClock = 0;
+  /** Light satellites: current angle and per-enemy hit cooldowns (enemy id → time it can be hit again). */
+  orbitAngle = 0;
+  private orbitCd = new Map<number, number>();
   private shardFrac = 0;
   private flockSums = new Map<number, { x: number; y: number; n: number }>();
   private nextFlock = 1;
@@ -153,7 +160,11 @@ export class World {
     if (b.includes('shield')) this.shieldUp = true;
     if (b.includes('charge') && !this.stats.noPulse) this.pulseCharge = 1;
     if (b.includes('lucky')) {
-      const [id] = rollOffer(this.rng, this.upgrades, 1, { exclude: this.offerExclusions(), guaranteeRare: true });
+      const [id] = rollOffer(this.rng, this.upgrades, 1, { ...this.offerOptions(), guaranteeRare: true });
+      if (id) this.applyUpgrade(id);
+    }
+    if (this.stats.startEpic && !opts.tutorial) {
+      const [id] = rollOffer(this.rng, this.upgrades, 1, { ...this.offerOptions(), only: 'epic' });
       if (id) this.applyUpgrade(id);
     }
   }
@@ -217,7 +228,7 @@ export class World {
     if (this.has('headstart')) {
       // Skip the opening waves: three free upgrades to match the stronger enemies.
       for (let i = 0; i < 3; i++) {
-        const [id] = rollOffer(this.rng, this.upgrades, 1, { exclude: this.offerExclusions() });
+        const [id] = rollOffer(this.rng, this.upgrades, 1, this.offerOptions());
         if (id) this.applyUpgrade(id);
       }
       this.beginWave(HEADSTART_WAVE);
@@ -254,20 +265,24 @@ export class World {
     // Never offer upgrades that cannot do anything under the current modifiers.
     if (this.stats.noPulse) ex.push('pulsecharge', 'doublepulse', 'supernova', 'retaliate');
     if (this.opts.modifiers.includes('glass')) ex.push('heart', 'healloop');
+    // Sparks with a built-in second wind gain nothing from the upgrade.
+    if (getCharacter(this.opts.character).secondWind) ex.push('secondwind');
     return ex;
   }
 
+  /** Shared offer settings: exclusions, level locks and workshop luck. */
+  offerOptions(): OfferOptions {
+    return { exclude: this.offerExclusions(), level: this.opts.level, luck: META_VALUES.luck(this.opts.meta.luck ?? 0) };
+  }
+
   rollOffer(): UpgradeId[] {
-    return rollOffer(this.rng, this.upgrades, 3, {
-      exclude: this.offerExclusions(),
-      guaranteeRare: this.plan?.boss != null,
-    });
+    return rollOffer(this.rng, this.upgrades, 3, { ...this.offerOptions(), guaranteeRare: this.plan?.boss != null });
   }
 
   reroll(): UpgradeId[] | null {
     if (this.rerolls <= 0) return null;
     this.rerolls--;
-    return rollOffer(this.rng, this.upgrades, 3, { exclude: this.offerExclusions() });
+    return rollOffer(this.rng, this.upgrades, 3, this.offerOptions());
   }
 
   applyUpgrade(id: UpgradeId): void {
@@ -305,6 +320,7 @@ export class World {
     this.updateFrost(dt);
     this.updateBombs(dt);
     this.updateEmber(dt);
+    this.updateOrbiters(dt);
     this.updatePickups(dt);
     this.flushSpawns();
     this.cleanup();
@@ -410,6 +426,8 @@ export class World {
       for (const e of killed) this.chainFrom(e, this.stats.chain, hit);
     }
     if (this.stats.treasure > 0) for (const e of killed) this.dropShards(e.x, e.y, this.stats.treasure);
+    // Sogschleife: survivors near the loop are dragged towards its centre, ready for the next one.
+    if (this.stats.gravity > 0 && !echo) this.pullTowards(polygonCentroid(poly), UPGRADE_VALUES.gravityRadius(this.stats.gravity));
 
     // Projectiles and pickups inside are captured too.
     for (const p of this.projectiles) {
@@ -641,6 +659,57 @@ export class World {
       }
     }
     for (const p of this.projectiles) if (dist2(p.x, p.y, this.px, this.py) < radius * radius) p.dead = true;
+  }
+
+  private pullTowards(c: Vec, radius: number): void {
+    let pulled = false;
+    for (const e of this.enemies) {
+      if (e.dead || e.boss) continue;
+      const dx = c.x - e.x;
+      const dy = c.y - e.y;
+      const d = len(dx, dy);
+      if (d < 8 || d > radius + e.r) continue;
+      const f = Math.min(d * 3.2, 340) * (1 - e.mass);
+      e.kx += (dx / d) * f;
+      e.ky += (dy / d) * f;
+      pulled = true;
+    }
+    if (pulled) this.emit({ type: 'gravity', x: c.x, y: c.y, r: radius });
+  }
+
+  /** Lichtsatelliten: orbs circling the player that hurt whatever they touch. */
+  private updateOrbiters(dt: number): void {
+    const n = this.stats.orbiters;
+    if (n <= 0 || !this.alive) return;
+    this.orbitAngle += dt * (this.stats.galaxy ? 3.4 : 2.8);
+    const r = this.stats.orbitRadius;
+    const dmg = this.stats.galaxy ? 2 : 1;
+    for (let i = 0; i < n; i++) {
+      const a = this.orbitAngle + (i / n) * Math.PI * 2;
+      const ox = this.px + Math.cos(a) * r;
+      const oy = this.py + Math.sin(a) * r;
+      for (const e of this.enemies) {
+        if (e.dead || e.t < 0.05 || (e.shielded && !this.stats.pierce)) continue;
+        const rr = e.r + 7;
+        if (dist2(ox, oy, e.x, e.y) > rr * rr) continue;
+        if ((this.orbitCd.get(e.id) ?? 0) > this.time) continue;
+        this.orbitCd.set(e.id, this.time + 0.7);
+        this.emit({ type: 'orbitHit', x: ox, y: oy });
+        this.damage(e, dmg, 'orbit');
+      }
+    }
+    if (this.orbitCd.size > 64) for (const [id, until] of this.orbitCd) if (until < this.time) this.orbitCd.delete(id);
+  }
+
+  /** World positions of the satellites (for rendering). */
+  orbiterPositions(): Vec[] {
+    const n = this.stats.orbiters;
+    const out: Vec[] = [];
+    for (let i = 0; i < n; i++) {
+      const a = this.orbitAngle + (i / n) * Math.PI * 2;
+      out.push({ x: this.px + Math.cos(a) * this.stats.orbitRadius, y: this.py + Math.sin(a) * this.stats.orbitRadius });
+    }
+    return out;
   }
 
   get pulseReady(): boolean {

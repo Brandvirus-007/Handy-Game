@@ -58,6 +58,7 @@ das Angebot am attraktivsten.
 | `diamonds_6000` | Verbrauchbar | 6.000 Diamanten (+50 %) · *Bester Wert* | 49,99 € |
 | `starter_pack` | Einmalig | 300 Diamanten + 3.000 Splitter + Funke **Nova** | 2,99 € |
 | `no_ads` | Einmalig | Keine Interstitials + 100 Diamanten Bonus | 3,99 € |
+| `spark_aurora` | Einmalig | Exklusiver Funke **Polarlicht** (nur für Echtgeld, nicht mit Diamanten) + 150 Diamanten | 5,99 € |
 
 Preise werden in der Play Console festgelegt; die App zeigt den **lokalisierten Preis aus Google Play** an.
 

@@ -37,6 +37,7 @@ Technische Details zum Bauen und Signieren: [`android/README.md`](../android/REA
 | `diamonds_6000` | verbrauchbar | 49,99 € |
 | `starter_pack` | einmalig | 2,99 € |
 | `no_ads` | einmalig | 3,99 € |
+| `spark_aurora` | einmalig | 5,99 € (exklusiver Funke Polarlicht + 150 Diamanten, ab Version 2.1.0) |
 
 > In Google Play sind alle sieben „In-App-Produkte“ (keine Abos). Ob ein Kauf verbraucht wird, entscheidet die App.
 

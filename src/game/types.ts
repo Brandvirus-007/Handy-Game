@@ -22,7 +22,7 @@ export type EnemyType =
 
 export type BossType = 'maw' | 'weaver' | 'twins' | 'hydra' | 'eye';
 
-export type CharacterId = 'spark' | 'comet' | 'ember' | 'prism' | 'nova' | 'phantom';
+export type CharacterId = 'spark' | 'comet' | 'ember' | 'prism' | 'nova' | 'phantom' | 'glacier' | 'volt' | 'solar' | 'aurora';
 
 export type UpgradeId =
   | 'trail'
@@ -52,11 +52,14 @@ export type UpgradeId =
   | 'pierce'
   | 'storm'
   | 'starfrost'
-  | 'phoenix';
+  | 'phoenix'
+  | 'gravity'
+  | 'orbit'
+  | 'galaxy';
 
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
 
-export type MetaId = 'heart' | 'trail' | 'shards' | 'reroll' | 'precharge' | 'magnet';
+export type MetaId = 'heart' | 'trail' | 'shards' | 'reroll' | 'precharge' | 'magnet' | 'combo' | 'score' | 'wisdom' | 'luck';
 
 export type ModifierId = 'glass' | 'haste' | 'swarmy' | 'longtrail' | 'bossrush' | 'nopulse';
 
@@ -214,6 +217,15 @@ export interface PlayerStats {
   storm: boolean;
   starfrost: boolean;
   phoenix: boolean;
+  /** Loops pull surviving enemies towards their centre (0 = off). */
+  gravity: number;
+  /** Number of light satellites orbiting the player. */
+  orbiters: number;
+  orbitRadius: number;
+  /** Legendary fusion: satellites hit twice as hard. */
+  galaxy: boolean;
+  /** Solar: the run starts with a random epic upgrade. */
+  startEpic: boolean;
   cometCharge: boolean;
   noPulse: boolean;
 }
@@ -236,7 +248,7 @@ export interface RunStats {
   flawlessStreak: number;
 }
 
-export type KillSource = 'loop' | 'echo' | 'shockwave' | 'chain' | 'ember' | 'pulse' | 'boss' | 'other';
+export type KillSource = 'loop' | 'echo' | 'shockwave' | 'chain' | 'ember' | 'pulse' | 'orbit' | 'boss' | 'other';
 
 export type GameEvent =
   | { type: 'loop'; poly: Vec[]; cx: number; cy: number; area: number; kills: number; combo: number; echo: boolean }
@@ -269,4 +281,6 @@ export type GameEvent =
   | { type: 'blocked'; x: number; y: number }
   | { type: 'blink'; x: number; y: number }
   | { type: 'bombArmed'; x: number; y: number }
-  | { type: 'heal'; x: number; y: number };
+  | { type: 'heal'; x: number; y: number }
+  | { type: 'gravity'; x: number; y: number; r: number }
+  | { type: 'orbitHit'; x: number; y: number };

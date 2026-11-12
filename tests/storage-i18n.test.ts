@@ -35,7 +35,7 @@ describe('save data', () => {
     expect(new SaveStore(kv).data).toEqual(defaultSave());
     const s = sanitize({ bank: 'lots', meta: { trail: 99, bogus: 3 }, chars: ['comet', 'hacker'], selected: 'hacker', settings: { music: 7, lang: 'xx' } });
     expect(s.bank).toBe(0);
-    expect(s.meta.trail).toBe(8);
+    expect(s.meta.trail).toBe(10);
     expect((s.meta as Record<string, number>).bogus).toBeUndefined();
     expect(s.chars).toEqual(['spark', 'comet']);
     expect(s.selected).toBe('spark');

@@ -1,7 +1,7 @@
 import { TUNING } from './config';
 import { getCharacter } from './characters';
 import { UPGRADE_VALUES, type UpgradeLevels } from './upgrades';
-import type { MetaLevels } from './meta';
+import { META_VALUES, type MetaLevels } from './meta';
 import type { CharacterId, ModifierId, PlayerStats } from './types';
 
 /** Derives the effective player stats from character + permanent upgrades + run upgrades + modifiers. */
@@ -34,21 +34,21 @@ export function computeStats(
     trailLife,
     magnet: TUNING.magnet * (1 + 0.15 * m('magnet')) * (1 + UPGRADE_VALUES.magnet(lv('magnet'))),
     maxHearts,
-    shardMul: (1 + 0.1 * m('shards')) * (1 + UPGRADE_VALUES.shardrain(lv('shardrain'))) * (modifiers.includes('glass') ? 2 : 1) * (bonus.shardMul ?? 1),
-    scoreMul: c.scoreMul * (1 + UPGRADE_VALUES.stardust(lv('stardust'))),
-    comboWindow: TUNING.combo.window + UPGRADE_VALUES.combo(lv('combo')),
+    shardMul: c.shardMul * (1 + 0.1 * m('shards')) * (1 + UPGRADE_VALUES.shardrain(lv('shardrain'))) * (modifiers.includes('glass') ? 2 : 1) * (bonus.shardMul ?? 1),
+    scoreMul: c.scoreMul * (1 + UPGRADE_VALUES.stardust(lv('stardust'))) * (1 + META_VALUES.score(m('score'))),
+    comboWindow: TUNING.combo.window + UPGRADE_VALUES.combo(lv('combo')) + META_VALUES.combo(m('combo')),
     loopDamage: 1 + lv('double'),
-    shockwave: lv('shockwave'),
-    frost: lv('frost'),
+    shockwave: lv('shockwave') + c.innateShockwave,
+    frost: lv('frost') + c.innateFrost,
     chain: lv('chain') + c.innateChain + (lv('storm') ? 2 : 0),
     echo: lv('echo') + c.innateEcho,
     slowmo: lv('slowmo'),
     ember: lv('ember') + c.innateEmber,
     pulseLevel,
     pulseRadius: (TUNING.pulse.radius + TUNING.pulse.perLevelRadius * pulseLevel) * c.pulseRadiusMul,
-    pulseGain: 1 + 0.3 * pulseLevel,
+    pulseGain: (1 + 0.3 * pulseLevel) * c.pulseGainMul,
     shield: lv('shield'),
-    secondWind: lv('secondwind') > 0,
+    secondWind: lv('secondwind') > 0 || c.secondWind,
     phase: c.phase,
     treasure: UPGRADE_VALUES.treasure(lv('treasure')),
     retaliate: lv('retaliate') > 0,
@@ -60,6 +60,11 @@ export function computeStats(
     storm: lv('storm') > 0,
     starfrost: lv('starfrost') > 0,
     phoenix: lv('phoenix') > 0,
+    gravity: lv('gravity'),
+    orbiters: lv('orbit') > 0 ? lv('orbit') + 1 + (lv('galaxy') ? 2 : 0) : 0,
+    orbitRadius: UPGRADE_VALUES.orbitRadius(lv('galaxy')),
+    galaxy: lv('galaxy') > 0,
+    startEpic: c.startEpic,
     cometCharge: c.cometCharge,
     noPulse: modifiers.includes('nopulse'),
   };

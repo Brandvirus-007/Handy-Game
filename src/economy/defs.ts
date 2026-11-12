@@ -41,14 +41,24 @@ export const HEADSTART_WAVE = 6;
 
 // ───────────────────────── Shop ─────────────────────────
 
-export type ProductId = 'diamonds_80' | 'diamonds_450' | 'diamonds_1000' | 'diamonds_2200' | 'diamonds_6000' | 'starter_pack' | 'no_ads';
+import type { CharacterId } from '../game/types';
+
+export type ProductId =
+  | 'diamonds_80'
+  | 'diamonds_450'
+  | 'diamonds_1000'
+  | 'diamonds_2200'
+  | 'diamonds_6000'
+  | 'starter_pack'
+  | 'no_ads'
+  | 'spark_aurora';
 
 export interface ProductDef {
   id: ProductId;
   consumable: boolean;
   reward: Reward;
-  /** Unlocks a character (starter pack). */
-  unlocks?: 'nova';
+  /** Unlocks a character (starter pack, store-exclusive sparks). */
+  unlocks?: CharacterId;
   /** Fallback price label shown when the store price is not available (web demo). */
   fallbackPrice: string;
   badge?: 'popular' | 'best';
@@ -63,6 +73,8 @@ export const PRODUCTS: ProductDef[] = [
   { id: 'diamonds_6000', consumable: true, reward: { diamonds: 6000 }, fallbackPrice: '49,99 €', bonusPct: 50, badge: 'best' },
   { id: 'starter_pack', consumable: false, reward: { diamonds: 300, coins: 3000 }, unlocks: 'nova', fallbackPrice: '2,99 €' },
   { id: 'no_ads', consumable: false, reward: { diamonds: 100 }, fallbackPrice: '3,99 €' },
+  /** Store-exclusive spark – real money only, never for shards or diamonds. */
+  { id: 'spark_aurora', consumable: false, reward: { diamonds: 150 }, unlocks: 'aurora', fallbackPrice: '5,99 €' },
 ];
 
 export const getProduct = (id: ProductId): ProductDef => PRODUCTS.find((p) => p.id === id)!;
@@ -192,4 +204,6 @@ export const ACHIEVEMENT_DIAMONDS: Record<string, number> = {
   revived: 5,
   shopper: 10,
   legend: 25,
+  level50: 100,
+  galaxy: 30,
 };

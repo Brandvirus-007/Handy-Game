@@ -317,6 +317,14 @@ export class Fx {
         if (e.kind === 'heart') break;
         this.burst(e.x, e.y, COLORS.shard, e.kind === 'bigshard' ? 8 : 3, 70, 0.3, 3);
         break;
+      case 'gravity':
+        // Rings collapsing into the loop centre.
+        this.ring(e.x, e.y, '#b9a3ff', e.r, 6, 0.45, 2.5);
+        this.ring(e.x, e.y, '#ffffff', e.r * 0.7, 4, 0.35, 1.5);
+        break;
+      case 'orbitHit':
+        this.burst(e.x, e.y, '#ffffff', 5, 110, 0.25, 3, Kind.Streak);
+        break;
       case 'heal':
         this.text(t('float.heart'), e.x, e.y - 18, COLORS.heart, 13);
         this.burst(e.x, e.y, COLORS.heart, 14, 120, 0.6, 5);

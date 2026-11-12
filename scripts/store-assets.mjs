@@ -7,6 +7,7 @@ import { createRequire } from 'node:module';
 const { chromium } = createRequire(import.meta.url)('playwright');
 
 const OUT = 'docs/store';
+const APP_VERSION = JSON.parse(readFileSync('package.json', 'utf8')).version;
 const PORT = 5233;
 const font = readFileSync('node_modules/@fontsource-variable/outfit/files/outfit-latin-wght-normal.woff2').toString('base64');
 const emblem = readFileSync('public/icons/icon.svg', 'utf8').replace(/<rect[^>]*\/>/, '');
@@ -54,15 +55,17 @@ try {
       await page.screenshot({ path: `${dir}/${name}.jpg`, type: 'jpeg', quality: 88 });
     };
     const sleep = (ms) => page.waitForTimeout(ms);
-    await page.addInitScript(() => {
+    await page.addInitScript((version) => {
       const today = new Date();
       const key = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
       localStorage.setItem('lumen-loop/save', JSON.stringify({
         v: 2, tutorialDone: true, bank: 2450, diamonds: 135, level: 7, xp: 420, chars: ['spark', 'comet', 'ember'], selected: 'spark',
         meta: { trail: 3, heart: 1, shards: 2 }, best: 48210, bestWave: 17, login: { last: key, day: 3 },
         stats: { bestWave: 17, runs: 23, kills: 2210, loops: 1630, bossKills: 4, playTime: 9800, shardsTotal: 5100, bestLoop: 9, bestCombo: 11 },
+        // Notes for this version count as seen – no "What's new" dialog over the screenshots.
+        seenVersion: version,
       }));
-    });
+    }, APP_VERSION);
     await page.goto(`http://localhost:${PORT}/`);
     await sleep(1600);
     await shot('1-menu');

@@ -5,7 +5,8 @@ import { detectLang, setLang, t, type I18nKey } from './core/i18n';
 import { BIOMES, TUNING, biomeForWave } from './game/config';
 import { World } from './game/world';
 import { getCharacter, CHARACTERS } from './game/characters';
-import { META, metaCost, getMeta } from './game/meta';
+import { META_VALUES, metaCost, metaLevelReq, getMeta } from './game/meta';
+import { anyMetaBuyable, unlocksBetween, type Unlock } from './economy/unlocks';
 import { getUpgrade } from './game/upgrades';
 import { dailySetup, type DailySetup } from './game/modifiers';
 import type { AchievementId } from './game/achievements';
@@ -71,6 +72,8 @@ export interface RunResult {
   canAfford: boolean;
   xp: number;
   levelUps: LevelUp[];
+  /** Content unlocked by this run's level-ups. */
+  unlocked: Unlock[];
   milestones: { wave: number; diamonds: number }[];
   missionsDone: number;
   canDouble: boolean;
@@ -203,7 +206,22 @@ export class App {
     void this.platform.getProducts().then((p) => (this.products = p));
     void this.platform.recoverPurchases((p) => void this.credit(p));
     void this.restoreEntitlements(true);
-    setTimeout(() => this.offerDailyLogin(), 700);
+    this.afterUpdate();
+  }
+
+  /** Shows the "What's new" notes once per app version to returning players, then the daily login. */
+  private afterUpdate(): void {
+    const s = this.save.data;
+    const returning = s.tutorialDone && s.stats.runs > 0;
+    const fresh = s.seenVersion !== __APP_VERSION__;
+    if (fresh) {
+      s.seenVersion = __APP_VERSION__;
+      this.save.save();
+    }
+    setTimeout(() => {
+      if (fresh && returning && this.state === 'menu') this.ui.showWhatsNew(() => this.offerDailyLogin());
+      else this.offerDailyLogin();
+    }, 700);
   }
 
   private setActive(active: boolean): void {
@@ -363,6 +381,7 @@ export class App {
       daily: setup.daily,
       tutorial: setup.tutorial,
       boosters: setup.boosters,
+      level: this.save.data.level,
     });
     this.world = world;
     this.renderer.layout(world.w, world.h, this.arena);
@@ -497,6 +516,7 @@ export class App {
     if (!w || this.state !== 'upgrade') return;
     w.applyUpgrade(id);
     if (getUpgrade(id).rarity === 'legendary') this.unlock('legend');
+    if (id === 'galaxy') this.unlock('galaxy');
     w.nextWave();
     this.state = 'playing';
     this.ui.close();
@@ -632,13 +652,14 @@ export class App {
     }
 
     // Progression: experience, levels and missions.
-    const xp = xpForRun({ score: r.score, kills: r.kills, wavesCleared: r.wavesCleared });
+    const xp = Math.round(xpForRun({ score: r.score, kills: r.kills, wavesCleared: r.wavesCleared }) * (1 + META_VALUES.wisdom(s.meta.wisdom ?? 0)));
+    const levelBefore = s.level;
     const levelUps = addXp(s, xp);
+    const unlocked = unlocksBetween(levelBefore, s.level);
     // Level-ups are listed on the result screen – no extra toasts on top of it.
-    for (const lu of levelUps) {
-      if (lu.level >= 10) this.unlock('level10');
-      if (lu.level >= 25) this.unlock('level25');
-    }
+    if (s.level >= 10) this.unlock('level10');
+    if (s.level >= 25) this.unlock('level25');
+    if (s.level >= 50) this.unlock('level50');
     ensureMissions(s, localDateKey());
     const done = progressMissions(s, {
       kills: r.kills,
@@ -656,7 +677,7 @@ export class App {
     if (st.shardsTotal >= 1000) this.unlock('shards1000');
     this.save.save();
 
-    const canAfford = META.some((m) => (s.meta[m.id] ?? 0) < m.max && s.bank >= metaCost(m, s.meta[m.id] ?? 0));
+    const canAfford = anyMetaBuyable(s);
     this.ui.hud.show(false);
     this.audio.duck(true);
     this.audio.setIntensity(0);
@@ -676,6 +697,7 @@ export class App {
       canAfford,
       xp,
       levelUps,
+      unlocked,
       milestones: [...this.runMilestones],
       missionsDone: done.length,
       canDouble: r.shards > 0,
@@ -758,7 +780,7 @@ export class App {
     const lv = s.meta[id] ?? 0;
     const cost = metaCost(def, lv);
     const price = currency === 'coins' ? cost : diamondsForCoins(cost);
-    if (lv >= def.max || !spend(s, currency, price)) {
+    if (lv >= def.max || metaLevelReq(def, lv) > s.level || !spend(s, currency, price)) {
       this.audio.denied();
       return false;
     }
@@ -773,7 +795,14 @@ export class App {
     const s = this.save.data;
     const c = getCharacter(id);
     const price = currency === 'coins' ? c.price : c.diamondPrice;
-    if (s.chars.includes(id) || price <= 0 || (c.premium && currency === 'coins') || !spend(s, currency, price)) {
+    if (
+      s.chars.includes(id) ||
+      c.exclusive ||
+      price <= 0 ||
+      c.unlockLevel > s.level ||
+      (c.premium && currency === 'coins') ||
+      !spend(s, currency, price)
+    ) {
       this.audio.denied();
       return false;
     }
@@ -782,8 +811,14 @@ export class App {
     this.save.save();
     this.audio.purchase();
     this.haptics.buzz(25);
-    if (CHARACTERS.every((ch) => s.chars.includes(ch.id))) this.unlock('all_chars');
+    this.checkAllChars();
     return true;
+  }
+
+  /** "Collector": every spark that can be earned in-game (store exclusives don't count). */
+  private checkAllChars(): void {
+    const s = this.save.data;
+    if (CHARACTERS.every((ch) => ch.exclusive || s.chars.includes(ch.id))) this.unlock('all_chars');
   }
 
   selectChar(id: CharacterId): void {
@@ -895,11 +930,14 @@ export class App {
     const s = this.save.data;
     if (creditPurchase(s, p.productId, p.token)) {
       const def = getProduct(p.productId);
+      // A bought spark is selected right away.
+      if (def.unlocks && def.id !== 'starter_pack') s.selected = def.unlocks;
       this.save.save();
       this.audio.purchase();
       this.haptics.buzz([30, 40, 60]);
       this.ui.toast(t('shop.thanks'), `${t(`shop.product.${p.productId}` as I18nKey)} ${rewardText(def.reward)}`, 'gem');
       this.unlock('shopper');
+      this.checkAllChars();
       this.ui.refresh();
     }
     try {
@@ -918,13 +956,15 @@ export class App {
       s.owned.noAds = true;
       changed = true;
     }
-    if (owned.includes('starter_pack')) {
-      if (!s.owned.starter) {
-        s.owned.starter = true;
-        changed = true;
-      }
-      if (!s.chars.includes('nova')) {
-        s.chars.push('nova');
+    if (owned.includes('starter_pack') && !s.owned.starter) {
+      s.owned.starter = true;
+      changed = true;
+    }
+    // Sparks that came with a store purchase (starter pack, exclusives).
+    for (const id of owned) {
+      const unlock = getProduct(id).unlocks;
+      if (unlock && !s.chars.includes(unlock)) {
+        s.chars.push(unlock);
         changed = true;
       }
     }
@@ -996,7 +1036,7 @@ export class App {
       time: this.time,
       color: c.color,
       trailColor: c.trail,
-      rainbow: c.rainbow,
+      look: c.look,
       dim: this.dim,
       hint: this.tutorial?.hint() ?? null,
     });
