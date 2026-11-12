@@ -102,6 +102,8 @@ interface BeforeInstallPromptEvent extends Event {
 
 const DT = TUNING.dt;
 const HUD_TOP = 60;
+/** Gap between fingertip and spark in direct touch mode (CSS px ≈ dp: about 9, 13 and 18 mm). */
+const TOUCH_OFFSET = { small: 56, medium: 80, large: 112 } as const;
 
 export class App {
   readonly save = new SaveStore();
@@ -123,6 +125,8 @@ export class App {
 
   private setup: RunSetup | null = null;
   private pendingDx = 0;
+  /** Latest finger position (CSS px) not yet applied – direct touch mode. */
+  private pendingPoint: { x: number; y: number } | null = null;
   private pendingDy = 0;
   private acc = 0;
   private last = 0;
@@ -161,6 +165,9 @@ export class App {
       drag: (dx, dy) => {
         this.pendingDx += dx;
         this.pendingDy += dy;
+      },
+      point: (x, y) => {
+        this.pendingPoint = { x, y };
       },
       pulse: () => this.pulse(),
       pause: () => this.pause(),
@@ -276,6 +283,19 @@ export class App {
     };
     const shown = this.world ?? this.demo;
     if (shown) this.renderer.layout(shown.w, shown.h, this.arena);
+  }
+
+  /**
+   * Direct touch mode: the spark sits a fixed distance above the fingertip so the thumb never
+   * covers it. Near the top and bottom edge the gap shrinks smoothly, so every spot stays reachable.
+   */
+  private fingerToWorld(x: number, y: number, w: World): { x: number; y: number } {
+    const r = this.renderer;
+    const gap = TOUCH_OFFSET[this.save.data.settings.offset];
+    const top = r.oy;
+    const bottom = r.oy + w.h * r.scale;
+    const ease = clamp(Math.min(y - top, bottom - y) / (2 * gap), 0, 1);
+    return { x: (x - r.ox) / r.scale, y: (y - gap * ease - r.oy) / r.scale };
   }
 
   private worldSize(): { w: number; h: number } {
@@ -396,6 +416,7 @@ export class App {
     this.timeScale = 1;
     this.slowmo = 0;
     this.pendingDx = this.pendingDy = 0;
+    this.pendingPoint = null;
     this.state = 'playing';
     this.ui.close();
     this.ui.hud.invalidate();
@@ -427,6 +448,7 @@ export class App {
     this.input.reset();
     this.input.enabled = true;
     this.pendingDx = this.pendingDy = 0;
+    this.pendingPoint = null;
     this.acc = 0;
     // A short grace period so resuming never causes an instant hit.
     this.world.invuln = Math.max(this.world.invuln, 0.8);
@@ -524,6 +546,7 @@ export class App {
     this.input.reset();
     this.input.enabled = true;
     this.pendingDx = this.pendingDy = 0;
+    this.pendingPoint = null;
   }
 
   rerollUpgrade(): void {
@@ -602,6 +625,7 @@ export class App {
     this.input.reset();
     this.input.enabled = true;
     this.pendingDx = this.pendingDy = 0;
+    this.pendingPoint = null;
     this.platform.keepAwake(true);
     this.unlock('revived');
   }
@@ -1129,11 +1153,18 @@ export class App {
   }
 
   private stepWorld(w: World, rdt: number): void {
-    if (this.pendingDx || this.pendingDy) {
-      const k = this.save.data.settings.sensitivity / this.renderer.scale;
+    const st = this.save.data.settings;
+    if (st.control === 'direct') {
+      if (this.pendingPoint) {
+        const p = this.fingerToWorld(this.pendingPoint.x, this.pendingPoint.y, w);
+        w.setTarget(p.x, p.y);
+      }
+    } else if (this.pendingDx || this.pendingDy) {
+      const k = st.sensitivity / this.renderer.scale;
       w.steer(this.pendingDx * k, this.pendingDy * k);
-      this.pendingDx = this.pendingDy = 0;
     }
+    this.pendingDx = this.pendingDy = 0;
+    this.pendingPoint = null;
     const kb = this.input.enabled ? this.input.keyboard() : { x: 0, y: 0 };
     w.setKeyboard(kb.x, kb.y);
 

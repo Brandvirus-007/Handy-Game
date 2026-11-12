@@ -38,7 +38,7 @@ Warum das auf dem Handy funktioniert:
 
 | Eingabe | Aktion |
 |---|---|
-| Finger ziehen (irgendwo) | Funke bewegt sich **relativ** zum Finger wie bei einem Trackpad, daher verdeckt der Finger nie den Funken |
+| Finger ziehen | Standard: Der Funke folgt dem Finger und schwebt dabei 56/80/112 px (einstellbar) darüber, damit der Daumen ihn nicht verdeckt. Am oberen und unteren Rand schrumpft der Abstand, damit jede Stelle erreichbar bleibt. Alternativ: Trackpad-Modus, der Funke bewegt sich **relativ** zum Finger |
 | Doppeltippen / zweiter Finger / Puls-Button | **Puls**: Schockwelle, sobald aufgeladen |
 | Pause-Button / App verlassen | Pause (automatisch bei `visibilitychange`) |
 | Desktop: WASD/Pfeile, Leertaste, Esc | Bewegung, Puls, Pause |

@@ -32,7 +32,8 @@ export class Tutorial {
     this.spawned = false;
     this.advanceIn = -1;
     const last = step === STEPS.length - 1;
-    this.app.ui.tutorial(t(STEPS[step]), step, STEPS.length, last ? () => this.app.finishTutorial() : undefined);
+    const key = step === 0 && this.app.save.data.settings.control === 'relative' ? 'tut.moveRelative' : STEPS[step];
+    this.app.ui.tutorial(t(key), step, STEPS.length, last ? () => this.app.finishTutorial() : undefined);
   }
 
   private complete(): void {

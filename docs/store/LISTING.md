@@ -14,50 +14,39 @@ Grafiken in diesem Ordner (neu erzeugen mit `node scripts/store-assets.mjs`):
 
 **App-Name** (26/30): `LUMEN LOOP: Lichtschleifen`
 
-**Kurzbeschreibung** (74/80):
-`Zieh Kreise aus Licht und fang die Schatten – Arcade-Action für eine Hand!`
+**Kurzbeschreibung** (66/80):
+`Zieh mit dem Daumen Schleifen aus Licht und fang die Schatten ein.`
 
 **Vollständige Beschreibung:**
 
 ```
-Zieh mit dem Finger eine leuchtende Spur über den Bildschirm. Kreuzt sie sich selbst, schließt sich eine Schleife – und jeder Schatten darin wird ausgelöscht. Je mehr du auf einmal fängst, desto höher der Multiplikator!
+Zieh mit dem Finger eine leuchtende Spur über den Bildschirm. Wenn sich die Spur kreuzt, entsteht eine Schleife, und alle Schatten darin verschwinden. Je mehr Schatten du mit einer Schleife erwischst, desto mehr Punkte gibt es.
 
-LUMEN LOOP ist ein Arcade-Roguelite, das du mit einem Daumen spielst. Leicht zu lernen, schwer zu meistern – jede Runde spielt sich anders.
+LUMEN LOOP spielst du mit einem Daumen. Die Regeln hast du schnell raus. Nach jeder Welle suchst du dir ein Upgrade aus, deshalb läuft keine Runde wie die andere.
 
-✦ EINZIGARTIGE KERNMECHANIK
-Kein Joystick, keine Knöpfe: Du zeichnest. Große Schleifen fangen viele Schatten – bringen dich aber auch nah an sie heran.
+SO SPIELT ES SICH
+Es gibt keinen Joystick und keine Knöpfe, du zeichnest einfach. Große Schleifen fangen viele Schatten, bringen dich aber auch nah an sie heran. Der Funke schwebt knapp über deinem Finger, damit du ihn immer siehst.
 
-✦ 10 SCHATTENARTEN & 5 BOSSE
-Motten, Pfeile, Scheren, die deine Spur zerschneiden, Wächter mit Schildaura, teleportierende Blinker, explodierende Bomber … und Bosse wie die Hydra, die sich in drei Köpfe teilt, oder das Auge mit seinem rotierenden Laserstrahl.
+GEGNER
+10 Arten von Schatten und 5 Bosse. Scheren zerschneiden deine Spur, Wächter schützen andere Schatten, Bomber explodieren. Die Hydra teilt sich in drei Köpfe, das Auge dreht einen Laserstrahl im Kreis.
 
-✦ 25 UPGRADES MIT SYNERGIEN
-Schockwelle, Kettenblitz, Echo, Frostschleife, Zeitlupe, Supernova … Nach jeder Welle wählst du eins von drei. Finde deine Lieblingskombination!
+UPGRADES
+31 Upgrades, zum Beispiel Schockwelle, Kettenblitz, Echo, Frost und Zeitlupe. Manche passen gut zusammen, und aus bestimmten Paaren werden Fusionen.
 
-✦ 5 GEBIETE
-Vom Nebelmeer über die Glutwüste und die Tiefsee bis zur Aurora und der Leere – jedes Gebiet mit eigener Farbwelt.
+FUNKEN
+10 Funken, die sich unterschiedlich spielen. Der Komet ist klein und schwer zu treffen, die Glut hat eine brennende Spur, das Phantom ignoriert den ersten Treffer jeder Welle, den Sonnenkern gibt es ab Stufe 50.
 
-✦ 6 FUNKEN
-Jeder Funke spielt sich anders: der wendige Komet, die brennende Glut, das schillernde Prisma, die strahlende Nova, das Phantom, das den ersten Treffer jeder Welle ignoriert, der eisige Frost, der elektrische Volt, der legendäre Sonnenkern ab Stufe 50 – und das exklusive Polarlicht.
+FORTSCHRITT
+Eine tägliche Herausforderung, drei Tagesmissionen, ein Bonus für jeden Tag, an dem du spielst, Stufen bis 50 mit neuen Freischaltungen, eine Werkstatt für dauerhafte Verbesserungen und 29 Erfolge.
 
-✦ JEDEN TAG ETWAS NEUES
-Tägliche Herausforderung mit festen Modifikatoren, drei Tagesmissionen, ein 7-Tage-Bonus, Lichtstufen, Etappen und 26 Erfolge.
+SONST NOCH
+5 Gebiete mit eigenen Farben. Musik und Sounds erzeugt das Spiel selbst. Vibration, Spielen ohne Internet, und wenn du die App wechselst, pausiert das Spiel.
 
-✦ WERKSTATT & BOOSTER
-Verbessere deine Grundwerte dauerhaft und starte mit Boostern wie Startschild, Extraherz oder Kopfstart.
-
-✦ GEMACHT FÜRS HANDY
-Komplett prozeduraler Sound mit generativer Musik, Vibration, Vollbild, Spielen ohne Internet und automatische Pause beim App-Wechsel.
-
-Das Spiel ist kostenlos und enthält Werbung sowie optionale In-App-Käufe.
+Das Spiel ist kostenlos. Es enthält Werbung und freiwillige In-App-Käufe.
 ```
 
 **Kategorie:** Spiele → Arcade · **Tags:** Arcade, Casual, Roguelike, Offline
 **Kontakt-E-Mail:** _deine E-Mail_ · **Datenschutzerklärung:** `https://brandvirus-007.github.io/Handy-Game/privacy.html`
-
-**Versionshinweise 2.0.0:**
-```
-Willkommen bei LUMEN LOOP! Zieh Kreise aus Licht, fang die Schatten und überlebe so viele Wellen wie möglich.
-```
 
 ---
 
@@ -65,66 +54,65 @@ Willkommen bei LUMEN LOOP! Zieh Kreise aus Licht, fang die Schatten und überleb
 
 **App name** (26/30): `LUMEN LOOP: Loops of Light`
 
-**Short description** (70/80):
-`Draw circles of light and catch the shadows – one-thumb arcade action!`
+**Short description** (64/80):
+`Draw loops of light with your thumb and trap the shadows inside.`
 
 **Full description:**
 
 ```
-Drag a glowing trail across the screen. When it crosses itself, a loop closes – and every shadow inside is wiped out. The more you catch at once, the higher your multiplier!
+Drag a glowing trail across the screen. When the trail crosses itself, it forms a loop, and every shadow inside disappears. The more shadows you catch with one loop, the more points you get.
 
-LUMEN LOOP is an arcade roguelite you play with one thumb. Easy to learn, hard to master – and every run plays differently.
+You play LUMEN LOOP with one thumb. The rules take a minute to pick up. After every wave you choose an upgrade, so no two runs play the same.
 
-✦ A UNIQUE CORE MECHANIC
-No joystick, no buttons: you draw. Big loops catch many shadows – but they also bring you close to them.
+HOW IT PLAYS
+There is no joystick and there are no buttons. You just draw. Big loops catch lots of shadows, but they also bring you close to them. The spark hovers just above your finger, so you can always see it.
 
-✦ 10 SHADOW TYPES & 5 BOSSES
-Moths, darts, scissors that cut your trail, wardens with shield auras, teleporting blinkers, exploding bombers … and bosses like the Hydra that splits into three heads or the Eye with its rotating laser beam.
+ENEMIES
+10 kinds of shadows and 5 bosses. Scissors cut your trail, wardens protect other shadows, bombers explode. The Hydra splits into three heads, and the Eye sweeps a laser beam around the arena.
 
-✦ 25 UPGRADES WITH SYNERGIES
-Shockwave, chain lightning, echo, frost loop, slow motion, supernova … After every wave, pick one of three. Find your favourite combo!
+UPGRADES
+31 upgrades, such as shockwave, chain lightning, echo, frost and slow motion. Some work well together, and certain pairs turn into fusions.
 
-✦ 5 REGIONS
-From the Nebula Sea through the Ember Waste and the Deep to the Aurora and the Void – each with its own colours.
+SPARKS
+10 sparks that each play differently. The Comet is small and hard to hit, the Ember leaves a burning trail, the Phantom ignores the first hit of every wave, and the Sun Core unlocks at level 50.
 
-✦ 6 SPARKS
-Every spark plays differently: the nimble Comet, the burning Ember, the shimmering Prism, the radiant Nova, the Phantom that ignores the first hit of every wave, icy Frost, electric Volt, the legendary Sun Core at level 50 – and the exclusive Aurora.
+PROGRESS
+A daily challenge, three daily missions, a bonus for every day you play, levels up to 50 with new unlocks, a workshop for permanent upgrades and 29 achievements.
 
-✦ SOMETHING NEW EVERY DAY
-A daily challenge with fixed modifiers, three daily missions, a 7-day bonus, light levels, milestones and 26 achievements.
+ALSO
+5 regions with their own colours. The game makes its own music and sounds. Vibration, offline play, and the game pauses when you switch apps.
 
-✦ WORKSHOP & BOOSTERS
-Permanently improve your stats and start runs with boosters such as an opening shield, an extra heart or a head start.
-
-✦ MADE FOR PHONES
-Fully procedural sound with generative music, vibration, full screen, offline play and auto-pause when you switch apps.
-
-The game is free to play and contains ads and optional in-app purchases.
+The game is free. It contains ads and optional in-app purchases.
 ```
 
-**Release notes 2.0.0:**
-```
-Welcome to LUMEN LOOP! Draw circles of light, catch the shadows and survive as many waves as you can.
-```
+---
 
 ## Versionshinweise 2.1.0
 
+Diese Hinweise passen, wenn schon eine ältere Version im Store ist. Für die allererste Veröffentlichung den kurzen Text ganz unten nehmen.
+
 **Deutsch (max. 500 Zeichen):**
 ```
-Das große Funken-Update!
-• 4 neue Funken: Frost, Volt, der legendäre Sonnenkern (ab Stufe 50) und der exklusive Polarlicht-Funke
-• Stufenpfad: sieh genau, was du bis Stufe 50 freischaltest
-• Werkstatt: 4 neue Verbesserungen für Splitter und neue Ränge
+• Neue Steuerung: Der Funke schwebt über deinem Finger. Abstand und Trackpad-Modus findest du in den Einstellungen.
+• 4 neue Funken: Frost, Volt, Sonnenkern (ab Stufe 50) und Polarlicht (nur im Shop)
+• Stufenpfad: Tipp auf deine Stufe und sieh, was als Nächstes kommt
+• Werkstatt: 4 neue Verbesserungen und höhere Ränge
 • Neue Upgrades: Sogschleife, Lichtsatelliten und die Fusion Galaxie
-• Mehr Effekte und viele Fehlerbehebungen
+• Fehler behoben
 ```
 
 **English (max. 500 characters):**
 ```
-The big spark update!
-• 4 new sparks: Frost, Volt, the legendary Sun Core (level 50) and the exclusive Aurora
-• Level path: see exactly what you unlock up to level 50
-• Workshop: 4 new shard upgrades and new ranks
+• New controls: the spark hovers above your finger. Distance and trackpad mode are in the settings.
+• 4 new sparks: Frost, Volt, Sun Core (level 50) and Aurora (shop only)
+• Level path: tap your level to see what comes next
+• Workshop: 4 new improvements and higher ranks
 • New upgrades: Gravity Loop, Light Satellites and the Galaxy fusion
-• More effects and lots of bug fixes
+• Bug fixes
+```
+
+**Für die allererste Veröffentlichung** (falls 2.1.0 die erste Version ist):
+```
+DE: Erste Version. Zieh Schleifen aus Licht, fang die Schatten und halte so viele Wellen durch, wie du kannst.
+EN: First release. Draw loops of light, catch the shadows and last as many waves as you can.
 ```

@@ -5,6 +5,9 @@ import type { CharacterId, MetaId } from '../game/types';
 import type { BoosterId, MissionType, Reward } from '../economy/defs';
 
 export type Quality = 'auto' | 'high' | 'low';
+/** direct: the spark hovers above the finger · relative: trackpad-style steering. */
+export type ControlMode = 'direct' | 'relative';
+export type TouchOffset = 'small' | 'medium' | 'large';
 export type LangSetting = 'auto' | 'de' | 'en';
 
 export interface Settings {
@@ -13,6 +16,8 @@ export interface Settings {
   haptics: boolean;
   shake: boolean;
   sensitivity: number;
+  control: ControlMode;
+  offset: TouchOffset;
   quality: Quality;
   lang: LangSetting;
   reducedMotion: boolean;
@@ -80,6 +85,8 @@ export const defaultSettings = (): Settings => ({
   haptics: true,
   shake: true,
   sensitivity: 1.1,
+  control: 'direct',
+  offset: 'medium',
   quality: 'auto',
   lang: 'auto',
   reducedMotion: false,
@@ -159,6 +166,8 @@ export function sanitize(raw: unknown): SaveData {
     haptics: bool(st.haptics, ds.haptics),
     shake: bool(st.shake, ds.shake),
     sensitivity: num(st.sensitivity, ds.sensitivity, 0.5, 2),
+    control: oneOf(st.control, ['direct', 'relative'] as const, ds.control),
+    offset: oneOf(st.offset, ['small', 'medium', 'large'] as const, ds.offset),
     quality: oneOf(st.quality, ['auto', 'high', 'low'] as const, ds.quality),
     lang: oneOf(st.lang, ['auto', 'de', 'en'] as const, ds.lang),
     reducedMotion: bool(st.reducedMotion, ds.reducedMotion),

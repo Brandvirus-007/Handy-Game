@@ -18,10 +18,10 @@ Berührst du einen Schatten selbst, kostet das ein Herz.
 
 - **Kernmechanik „Schleife“** mit Multi-Kill- und Kombo-Multiplikatoren. Ein *magnetischer Schleifenschluss*
   verzeiht auf dem Touchscreen ein paar Pixel Ungenauigkeit.
-- **1:1-Relativsteuerung** wie bei einem Trackpad: Der Finger kann überall liegen und verdeckt den Funken nie.
+- **Steuerung:** Der Funke schwebt in einstellbarem Abstand über dem Finger (am Rand wird der Abstand kleiner, damit jede Stelle erreichbar bleibt). Alternativ gibt es eine Trackpad-Steuerung, bei der der Finger irgendwo liegen kann.
 - **10 Gegnertypen** (u. a. Wächter mit Schildaura, teleportierende Blinker, explodierende Bomber) und **5 Bosse**:
   Schlund, Weberin, Zwillinge, Hydra und Auge. Alle fünf Wellen kommt ein Boss, mit jedem Durchgang stärker.
-- **30 Upgrades** mit Synergien (davon 4 legendäre Fusionen), **10 Funken** (zwei Premium, einer exklusiv im Shop, der Sonnenkern ab Stufe 50) und **5 Gebiete** mit eigener Farbwelt.
+- **31 Upgrades** mit Synergien (davon 4 legendäre Fusionen), **10 Funken** (zwei Premium, einer exklusiv im Shop, der Sonnenkern ab Stufe 50) und **5 Gebiete** mit eigener Farbwelt.
 - **Fortschritt:** Lichtstufen mit Stufenpfad (Funken, Upgrades und Werkstatt-Ränge werden bis Stufe 50 freigeschaltet), Etappen, 3 Tagesmissionen, 7-Tage-Bonus, Werkstatt mit 10 Verbesserungen, Booster, 29 Erfolge, tägliche Herausforderung.
 - **Wirtschaft:** Splitter (im Spiel verdient) und Diamanten (Etappen, Erfolge, Stufen, Missionen, Gratis-Werbung oder Kauf).
   Nach dem Tod kann man einmal pro Runde per Werbung weiterspielen, danach mit Splittern oder Diamanten.
@@ -48,7 +48,7 @@ Danach startet LUMEN LOOP als Vollbild-App und funktioniert auch offline.
 
 | Eingabe | Aktion |
 |---|---|
-| Finger ziehen | Funke bewegen (relativ, 1:1) |
+| Finger ziehen | Funke bewegen (schwebt über dem Finger; Trackpad-Modus in den Einstellungen) |
 | Doppeltippen / zweiter Finger / PULS-Button | Puls (Schockwelle, sobald aufgeladen) |
 | Desktop: WASD/Pfeile · Leertaste · Esc | Bewegen · Puls · Pause |
 

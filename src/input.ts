@@ -1,13 +1,16 @@
 export interface InputHandlers {
   drag(dx: number, dy: number): void;
+  /** Absolute finger position (CSS px) on touch-down and while dragging. */
+  point(x: number, y: number): void;
   pulse(): void;
   pause(): void;
   gesture(): void;
 }
 
 /**
- * Pointer + keyboard input. Touch steering is *relative* (trackpad style): the finger can be
- * anywhere and never covers the spark. Double-tap or a second finger triggers the pulse.
+ * Pointer + keyboard input. Reports both finger deltas (trackpad mode) and absolute positions
+ * (direct mode, spark above the finger); the app decides which one steers.
+ * Double-tap or a second finger triggers the pulse.
  */
 export class Input {
   enabled = false;
@@ -61,6 +64,7 @@ export class Input {
     this.lastY = e.clientY;
     this.downTime = now;
     this.moved = 0;
+    this.h.point(e.clientX, e.clientY);
     try {
       this.target.setPointerCapture(e.pointerId);
     } catch {
@@ -76,7 +80,10 @@ export class Input {
     this.lastX = e.clientX;
     this.lastY = e.clientY;
     this.moved += Math.abs(dx) + Math.abs(dy);
-    if (this.enabled) this.h.drag(dx, dy);
+    if (this.enabled) {
+      this.h.drag(dx, dy);
+      this.h.point(e.clientX, e.clientY);
+    }
   };
 
   private onUp = (e: PointerEvent): void => {

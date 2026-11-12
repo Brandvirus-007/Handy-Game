@@ -198,6 +198,14 @@ export class World {
     this.clampTarget();
   }
 
+  /** Absolute steering (direct touch mode): the spark heads for this point at its normal speed. */
+  setTarget(x: number, y: number): void {
+    if (!this.alive) return;
+    const r = TUNING.player.radius;
+    this.tx = clamp(x, r, this.w - r);
+    this.ty = clamp(y, r, this.h - r);
+  }
+
   setKeyboard(dx: number, dy: number): void {
     const l = len(dx, dy);
     this.kbx = l > 0 ? dx / l : 0;

@@ -803,7 +803,13 @@ export class UI {
           ${slider('sfx', 'settings.sfx', st.sfx, 0, 1, 0.05)}
         </div>
         <div class="panel"><h3>${t('settings.controls')}</h3>
-          ${slider('sensitivity', 'settings.sensitivity', st.sensitivity, 0.6, 1.8, 0.05)}
+          ${seg('control', 'settings.control', st.control, [['direct', t('settings.control.direct')], ['relative', t('settings.control.relative')]])}
+          <p class="hint control-hint">${t(st.control === 'direct' ? 'settings.control.directHint' : 'settings.control.relativeHint')}</p>
+          ${
+            st.control === 'direct'
+              ? seg('offset', 'settings.offset', st.offset, [['small', t('settings.offset.small')], ['medium', t('settings.offset.medium')], ['large', t('settings.offset.large')]])
+              : slider('sensitivity', 'settings.sensitivity', st.sensitivity, 0.6, 1.8, 0.05)
+          }
           ${toggle('haptics', 'settings.haptics', st.haptics)}
         </div>
         <div class="panel"><h3>${t('settings.display')}</h3>
@@ -844,7 +850,7 @@ export class UI {
           btn.parentElement!.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === btn));
           this.app.applySettings();
           this.app.audio.uiClick();
-          if (key === 'lang') this.showSettings(from);
+          if (key === 'lang' || key === 'control') this.showSettings(from);
         } else if (act === 'tutorial') {
           this.app.audio.uiSelect();
           this.app.startTutorial();
