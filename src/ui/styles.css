@@ -2757,6 +2757,10 @@ button.level-chip:active b {
   color: var(--gem);
 }
 
+.exclusive-offer .perks li.bonus.coins .ico {
+  color: var(--gold);
+}
+
 /* ───────────── Layout rhythm: one bar height, one gap, aligned columns ───────────── */
 
 :root {

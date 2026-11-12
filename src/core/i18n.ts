@@ -533,6 +533,7 @@ const de = {
   'perk.trailMinus': '{n} % kürzere Spur',
   'perk.trailLifeMinus': 'Spur verblasst {n} % schneller',
   'over.levelUps': 'Stufe {a} bis {b} erreicht!',
+  'perk.coins': '{n} Splitter dazu',
 } as const;
 
 export type I18nKey = keyof typeof de;
@@ -1070,6 +1071,7 @@ const en: Record<I18nKey, string> = {
   'perk.trailMinus': '{n}% shorter trail',
   'perk.trailLifeMinus': 'Trail fades {n}% faster',
   'over.levelUps': 'Reached levels {a} to {b}!',
+  'perk.coins': '{n} shards included',
 
 };
 

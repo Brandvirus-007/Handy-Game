@@ -591,9 +591,10 @@ export class UI {
 
   /** Featured store spark: shows what it does, what is included and the price. */
   private exclusiveOffer(): string {
-    const gems = getProduct('spark_aurora').reward.diamonds ?? 0;
+    const { diamonds = 0, coins = 0 } = getProduct('spark_aurora').reward;
     const perks = this.sparkPerks('aurora').map((p) => `<li>${icon(p.ico, 16)}<span>${esc(p.text)}</span></li>`);
-    if (gems) perks.push(`<li class="bonus">${icon('gem', 16)}<span>${esc(t('perk.diamonds', { n: gems }))}</span></li>`);
+    if (diamonds) perks.push(`<li class="bonus">${icon('gem', 16)}<span>${esc(t('perk.diamonds', { n: fmt(diamonds) }))}</span></li>`);
+    if (coins) perks.push(`<li class="bonus coins">${icon('shard', 16)}<span>${esc(t('perk.coins', { n: fmt(coins) }))}</span></li>`);
     return `<div class="panel exclusive-offer">
       <span class="tag">${t('sparks.exclusive')}</span>
       <div class="row">${orb('aurora', true)}

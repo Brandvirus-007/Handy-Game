@@ -74,7 +74,7 @@ export const PRODUCTS: ProductDef[] = [
   { id: 'starter_pack', consumable: false, reward: { diamonds: 300, coins: 3000 }, unlocks: 'nova', fallbackPrice: '2,99 €' },
   { id: 'no_ads', consumable: false, reward: { diamonds: 100 }, fallbackPrice: '3,99 €' },
   /** Store-exclusive spark – real money only, never for shards or diamonds. */
-  { id: 'spark_aurora', consumable: false, reward: { diamonds: 150 }, unlocks: 'aurora', fallbackPrice: '5,99 €' },
+  { id: 'spark_aurora', consumable: false, reward: { diamonds: 500, coins: 5000 }, unlocks: 'aurora', fallbackPrice: '9,99 €' },
 ];
 
 export const getProduct = (id: ProductId): ProductDef => PRODUCTS.find((p) => p.id === id)!;
