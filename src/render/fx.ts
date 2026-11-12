@@ -81,6 +81,8 @@ export class Fx {
   screenFlashColor = '#ffffff';
   damagePulse = 0;
   private time = 0;
+  /** Beams can cut the trail many times per second – show the label only occasionally. */
+  private lastCutText = -1;
   settings: FxSettings = { shake: true, reducedMotion: false, density: 1 };
   playerColor = '#7df9ff';
 
@@ -266,8 +268,11 @@ export class Fx {
         break;
       case 'trailCut':
         this.burst(e.x, e.y, '#ff9a3c', 14, 180, 0.4, 4, Kind.Streak);
-        this.text(t('float.cut'), e.x, e.y - 10, '#ffb36b', 11, 0.7);
-        this.shake(0.08);
+        if (this.time - this.lastCutText > 0.4) {
+          this.lastCutText = this.time;
+          this.text(t('float.cut'), e.x, e.y - 10, '#ffb36b', 11, 0.7);
+          this.shake(0.08);
+        }
         break;
       case 'spawn': {
         const color = ENEMIES[e.enemy].color;

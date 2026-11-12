@@ -1,5 +1,6 @@
 // Browser smoke test on an emulated phone (Pixel 7, German locale): loads the production
-// build, runs the tutorial, plays with pointer input, pauses, and fails on any console error.
+// build, runs the tutorial, starts a run from the booster screen, plays with pointer input,
+// pauses (or goes through the continue dialog), and fails on any console error.
 // Screenshots are written to $SMOKE_OUT (default ./smoke-output).
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
@@ -63,22 +64,27 @@ try {
   await sleep(1200);
   await shot('02-tutorial');
   await page.getByRole('button', { name: 'Überspringen' }).click();
+  // After the tutorial comes the preparation screen (boosters) – start without boosters.
+  await page.getByRole('button', { name: /Los!/ }).click();
   await sleep(2000);
 
   for (let k = 0; k < 2; k++) await circles(vp.width / 2 + (k % 2 ? 50 : -50), vp.height * 0.5, 80, 2);
   await shot('03-gameplay');
 
-  // Pause – blind circles may already have cost all hearts, so accept the game-over screen too.
+  // Pause – blind circles may already have cost all hearts, so the continue dialog may show instead.
   await page.locator('.hud-pause').dispatchEvent('pointerdown');
-  const resume = page.getByRole('button', { name: 'Weiter' });
-  const again = page.getByRole('button', { name: 'Nochmal' });
-  await resume.or(again).first().waitFor({ timeout: 8000 });
-  await shot('04-pause-or-over');
+  const resume = page.getByRole('button', { name: 'Weiter', exact: true });
+  const giveUp = page.getByRole('button', { name: 'Aufgeben' });
+  await resume.or(giveUp).first().waitFor({ timeout: 8000 });
+  await shot('04-pause-or-continue');
   if (await resume.isVisible()) {
     await resume.click();
     console.log('Paused and resumed.');
   } else {
-    console.log('Run ended before pausing (game-over screen shown).');
+    await giveUp.click();
+    await page.getByRole('button', { name: 'Nochmal' }).waitFor({ timeout: 8000 });
+    await shot('05-game-over');
+    console.log('Run ended: continue dialog → give up → result screen.');
   }
 } finally {
   await browser.close();

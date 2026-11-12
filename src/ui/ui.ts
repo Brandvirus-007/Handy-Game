@@ -162,6 +162,8 @@ export class UI {
   }
 
   toast(kicker: string, title: string, ico = 'trophy'): void {
+    // Several unlocks at once must not bury the screen: keep at most three visible.
+    while (this.toasts.children.length >= 3) this.toasts.firstElementChild?.remove();
     const el = document.createElement('div');
     el.className = 'toast';
     el.innerHTML = `<div class="ico-wrap">${icon(ico, 22)}</div><div><div class="t1">${esc(kicker)}</div><div class="t2">${esc(title)}</div></div>`;
