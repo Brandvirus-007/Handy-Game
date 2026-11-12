@@ -27,6 +27,8 @@ export interface FrameParams {
   dim: number;
   /** Tutorial target circle. */
   hint?: { x: number; y: number; r: number } | null;
+  /** Menu demo: no arena frame, gentler presentation. */
+  ambient?: boolean;
 }
 
 const BODY = '#0b0716';
@@ -128,7 +130,7 @@ export class Renderer {
     ctx.setTransform(dpr * s, 0, 0, dpr * s, dpr * (this.ox + sh.x), dpr * (this.oy + sh.y));
 
     if (world) {
-      this.drawArena(time, world);
+      if (!p.ambient) this.drawArena(time, world);
       this.drawFrost(world);
       this.drawHazards(world, time);
       this.drawMarkers(world, time);
@@ -479,6 +481,18 @@ export class Renderer {
       const color = p.kind === 'heart' ? COLORS.heart : COLORS.shard;
       drawGlow(ctx, color, p.x, p.y, p.kind === 'heart' ? 18 : big ? 16 : 9, 0.7);
     }
+    // Magnetised shards leave a short golden streak.
+    ctx.strokeStyle = COLORS.shard;
+    ctx.lineCap = 'round';
+    for (const p of w.pickups) {
+      if (!p.magnet || p.kind === 'heart') continue;
+      ctx.globalAlpha = 0.45;
+      ctx.lineWidth = p.kind === 'bigshard' ? 3 : 2;
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(p.x - p.vx * 0.045, p.y - p.vy * 0.045);
+      ctx.stroke();
+    }
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
     for (const p of w.pickups) {
@@ -587,6 +601,12 @@ export class Renderer {
     const ready = w.pulseReady;
     drawGlow(ctx, glowColor, px, py, 34 + (ready ? 6 * Math.sin(p.time * 8) : 0), blink ? 0.35 : 0.9);
     drawGlow(ctx, '#ffffff', px, py, 11, blink ? 0.4 : 1, true);
+    // Three tiny motes orbiting the spark.
+    for (let i = 0; i < 3; i++) {
+      const a = p.time * 3.2 + (i * TAU) / 3;
+      const rr = 11 + Math.sin(p.time * 5 + i) * 2;
+      drawGlow(ctx, glowColor, px + Math.cos(a) * rr, py + Math.sin(a) * rr * 0.8, 3.2, blink ? 0.3 : 0.85, true);
+    }
     ctx.globalCompositeOperation = 'source-over';
 
     ctx.globalAlpha = blink ? 0.45 : 1;

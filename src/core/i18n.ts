@@ -450,6 +450,16 @@ const de = {
   'ads.title': 'Werbung',
   'ads.unavailable': 'Gerade ist keine Werbung verfügbar. Versuch es gleich noch einmal.',
   'ads.loading': 'Werbung wird geladen …',
+  'rarity.legendary': 'Legendär',
+  'upgrade.fusion': 'Fusion: {a} + {b}',
+  'upgrade.storm.name': 'Gewitterschleife',
+  'upgrade.storm.desc': 'Kettenblitz trifft 2 Gegner mehr, und jeder Blitzeinschlag explodiert.',
+  'upgrade.starfrost.name': 'Sternenfrost',
+  'upgrade.starfrost.desc': 'Dein Puls macht doppelten Schaden und hinterlässt einen Frostring.',
+  'upgrade.phoenix.name': 'Phönixspur',
+  'upgrade.phoenix.desc': 'Die Glutspur brennt doppelt so schnell. Verlierst du ein Herz, lodert die ganze Spur auf.',
+  'ach.legend.name': 'Legendär',
+  'ach.legend.desc': 'Wähle eine legendäre Fusion.',
 } as const;
 
 export type I18nKey = keyof typeof de;
@@ -904,6 +914,16 @@ const en: Record<I18nKey, string> = {
   'ads.title': 'Ads',
   'ads.unavailable': 'No ad is available right now. Please try again in a moment.',
   'ads.loading': 'Loading ad …',
+  'rarity.legendary': 'Legendary',
+  'upgrade.fusion': 'Fusion: {a} + {b}',
+  'upgrade.storm.name': 'Storm Loop',
+  'upgrade.storm.desc': 'Chain lightning hits 2 more enemies and every strike explodes.',
+  'upgrade.starfrost.name': 'Star Frost',
+  'upgrade.starfrost.desc': 'Your pulse deals double damage and leaves a ring of frost.',
+  'upgrade.phoenix.name': 'Phoenix Trail',
+  'upgrade.phoenix.desc': 'The ember trail burns twice as fast. Lose a heart and the whole trail flares up.',
+  'ach.legend.name': 'Legendary',
+  'ach.legend.desc': 'Pick a legendary fusion.',
 };
 
 export type Lang = 'de' | 'en';

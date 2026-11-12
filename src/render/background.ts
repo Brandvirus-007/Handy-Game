@@ -98,6 +98,48 @@ export class Background {
       ctx.fillStyle = s.layer === 2 ? `rgba(190,210,255,${a})` : `rgba(160,150,255,${a})`;
       ctx.fillRect(x, y, s.size, s.size);
     }
+    this.drawMeteor(ctx, time);
     ctx.globalCompositeOperation = 'source-over';
+  }
+
+  /** An occasional shooting star across the sky. */
+  private meteor: { x: number; y: number; vx: number; vy: number; t: number; life: number } | null = null;
+  private nextMeteor = 3;
+
+  private drawMeteor(ctx: CanvasRenderingContext2D, time: number): void {
+    if (!this.meteor && time > this.nextMeteor) {
+      const fromLeft = Math.random() < 0.5;
+      const speed = 520 + Math.random() * 380;
+      const ang = (fromLeft ? 0.35 : Math.PI - 0.35) + (Math.random() - 0.5) * 0.3;
+      this.meteor = {
+        x: fromLeft ? Math.random() * this.w * 0.5 : this.w * (0.5 + Math.random() * 0.5),
+        y: Math.random() * this.h * 0.45,
+        vx: Math.cos(ang) * speed,
+        vy: Math.sin(ang) * speed,
+        t: time,
+        life: 0.7 + Math.random() * 0.5,
+      };
+      this.nextMeteor = time + 5 + Math.random() * 9;
+    }
+    const m = this.meteor;
+    if (!m) return;
+    const k = (time - m.t) / m.life;
+    if (k >= 1) {
+      this.meteor = null;
+      return;
+    }
+    const x = m.x + m.vx * (time - m.t);
+    const y = m.y + m.vy * (time - m.t);
+    const a = Math.sin(k * Math.PI) * 0.8;
+    const g = ctx.createLinearGradient(x, y, x - m.vx * 0.12, y - m.vy * 0.12);
+    g.addColorStop(0, `rgba(230,240,255,${a})`);
+    g.addColorStop(1, 'rgba(160,150,255,0)');
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = g;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x - m.vx * 0.12, y - m.vy * 0.12);
+    ctx.stroke();
   }
 }

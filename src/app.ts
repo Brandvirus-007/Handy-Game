@@ -6,6 +6,7 @@ import { BIOMES, TUNING, biomeForWave } from './game/config';
 import { World } from './game/world';
 import { getCharacter, CHARACTERS } from './game/characters';
 import { META, metaCost, getMeta } from './game/meta';
+import { getUpgrade } from './game/upgrades';
 import { dailySetup, type DailySetup } from './game/modifiers';
 import type { AchievementId } from './game/achievements';
 import type { BossType, CharacterId, GameEvent, MetaId, ModifierId, UpgradeId } from './game/types';
@@ -143,6 +144,12 @@ export class App {
   private lastResult: RunResult | null = null;
   private busy = false;
   private pricesLoading = false;
+  /** Live demo behind the main menu: a bot catching shadows. */
+  private demo: World | null = null;
+  private demoAcc = 0;
+  private demoAngle = 0;
+  private lastPx = 0;
+  private lastPy = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
@@ -187,6 +194,7 @@ export class App {
 
     ensureMissions(this.save.data, localDateKey());
     this.save.save();
+    this.startDemo();
     this.ui.showMenu();
     this.audio.setIntensity(0);
     requestAnimationFrame(this.loop);
@@ -248,7 +256,8 @@ export class App {
       w: Math.max(100, w - s.l - s.r - 16),
       h: Math.max(100, h - s.t - HUD_TOP - s.b - 10),
     };
-    if (this.world) this.renderer.layout(this.world.w, this.world.h, this.arena);
+    const shown = this.world ?? this.demo;
+    if (shown) this.renderer.layout(shown.w, shown.h, this.arena);
   }
 
   private worldSize(): { w: number; h: number } {
@@ -337,6 +346,7 @@ export class App {
   }
 
   private begin(setup: RunSetup): void {
+    this.demo = null;
     this.setup = setup;
     this.ui.clearTutorial();
     this.tutorial = null;
@@ -423,6 +433,7 @@ export class App {
     this.audio.duck(false);
     this.audio.setIntensity(0);
     this.platform.keepAwake(false);
+    this.startDemo();
   }
 
   quitToMenu(): void {
@@ -485,6 +496,7 @@ export class App {
     const w = this.world;
     if (!w || this.state !== 'upgrade') return;
     w.applyUpgrade(id);
+    if (getUpgrade(id).rarity === 'legendary') this.unlock('legend');
     w.nextWave();
     this.state = 'playing';
     this.ui.close();
@@ -962,19 +974,24 @@ export class App {
       this.trackPerformance(rdt);
       this.stepWorld(w, rdt);
     }
-    if (this.state === 'menu') this.fx.ambient(this.renderer.cssW, this.renderer.cssH);
+    if (this.state === 'menu') {
+      if (this.demo) this.stepDemo(rdt);
+      else this.fx.ambient(this.renderer.cssW, this.renderer.cssH);
+    }
+    this.emitTrailSparks();
 
     const frozen = this.state === 'paused' || this.state === 'continue';
     this.fx.update(frozen ? 0 : rdt * (this.state === 'playing' || this.state === 'dying' ? Math.max(0.3, this.timeScale) : 1));
 
     const dimTarget =
-      this.state === 'menu' ? 0.12 : frozen || this.state === 'upgrade' ? 0.35 : this.state === 'gameover' ? 0.45 : 0;
+      this.state === 'menu' ? (this.demo ? 0.5 : 0.12) : frozen || this.state === 'upgrade' ? 0.35 : this.state === 'gameover' ? 0.45 : 0;
     this.dim = damp(this.dim, dimTarget, 8, rdt);
 
-    const c = getCharacter(this.setup?.character ?? this.save.data.selected);
+    const c = getCharacter(this.state === 'menu' ? this.save.data.selected : (this.setup?.character ?? this.save.data.selected));
     const showWorld = this.state !== 'menu' ? this.world : null;
     this.renderer.frame({
-      world: showWorld,
+      ambient: this.state === 'menu',
+      world: showWorld ?? (this.state === 'menu' ? this.demo : null),
       fx: this.fx,
       time: this.time,
       color: c.color,
@@ -985,6 +1002,79 @@ export class App {
     });
     if (showWorld && this.state !== 'gameover') this.ui.hud.update(showWorld);
   };
+
+  /** Small embers behind the moving spark (game and menu demo). */
+  private emitTrailSparks(): void {
+    const w = this.state === 'menu' ? this.demo : this.state === 'playing' ? this.world : null;
+    if (!w || !w.alive) return;
+    const moved = Math.hypot(w.px - this.lastPx, w.py - this.lastPy);
+    this.lastPx = w.px;
+    this.lastPy = w.py;
+    if (moved > 1.2 && moved < 60 && Math.random() < 0.6 * this.fx.settings.density) this.fx.trailSpark(w.px, w.py, this.fx.playerColor);
+  }
+
+  /** Starts the attract-mode demo behind the menu (skipped in battery-saving mode). */
+  private startDemo(): void {
+    if (this.lowQuality || this.save.data.settings.reducedMotion) {
+      this.demo = null;
+      return;
+    }
+    const size = this.worldSize();
+    const demo = new World({
+      width: size.w,
+      height: size.h,
+      character: this.save.data.selected,
+      seed: randomSeed(),
+      modifiers: [],
+      meta: {},
+      daily: false,
+      tutorial: false,
+      // Start a few waves in so the backdrop has something going on.
+      boosters: ['headstart'],
+    });
+    demo.start();
+    this.demo = demo;
+    this.demoAcc = 0;
+    this.renderer.layout(demo.w, demo.h, this.arena);
+    this.renderer.setBiome(0);
+    this.fx.playerColor = getCharacter(this.save.data.selected).color;
+  }
+
+  private stepDemo(rdt: number): void {
+    const d = this.demo!;
+    this.demoAcc = Math.min(this.demoAcc + rdt, DT * 3);
+    while (this.demoAcc >= DT) {
+      this.demoAcc -= DT;
+      d.invuln = 1;
+      // Bot: circle the nearest shadow (or drift around the middle).
+      let cx = d.w / 2;
+      let cy = d.h * 0.55;
+      let best = Infinity;
+      for (const e of d.enemies) {
+        const dd = (e.x - d.px) ** 2 + (e.y - d.py) ** 2;
+        if (dd < best) {
+          best = dd;
+          cx = e.x;
+          cy = e.y;
+        }
+      }
+      this.demoAngle += 0.065;
+      d.steer((cx + Math.cos(this.demoAngle) * 72 - d.px) * 0.3, (cy + Math.sin(this.demoAngle) * 72 - d.py) * 0.3);
+      if (d.pulseReady && d.enemies.length > 5) d.triggerPulse();
+      d.update(DT);
+      for (const e of d.drainEvents()) this.fx.handle(e);
+      if (d.awaitingUpgrade) {
+        const [id] = d.rollOffer();
+        if (id) d.applyUpgrade(id);
+        d.nextWave();
+      }
+    }
+    // The menu should stay calm: no shake, flashes or hit-stop from the demo.
+    this.fx.trauma = 0;
+    this.fx.hitstop = 0;
+    this.fx.screenFlash = 0;
+    if (d.over || d.wave > 9) this.startDemo();
+  }
 
   private trackPerformance(rdt: number): void {
     this.frameAvg += (rdt * 1000 - this.frameAvg) * 0.05;

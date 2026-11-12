@@ -841,6 +841,21 @@ input[type='range']::-moz-range-thumb {
   filter: drop-shadow(0 0 10px rgba(255, 180, 120, 0.6));
 }
 
+.hud-combo .label[data-tier='2'] {
+  background: linear-gradient(90deg, #ff8fe0, #c98bff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 0 12px rgba(255, 143, 224, 0.7));
+}
+
+.hud-combo .label[data-tier='3'] {
+  font-size: 22px;
+  background: linear-gradient(90deg, #7df9ff, #ffffff, #7df9ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 0 16px rgba(125, 249, 255, 0.9));
+}
+
 .hud-combo .label.pop {
   animation: pop 0.3s cubic-bezier(0.3, 1.6, 0.5, 1);
 }
@@ -1139,6 +1154,38 @@ input[type='range']::-moz-range-thumb {
 .card.epic {
   --rc: var(--epic);
   box-shadow: 0 0 26px color-mix(in srgb, var(--epic) 30%, transparent), 0 10px 26px rgba(0, 0, 0, 0.35);
+}
+
+.card.legendary {
+  --rc: var(--gold);
+  border: 1px solid transparent;
+  background:
+    linear-gradient(135deg, #2b2210 0%, #16102c 75%) padding-box,
+    conic-gradient(from var(--spin, 0deg), #ffd166, #ff8fe0, #7df9ff, #ffd166) border-box;
+  box-shadow: 0 0 34px rgba(255, 209, 102, 0.35), 0 10px 26px rgba(0, 0, 0, 0.35);
+  animation: card-in 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2) both, legend-spin 3s linear infinite;
+}
+
+@property --spin {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes legend-spin {
+  to {
+    --spin: 360deg;
+  }
+}
+
+.card .fusion {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold);
 }
 
 .card:nth-child(2) {

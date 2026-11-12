@@ -40,7 +40,7 @@ export function computeStats(
     loopDamage: 1 + lv('double'),
     shockwave: lv('shockwave'),
     frost: lv('frost'),
-    chain: lv('chain') + c.innateChain,
+    chain: lv('chain') + c.innateChain + (lv('storm') ? 2 : 0),
     echo: lv('echo') + c.innateEcho,
     slowmo: lv('slowmo'),
     ember: lv('ember') + c.innateEmber,
@@ -57,6 +57,9 @@ export function computeStats(
     supernovaEvery: UPGRADE_VALUES.supernovaEvery(lv('supernova')),
     healLoop: lv('healloop') > 0,
     pierce: lv('pierce') > 0,
+    storm: lv('storm') > 0,
+    starfrost: lv('starfrost') > 0,
+    phoenix: lv('phoenix') > 0,
     cometCharge: c.cometCharge,
     noPulse: modifiers.includes('nopulse'),
   };

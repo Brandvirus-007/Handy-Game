@@ -48,6 +48,11 @@ function fmtTime(sec: number): string {
   return h > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}:${String(r).padStart(2, '0')}`;
 }
 
+function fusionNames(req: Partial<Record<UpgradeId, number>>): { a: string; b: string } {
+  const [a, b] = Object.keys(req) as UpgradeId[];
+  return { a: t(`upgrade.${a}.name` as I18nKey), b: t(`upgrade.${b}.name` as I18nKey) };
+}
+
 /** Fills placeholders of an upgrade description for the given (next) level. */
 export function upgradeDesc(id: UpgradeId, level: number): string {
   const key = `upgrade.${id}.desc` as I18nKey;
@@ -807,7 +812,8 @@ export class UI {
           <div class="ico-wrap">${icon(id, 28)}</div>
           <div class="body"><div class="top"><span class="name">${t(`upgrade.${id}.name` as I18nKey)}</span>
             <span class="rarity">${t(`rarity.${def.rarity}` as I18nKey)}</span></div>
-            <div class="desc">${upgradeDesc(id, lv + 1)}</div>${def.max > 1 ? pips(lv, def.max, true) : ''}</div>
+            <div class="desc">${upgradeDesc(id, lv + 1)}</div>${def.max > 1 ? pips(lv, def.max, true) : ''}
+            ${def.requires ? `<div class="fusion">${icon('spark', 13)}${t('upgrade.fusion', fusionNames(def.requires))}</div>` : ''}</div>
         </button>`;
       })
       .join('');

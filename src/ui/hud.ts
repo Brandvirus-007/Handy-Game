@@ -33,6 +33,8 @@ export class Hud {
     noPulse: false,
   };
 
+  private shownScore = 0;
+
   constructor(root: HTMLElement, onPause: () => void, onPulse: () => void) {
     this.root = root;
     root.innerHTML = `
@@ -107,11 +109,17 @@ export class Hud {
       v.shield = w.shieldUp;
     }
     if (w.run.score !== v.score) {
-      this.score.textContent = fmt(w.run.score);
+      if (w.run.score < this.shownScore || v.score < 0) this.shownScore = w.run.score; // new run
       this.score.classList.remove('bump');
       void this.score.offsetWidth;
       this.score.classList.add('bump');
       v.score = w.run.score;
+    }
+    // The score counts up instead of jumping.
+    if (this.shownScore !== w.run.score) {
+      const diff = w.run.score - this.shownScore;
+      this.shownScore = diff <= 2 ? w.run.score : this.shownScore + Math.max(1, Math.ceil(diff * 0.18));
+      this.score.textContent = fmt(this.shownScore);
     }
     if (w.wave !== v.wave) {
       this.wave.textContent = tutorial ? t('tut.title') : t('hud.wave', { n: w.wave });
@@ -127,6 +135,7 @@ export class Hud {
       this.combo.classList.toggle('on', combo > 0);
       if (combo > 0) {
         this.comboLabel.textContent = t('float.combo', { n: combo });
+        this.comboLabel.dataset.tier = combo >= 10 ? '3' : combo >= 5 ? '2' : '1';
         this.comboLabel.classList.remove('pop');
         void this.comboLabel.offsetWidth;
         this.comboLabel.classList.add('pop');

@@ -59,3 +59,37 @@ describe('upgrades', () => {
     expect(computeStats('spark', { heart: 2 }, {}, []).maxHearts).toBe(5);
   });
 });
+
+describe('legendary fusions', () => {
+  it('only appear once their recipe is complete', () => {
+    const rng = new Rng(11);
+    for (let i = 0; i < 300; i++) {
+      const offer = rollOffer(rng, { chain: 1, shockwave: 3 });
+      expect(offer).not.toContain('storm');
+    }
+    let seen = 0;
+    for (let i = 0; i < 300; i++) if (rollOffer(rng, { chain: 2, shockwave: 2 }).includes('storm')) seen++;
+    expect(seen).toBeGreaterThan(80);
+    expect(seen).toBeLessThan(220);
+  });
+
+  it('are never offered twice and respect exclusions', () => {
+    const rng = new Rng(4);
+    for (let i = 0; i < 200; i++) {
+      expect(rollOffer(rng, { chain: 2, shockwave: 2, storm: 1 })).not.toContain('storm');
+      expect(rollOffer(rng, { frost: 3, pulsecharge: 3 }, 3, { exclude: ['starfrost'] })).not.toContain('starfrost');
+    }
+  });
+
+  it('change the simulation', () => {
+    const base = new World(opts());
+    const storm = new World(opts());
+    storm.applyUpgrade('storm');
+    expect(storm.stats.chain).toBe(base.stats.chain + 2);
+    const frost = new World(opts());
+    frost.applyUpgrade('starfrost');
+    frost.pulseCharge = 1;
+    frost.triggerPulse();
+    expect(frost.frost.length).toBe(1);
+  });
+});

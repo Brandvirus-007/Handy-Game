@@ -191,4 +191,5 @@ export const ACHIEVEMENT_DIAMONDS: Record<string, number> = {
   level25: 30,
   revived: 5,
   shopper: 10,
+  legend: 25,
 };

@@ -5,6 +5,8 @@ export interface UpgradeDef {
   id: UpgradeId;
   rarity: Rarity;
   max: number;
+  /** Legendary fusions: minimum levels of other upgrades before the fusion can appear. */
+  requires?: Partial<Record<UpgradeId, number>>;
 }
 
 export const UPGRADES: UpgradeDef[] = [
@@ -33,9 +35,18 @@ export const UPGRADES: UpgradeDef[] = [
   { id: 'healloop', rarity: 'rare', max: 1 },
   { id: 'pierce', rarity: 'rare', max: 1 },
   { id: 'doublepulse', rarity: 'epic', max: 1 },
+  { id: 'storm', rarity: 'legendary', max: 1, requires: { chain: 2, shockwave: 2 } },
+  { id: 'starfrost', rarity: 'legendary', max: 1, requires: { frost: 2, pulsecharge: 1 } },
+  { id: 'phoenix', rarity: 'legendary', max: 1, requires: { ember: 2, retaliate: 1 } },
 ];
 
-export const RARITY_WEIGHT: Record<Rarity, number> = { common: 60, rare: 30, epic: 10 };
+/** Chance that an eligible legendary fusion replaces one of the offered cards. */
+export const FUSION_CHANCE = 0.45;
+
+export const fusionReady = (u: UpgradeDef, levels: UpgradeLevels): boolean =>
+  !!u.requires && Object.entries(u.requires).every(([id, lv]) => (levels[id as UpgradeId] ?? 0) >= (lv ?? 0));
+
+export const RARITY_WEIGHT: Record<Rarity, number> = { common: 60, rare: 30, epic: 10, legendary: 0 };
 
 export const getUpgrade = (id: UpgradeId): UpgradeDef => UPGRADES.find((u) => u.id === id)!;
 
@@ -50,8 +61,12 @@ export interface OfferOptions {
 
 /** Rolls `count` distinct, not-yet-maxed upgrades. Rarity is rolled first, then an upgrade of that rarity. */
 export function rollOffer(rng: Rng, levels: UpgradeLevels, count = 3, opts: OfferOptions = {}): UpgradeId[] {
-  const available = UPGRADES.filter((u) => (levels[u.id] ?? 0) < u.max && !opts.exclude?.includes(u.id));
+  const open = UPGRADES.filter((u) => (levels[u.id] ?? 0) < u.max && !opts.exclude?.includes(u.id));
+  // Legendary fusions never enter the normal draw – they appear only once their recipe is complete.
+  const available = open.filter((u) => u.rarity !== 'legendary');
   const result: UpgradeId[] = [];
+  const fusions = open.filter((u) => u.rarity === 'legendary' && fusionReady(u, levels));
+  if (fusions.length > 0 && count > 0 && rng.chance(FUSION_CHANCE)) result.push(rng.pick(fusions).id);
   const pool = [...available];
   while (result.length < count && pool.length > 0) {
     const wantRare = opts.guaranteeRare && result.length === 0;

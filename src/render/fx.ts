@@ -10,6 +10,8 @@ const enum Kind {
   Spark,
   Streak,
   Ring,
+  /** Rotating triangle fragment – shadows shatter into these. */
+  Shard,
 }
 
 interface Particle {
@@ -26,6 +28,8 @@ interface Particle {
   drag: number;
   color: string;
   width: number;
+  rot: number;
+  spin: number;
 }
 
 interface FloatText {
@@ -111,7 +115,53 @@ export class Fx {
       p.drag = 3.2;
       p.color = color;
       p.width = 1.6;
+      p.rot = 0;
+      p.spin = 0;
     }
+  }
+
+  /** Shadow body breaking apart: spinning triangular fragments. */
+  shatter(x: number, y: number, color: string, r: number, count: number): void {
+    const n = Math.round(count * this.settings.density);
+    for (let i = 0; i < n; i++) {
+      const p = this.spawn();
+      if (!p) return;
+      const a = (i / n) * TAU + Math.random() * 0.6;
+      const s = 70 + Math.random() * 130;
+      p.kind = Kind.Shard;
+      p.x = x + Math.cos(a) * r * 0.4;
+      p.y = y + Math.sin(a) * r * 0.4;
+      p.vx = Math.cos(a) * s;
+      p.vy = Math.sin(a) * s;
+      p.life = p.maxLife = 0.45 + Math.random() * 0.35;
+      p.size = r * (0.25 + Math.random() * 0.25);
+      p.size2 = 0;
+      p.drag = 3;
+      p.color = color;
+      p.width = 1;
+      p.rot = Math.random() * TAU;
+      p.spin = (Math.random() - 0.5) * 18;
+    }
+  }
+
+  /** Tiny embers left behind while the spark moves. */
+  trailSpark(x: number, y: number, color: string): void {
+    const p = this.spawn();
+    if (!p) return;
+    const a = Math.random() * TAU;
+    p.kind = Kind.Spark;
+    p.x = x + Math.cos(a) * 3;
+    p.y = y + Math.sin(a) * 3;
+    p.vx = Math.cos(a) * 18;
+    p.vy = Math.sin(a) * 18;
+    p.life = p.maxLife = 0.35 + Math.random() * 0.35;
+    p.size = 1.6 + Math.random() * 1.8;
+    p.size2 = 0;
+    p.drag = 2;
+    p.color = color;
+    p.width = 1;
+    p.rot = 0;
+    p.spin = 0;
   }
 
   ring(x: number, y: number, color: string, r0: number, r1: number, life = 0.45, width = 3): void {
@@ -127,6 +177,8 @@ export class Fx {
     p.drag = 0;
     p.color = color;
     p.width = width;
+    p.rot = 0;
+    p.spin = 0;
   }
 
   text(text: string, x: number, y: number, color = '#ffffff', size = 14, life = 0.9): void {
@@ -168,6 +220,8 @@ export class Fx {
     p.drag = 0;
     p.color = Math.random() < 0.7 ? this.playerColor : '#a66bff';
     p.width = 1;
+    p.rot = 0;
+    p.spin = 0;
   }
 
   handle(e: GameEvent): void {
@@ -176,6 +230,12 @@ export class Fx {
         const strong = e.kills > 0;
         const color = e.echo ? '#c38bff' : this.playerColor;
         this.flashes.push({ poly: e.poly, life: 0.6, maxLife: 0.6, color, strong });
+        if (strong) {
+          // Shockwave rolling outward from the middle of the loop.
+          const rad = Math.sqrt(e.area / Math.PI);
+          this.ring(e.cx, e.cy, '#ffffff', rad * 0.3, rad * 1.5, 0.55, 3.5);
+          this.ring(e.cx, e.cy, color, rad * 0.2, rad * 1.9, 0.75, 2);
+        }
         // Sparks along the perimeter, flying outward from the centroid.
         const per = polygonPerimeter(e.poly);
         const n = Math.min(70, Math.round((per / 13) * this.settings.density));
@@ -198,6 +258,8 @@ export class Fx {
           p.drag = 4;
           p.color = color;
           p.width = 1.8;
+          p.rot = 0;
+          p.spin = 0;
         }
         if (e.kills >= 2) this.text(t('float.multi', { n: e.kills }), e.cx, e.cy - 8, '#ffffff', 15 + Math.min(10, e.kills * 1.5), 1.1);
         if (e.echo && e.kills > 0) this.text(t('float.echo'), e.cx, e.cy + 14, '#c38bff', 12);
@@ -210,8 +272,9 @@ export class Fx {
       case 'kill': {
         const color = e.enemy === 'twin' ? TWIN_COLORS[0] : ENEMIES[e.enemy].color;
         const big = e.r > 14 || e.elite;
-        this.burst(e.x, e.y, color, big ? 22 : 12, big ? 220 : 160, 0.6, big ? 7 : 5);
+        this.burst(e.x, e.y, color, big ? 16 : 8, big ? 220 : 160, 0.6, big ? 7 : 5);
         this.burst(e.x, e.y, '#ffffff', 4, 90, 0.3, 3, Kind.Streak);
+        this.shatter(e.x, e.y, color, e.r, big ? 10 : 6);
         this.ring(e.x, e.y, color, e.r * 0.6, e.r * 2.6, 0.4, 2.5);
         if (e.score > 0 && e.source !== 'boss') this.text(`+${e.score}`, e.x, e.y - e.r - 4, e.elite ? COLORS.shard : '#e9e4ff', e.elite ? 13 : 11, 0.75);
         this.shake(big ? 0.12 : 0.05);
@@ -357,6 +420,7 @@ export class Fx {
       }
       p.x += p.vx * dt;
       p.y += p.vy * dt;
+      if (p.spin) p.rot += p.spin * dt;
     }
     for (let i = this.texts.length - 1; i >= 0; i--) {
       const tx = this.texts[i];
@@ -423,6 +487,22 @@ export class Fx {
       const k = p.life / p.maxLife;
       if (p.kind === Kind.Spark) {
         drawGlow(ctx, p.color, p.x, p.y, p.size * (0.4 + 0.6 * k) * 2, k);
+      } else if (p.kind === Kind.Shard) {
+        // Dark fragment with a glowing edge, like the shadow bodies themselves.
+        const s = p.size;
+        ctx.globalAlpha = Math.min(1, k * 1.6);
+        ctx.beginPath();
+        ctx.moveTo(p.x + Math.cos(p.rot) * s, p.y + Math.sin(p.rot) * s);
+        ctx.lineTo(p.x + Math.cos(p.rot + 2.3) * s * 0.7, p.y + Math.sin(p.rot + 2.3) * s * 0.7);
+        ctx.lineTo(p.x + Math.cos(p.rot + 4.1) * s * 0.8, p.y + Math.sin(p.rot + 4.1) * s * 0.8);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(30,18,50,0.9)';
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fill();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
       } else if (p.kind === Kind.Streak) {
         ctx.globalAlpha = k;
         ctx.strokeStyle = p.color;

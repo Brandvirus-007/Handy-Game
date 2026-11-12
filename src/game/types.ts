@@ -49,9 +49,12 @@ export type UpgradeId =
   | 'supernova'
   | 'healloop'
   | 'stardust'
-  | 'pierce';
+  | 'pierce'
+  | 'storm'
+  | 'starfrost'
+  | 'phoenix';
 
-export type Rarity = 'common' | 'rare' | 'epic';
+export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
 
 export type MetaId = 'heart' | 'trail' | 'shards' | 'reroll' | 'precharge' | 'magnet';
 
@@ -207,6 +210,10 @@ export interface PlayerStats {
   supernovaEvery: number;
   healLoop: boolean;
   pierce: boolean;
+  /** Legendary fusions. */
+  storm: boolean;
+  starfrost: boolean;
+  phoenix: boolean;
   cometCharge: boolean;
   noPulse: boolean;
 }

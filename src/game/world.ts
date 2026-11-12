@@ -471,6 +471,8 @@ export class World {
       hit.add(o);
       this.emit({ type: 'chain', ax: src.x, ay: src.y, bx: o.x, by: o.y });
       this.damage(o, 1, 'chain');
+      // Gewitterschleife: every lightning strike also bursts.
+      if (this.stats.storm) this.explode(o.x, o.y, 34);
     }
   }
 
@@ -609,6 +611,7 @@ export class World {
     this.comboTimer = 0;
     this.emit({ type: 'playerHit', x: this.px, y: this.py, hearts: this.hearts });
     if (this.hearts > 0 && this.stats.retaliate) this.triggerPulse(true);
+    if (this.hearts > 0 && this.stats.phoenix) this.igniteTrail();
     if (this.hearts <= 0) {
       if (this.stats.secondWind && !this.secondWindUsed) {
         this.secondWindUsed = true;
@@ -659,7 +662,7 @@ export class World {
       const dy = e.y - this.py;
       const d = len(dx, dy) || 1;
       if (d < r + e.r) {
-        if (this.damage(e, 1, 'pulse')) kills++;
+        if (this.damage(e, this.stats.starfrost ? 2 : 1, 'pulse')) kills++;
         const f = TUNING.pulse.knock * (1 - e.mass) * (1 - (d / r) * 0.5);
         e.kx += (dx / d) * f;
         e.ky += (dy / d) * f;
@@ -669,6 +672,16 @@ export class World {
     this.invuln = Math.max(this.invuln, TUNING.pulse.invuln);
     this.run.bestPulse = Math.max(this.run.bestPulse, kills);
     this.emit({ type: 'pulse', x: this.px, y: this.py, radius: r, kills });
+    if (this.stats.starfrost) {
+      // Sternenfrost: the pulse leaves a ring of frost behind.
+      const poly: Vec[] = [];
+      for (let i = 0; i < 20; i++) {
+        const a = (i / 20) * TAU;
+        poly.push({ x: this.px + Math.cos(a) * r, y: this.py + Math.sin(a) * r });
+      }
+      const life = 3;
+      this.frost.push({ poly, bounds: polygonBounds(poly), life, maxLife: life });
+    }
     return true;
   }
 
@@ -905,6 +918,16 @@ export class World {
     };
   }
 
+  /** Phönixspur: the whole light trail flares up and burns everything touching it. */
+  private igniteTrail(): void {
+    const pts = this.trail.points;
+    if (pts.length < 2) return;
+    for (let i = 0; i < pts.length; i += 6) this.emit({ type: 'explosion', x: pts[i].x, y: pts[i].y, r: 26 });
+    for (const e of this.enemies) {
+      if (!e.dead && this.trail.touchesCircle(e.x, e.y, e.r + 22)) this.damage(e, 2, 'ember');
+    }
+  }
+
   /** Hydra at half health: the body bursts into three heads (the fight continues). */
   splitHydra(e: Enemy): void {
     if (e.dead) return;
@@ -1121,7 +1144,7 @@ export class World {
     const step = this.emberClock;
     this.emberClock = 0;
     const b = polygonBounds(this.trail.points);
-    const tick = UPGRADE_VALUES.emberTick(this.stats.ember);
+    const tick = UPGRADE_VALUES.emberTick(this.stats.ember) * (this.stats.phoenix ? 0.5 : 1);
     for (const e of this.enemies) {
       if (e.dead) continue;
       if (inBounds(b, e.x, e.y, e.r + 4) && this.trail.touchesCircle(e.x, e.y, e.r + 3)) {
