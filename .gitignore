@@ -4,3 +4,8 @@ dist-single/
 *.log
 .DS_Store
 smoke-output/
+
+# Android signing
+android/keystore.properties
+*.jks
+*.keystore

@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">LUMEN LOOP</string>
+    <string name="title_activity_main">LUMEN LOOP</string>
+    <string name="package_name">app.lumenloop.game</string>
+    <string name="custom_url_scheme">app.lumenloop.game</string>
+    <!-- Replace with your AdMob app ID (ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY) before publishing. -->
+    <string name="admob_app_id">ca-app-pub-3940256099942544~3347511713</string>
+</resources>

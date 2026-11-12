@@ -480,7 +480,7 @@ export class UI {
     wrap.className = 'dialog-wrap';
     const days = LOGIN_REWARDS.map(
       (r, i) => `<div class="day ${i < day ? 'past' : i === day ? 'today' : ''} ${i === 6 ? 'big' : ''}">
-        <small>${t('login.day', { n: i + 1 })}</small>${icon(r.diamonds ? 'gem' : 'shard', i === 6 ? 30 : 22)}
+        <small>${t('login.day', { n: i + 1 })}</small>${icon(r.diamonds ? 'gem' : 'shard', i === 6 ? 30 : 22, r.diamonds ? 'gemc' : '')}
         <b>${r.diamonds ? fmt(r.diamonds) : fmt(r.coins ?? 0)}</b>${i === 6 && r.coins ? `<small>+${fmt(r.coins)}</small>` : ''}</div>`,
     ).join('');
     wrap.innerHTML = `<div class="dialog login">

@@ -1,6 +1,8 @@
 import { Rng, hashString } from '../core/rng';
 import type { SaveData, MissionState } from '../core/storage';
 import {
+  getProduct,
+  type ProductId,
   ACHIEVEMENT_DIAMONDS,
   BOOSTERS,
   LOGIN_REWARDS,
@@ -41,6 +43,23 @@ export const addReward = (a: Reward, b: Reward): Reward => ({
   coins: (a.coins ?? 0) + (b.coins ?? 0),
   diamonds: (a.diamonds ?? 0) + (b.diamonds ?? 0),
 });
+
+// ───────────────────────── Purchases ─────────────────────────
+
+/**
+ * Credits a paid store purchase exactly once (keyed by its purchase token).
+ * Returns false if this token was already credited – e.g. recovered again after a crash.
+ */
+export function creditPurchase(s: SaveData, productId: ProductId, token: string): boolean {
+  if (s.grantedTokens.includes(token)) return false;
+  const def = getProduct(productId);
+  grant(s, def.reward);
+  if (def.unlocks && !s.chars.includes(def.unlocks)) s.chars.push(def.unlocks);
+  if (productId === 'no_ads') s.owned.noAds = true;
+  if (productId === 'starter_pack') s.owned.starter = true;
+  s.grantedTokens = [...s.grantedTokens, token].slice(-100);
+  return true;
+}
 
 // ───────────────────────── Levels ─────────────────────────
 

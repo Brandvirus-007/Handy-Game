@@ -44,6 +44,7 @@ import {
   claimMission,
   claimMissionBonus,
   countFreeDiamondAd,
+  creditPurchase,
   ensureMissions,
   freeDiamondAdsLeft,
   grant,
@@ -847,13 +848,8 @@ export class App {
   /** Credits a paid purchase exactly once, saves, then lets the store consume/acknowledge it. */
   private async credit(p: CompletedPurchase): Promise<void> {
     const s = this.save.data;
-    if (!s.grantedTokens.includes(p.token)) {
+    if (creditPurchase(s, p.productId, p.token)) {
       const def = getProduct(p.productId);
-      grant(s, def.reward);
-      if (def.unlocks && !s.chars.includes(def.unlocks)) s.chars.push(def.unlocks);
-      if (p.productId === 'no_ads') s.owned.noAds = true;
-      if (p.productId === 'starter_pack') s.owned.starter = true;
-      s.grantedTokens = [...s.grantedTokens, p.token].slice(-100);
       this.save.save();
       this.audio.purchase();
       this.haptics.buzz([30, 40, 60]);

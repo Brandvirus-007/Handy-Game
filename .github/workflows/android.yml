@@ -1,0 +1,56 @@
+name: Android
+
+# Builds the Android app on every push:
+#  - a debug APK (installable for testing),
+#  - a signed release bundle (.aab) for Google Play – only when the signing secrets exist.
+# Secrets (Settings → Secrets and variables → Actions):
+#   LUMEN_KEYSTORE_BASE64   base64 of your upload keystore (.jks)
+#   LUMEN_KEYSTORE_PASSWORD / LUMEN_KEY_ALIAS / LUMEN_KEY_PASSWORD
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEYSTORE: ${{ secrets.LUMEN_KEYSTORE_BASE64 != '' }}
+      # Must increase with every upload to Google Play.
+      LUMEN_VERSION_CODE: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm test
+      - name: Build web assets and sync into the Android project
+        run: npm run android:sync
+      - name: Debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lumen-loop-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Signed release bundle for Google Play
+        if: env.HAS_KEYSTORE == 'true'
+        working-directory: android
+        env:
+          LUMEN_KEYSTORE_PASSWORD: ${{ secrets.LUMEN_KEYSTORE_PASSWORD }}
+          LUMEN_KEY_ALIAS: ${{ secrets.LUMEN_KEY_ALIAS }}
+          LUMEN_KEY_PASSWORD: ${{ secrets.LUMEN_KEY_PASSWORD }}
+        run: |
+          echo "${{ secrets.LUMEN_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          LUMEN_KEYSTORE_PATH="$RUNNER_TEMP/upload.jks" ./gradlew bundleRelease --no-daemon
+          rm -f "$RUNNER_TEMP/upload.jks"
+      - uses: actions/upload-artifact@v4
+        if: env.HAS_KEYSTORE == 'true'
+        with:
+          name: lumen-loop-release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab

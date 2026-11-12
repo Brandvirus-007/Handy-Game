@@ -1,8 +1,8 @@
 {
   "name": "lumen-loop",
   "private": true,
-  "version": "1.0.0",
-  "description": "LUMEN LOOP – ein Arcade-Roguelite für das Handy: Zieh Kreise aus Licht.",
+  "version": "2.0.0",
+  "description": "LUMEN LOOP – Arcade-Roguelite für Android (Capacitor) und das Web: Zieh Kreise aus Licht.",
   "type": "module",
   "scripts": {
     "dev": "vite --host",
@@ -12,7 +12,10 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "icons": "node scripts/gen-icons.mjs",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "android:sync": "npm run build && cap sync android",
+    "android:debug": "npm run android:sync && cd android && ./gradlew assembleDebug",
+    "android:bundle": "npm run android:sync && cd android && ./gradlew bundleRelease"
   },
   "devDependencies": {
     "@capacitor/cli": "8.6.0",
