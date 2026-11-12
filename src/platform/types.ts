@@ -2,6 +2,9 @@ import type { ProductId } from '../economy/defs';
 
 export type AdPlacement = 'revive' | 'double' | 'reroll' | 'freeDiamonds';
 
+/** earned = reward granted · dismissed = closed early · unavailable = no ad could be shown. */
+export type RewardResult = 'earned' | 'dismissed' | 'unavailable';
+
 export interface StoreProduct {
   id: ProductId;
   /** Localised price from the store (or a fallback label in the web demo). */
@@ -25,8 +28,8 @@ export interface Platform {
   init(): Promise<void>;
 
   // ── Ads ──
-  /** Shows a rewarded ad. Resolves true only if the reward was earned. */
-  showRewarded(placement: AdPlacement): Promise<boolean>;
+  /** Shows a rewarded ad. Only 'earned' may grant the reward. */
+  showRewarded(placement: AdPlacement): Promise<RewardResult>;
   showInterstitial(): Promise<void>;
   /** Whether the user must be offered a way to change their ad consent (EU). */
   privacyOptionsAvailable(): boolean;

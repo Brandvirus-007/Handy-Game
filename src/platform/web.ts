@@ -1,6 +1,6 @@
 import { t } from '../core/i18n';
 import { PRODUCTS, type ProductId } from '../economy/defs';
-import type { AdPlacement, CompletedPurchase, Platform, PurchaseOutcome, StoreProduct } from './types';
+import type { AdPlacement, CompletedPurchase, Platform, PurchaseOutcome, RewardResult, StoreProduct } from './types';
 
 /**
  * Browser implementation: ads and purchases are simulated with clearly labelled demo
@@ -13,8 +13,8 @@ export class WebPlatform implements Platform {
 
   async init(): Promise<void> {}
 
-  showRewarded(_placement: AdPlacement): Promise<boolean> {
-    return demoOverlay({ seconds: 4, rewarded: true });
+  async showRewarded(_placement: AdPlacement): Promise<RewardResult> {
+    return (await demoOverlay({ seconds: 4, rewarded: true })) ? 'earned' : 'dismissed';
   }
 
   async showInterstitial(): Promise<void> {

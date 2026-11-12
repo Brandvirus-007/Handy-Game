@@ -251,8 +251,9 @@ export class World {
 
   offerExclusions(): UpgradeId[] {
     const ex: UpgradeId[] = [];
-    if (this.stats.noPulse) ex.push('pulsecharge');
-    if (this.opts.modifiers.includes('glass')) ex.push('heart');
+    // Never offer upgrades that cannot do anything under the current modifiers.
+    if (this.stats.noPulse) ex.push('pulsecharge', 'doublepulse', 'supernova', 'retaliate');
+    if (this.opts.modifiers.includes('glass')) ex.push('heart', 'healloop');
     return ex;
   }
 

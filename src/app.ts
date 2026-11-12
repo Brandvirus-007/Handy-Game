@@ -18,7 +18,7 @@ import { UI } from './ui/ui';
 import { Tutorial } from './tutorial';
 import { createPlatform, type Platform } from './platform';
 import { WebPlatform } from './platform/web';
-import type { CompletedPurchase, StoreProduct } from './platform/types';
+import type { CompletedPurchase, RewardResult, StoreProduct } from './platform/types';
 import {
   EXCHANGE,
   FREE_DIAMOND_AD_REWARD,
@@ -142,6 +142,7 @@ export class App {
   private runMilestones: { wave: number; diamonds: number }[] = [];
   private lastResult: RunResult | null = null;
   private busy = false;
+  private pricesLoading = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
@@ -202,9 +203,18 @@ export class App {
     if (!active) {
       if (this.state === 'playing') this.pause();
       this.save.save();
-    } else if (this.state === 'playing') {
-      this.platform.keepAwake(true);
+    } else {
+      if (this.state === 'playing') this.platform.keepAwake(true);
+      // Android keeps apps alive for days: a new day must still bring new missions and the login bonus.
+      this.refreshDay();
     }
+  }
+
+  /** Rolls over daily content (missions, login bonus) when the calendar day changed. */
+  refreshDay(): void {
+    ensureMissions(this.save.data, localDateKey());
+    this.save.save();
+    if (this.state === 'menu') this.offerDailyLogin();
   }
 
   // ───────────────────────── Layout ─────────────────────────
@@ -418,6 +428,7 @@ export class App {
   quitToMenu(): void {
     this.toMenuState();
     this.ui.showMenu();
+    this.refreshDay();
   }
 
   pulse(): void {
@@ -496,7 +507,7 @@ export class App {
     const w = this.world;
     if (!w || this.state !== 'upgrade' || this.runAds.reroll || this.busy) return;
     this.busy = true;
-    const earned = await this.watchAd('reroll');
+    const earned = (await this.watchAd('reroll')) === 'earned';
     this.busy = false;
     if (!earned || this.state !== 'upgrade') return;
     this.runAds.reroll = true;
@@ -528,12 +539,12 @@ export class App {
     if (kind === 'ad') {
       if (!offer.adAvailable) return false;
       this.busy = true;
-      const earned = await this.watchAd('revive');
+      const result = await this.watchAd('revive');
       this.busy = false;
-      if (!earned) {
-        this.ui.toast(t('revive.title'), t('revive.adFailed'), 'play');
-        return false;
-      }
+      // Without an ad the player must not be stuck with diamonds only: unlock the shard option.
+      if (result === 'unavailable') this.runAds.revive = true;
+      // The dialog may have been closed meanwhile (give up / countdown) – never revive a finished run.
+      if (result !== 'earned' || this.state !== 'continue') return false;
       this.runAds.revive = true;
     } else {
       const price = kind === 'coins' ? offer.coins : offer.diamonds;
@@ -564,7 +575,8 @@ export class App {
   }
 
   giveUp(): void {
-    if (this.state !== 'continue') return;
+    // Not while an ad for this very dialog is still running.
+    if (this.state !== 'continue' || this.busy) return;
     this.endRun();
   }
 
@@ -610,8 +622,8 @@ export class App {
     // Progression: experience, levels and missions.
     const xp = xpForRun({ score: r.score, kills: r.kills, wavesCleared: r.wavesCleared });
     const levelUps = addXp(s, xp);
+    // Level-ups are listed on the result screen – no extra toasts on top of it.
     for (const lu of levelUps) {
-      this.ui.toast(t('toast.levelUp'), `${t('level.up', { n: lu.level })} ${rewardText(lu.reward)}`, 'star');
       if (lu.level >= 10) this.unlock('level10');
       if (lu.level >= 25) this.unlock('level25');
     }
@@ -664,7 +676,7 @@ export class App {
     const r = this.lastResult;
     if (!r || this.state !== 'gameover' || this.runAds.double || this.busy || r.shards <= 0) return false;
     this.busy = true;
-    const earned = await this.watchAd('double');
+    const earned = (await this.watchAd('double')) === 'earned';
     this.busy = false;
     if (!earned) return false;
     this.runAds.double = true;
@@ -702,21 +714,28 @@ export class App {
     next();
   }
 
-  private async watchAd(placement: 'revive' | 'double' | 'reroll' | 'freeDiamonds'): Promise<boolean> {
+  /** Shows a rewarded ad with a loading hint; tells the player when no ad is available. */
+  private async watchAd(placement: 'revive' | 'double' | 'reroll' | 'freeDiamonds'): Promise<RewardResult> {
     this.audio.setVisible(false);
-    let earned = false;
+    // Loading an ad can take a moment on a slow connection – show that something is happening.
+    const hint = this.platform.native ? window.setTimeout(() => this.ui.loading(true), 250) : 0;
+    let result: RewardResult = 'unavailable';
     try {
-      earned = await this.platform.showRewarded(placement);
+      result = await this.platform.showRewarded(placement);
     } catch {
-      earned = false;
+      result = 'unavailable';
     } finally {
+      clearTimeout(hint);
+      this.ui.loading(false);
       this.audio.setVisible(true);
     }
-    if (earned) {
+    if (result === 'earned') {
       this.save.data.ads.lastRewarded = Date.now();
       this.save.save();
+    } else if (result === 'unavailable') {
+      this.ui.toast(t('ads.title'), t('ads.unavailable'), 'ad');
     }
-    return earned;
+    return result;
   }
 
   // ───────────────────────── Economy actions ─────────────────────────
@@ -782,7 +801,7 @@ export class App {
   async freeDiamonds(): Promise<boolean> {
     if (this.freeDiamondsLeft() <= 0 || this.busy) return false;
     this.busy = true;
-    const earned = await this.watchAd('freeDiamonds');
+    const earned = (await this.watchAd('freeDiamonds')) === 'earned';
     this.busy = false;
     if (!earned) return false;
     countFreeDiamondAd(this.save.data, localDateKey());
@@ -810,7 +829,7 @@ export class App {
   }
 
   private offerDailyLogin(): void {
-    if (this.state !== 'menu' || !this.save.data.tutorialDone) return;
+    if (this.state !== 'menu' || !this.save.data.tutorialDone || document.querySelector('.dialog.login')) return;
     const today = localDateKey();
     const day = loginDayToClaim(this.save.data, today);
     if (day === null) return;
@@ -826,6 +845,20 @@ export class App {
   }
 
   // ───────────────────────── Purchases ─────────────────────────
+
+  /** Re-queries store prices (e.g. billing was not ready at start-up); re-renders the shop if they changed. */
+  refreshPrices(): void {
+    if (!this.platform.native || this.pricesLoading) return;
+    this.pricesLoading = true;
+    void this.platform
+      .getProducts()
+      .then((p) => {
+        const changed = JSON.stringify(p) !== JSON.stringify(this.products);
+        this.products = p;
+        if (changed && this.ui.screenName === 'shop') this.ui.showShop();
+      })
+      .finally(() => (this.pricesLoading = false));
+  }
 
   priceOf(id: ProductId): string {
     return this.products.find((p) => p.id === id)?.price ?? getProduct(id).fallbackPrice;

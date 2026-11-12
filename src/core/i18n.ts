@@ -447,6 +447,9 @@ const de = {
   'demo.buyConfirm': 'Demo-Kauf',
   'settings.privacy': 'Werbe-Einwilligung ändern',
   'settings.privacyPolicy': 'Datenschutzerklärung',
+  'ads.title': 'Werbung',
+  'ads.unavailable': 'Gerade ist keine Werbung verfügbar. Versuch es gleich noch einmal.',
+  'ads.loading': 'Werbung wird geladen …',
 } as const;
 
 export type I18nKey = keyof typeof de;
@@ -898,6 +901,9 @@ const en: Record<I18nKey, string> = {
   'demo.buyConfirm': 'Demo purchase',
   'settings.privacy': 'Change ad consent',
   'settings.privacyPolicy': 'Privacy policy',
+  'ads.title': 'Ads',
+  'ads.unavailable': 'No ad is available right now. Please try again in a moment.',
+  'ads.loading': 'Loading ad …',
 };
 
 export type Lang = 'de' | 'en';
@@ -934,3 +940,7 @@ export function t(key: I18nKey, params?: Record<string, string | number>): strin
 /** Locale-aware number formatting. */
 export const fmt = (n: number, digits = 0): string =>
   n.toLocaleString(current === 'de' ? 'de-DE' : 'en-US', { maximumFractionDigits: digits, minimumFractionDigits: digits });
+
+/** Short form for tight spaces: 9.876 · 12,3K · 4,5M. */
+export const fmtShort = (n: number): string =>
+  n < 10_000 ? fmt(n) : n < 1_000_000 ? `${fmt(n / 1000, n < 100_000 ? 1 : 0)}K` : `${fmt(n / 1_000_000, 1)}M`;

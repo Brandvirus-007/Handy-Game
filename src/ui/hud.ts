@@ -91,9 +91,14 @@ export class Hud {
     if (w.hearts !== v.hearts || w.stats.maxHearts !== v.max || w.shieldUp !== v.shield) {
       const lost = w.hearts < v.hearts;
       let html = '';
-      for (let i = 0; i < w.stats.maxHearts; i++) {
-        const full = i < w.hearts;
-        html += icon(full ? 'heart' : 'heartEmpty', 22, full ? '' : lost && i === w.hearts ? 'empty lost' : 'empty');
+      if (w.stats.maxHearts > 5) {
+        // Many hearts (upgrades + boosters) would run into the score – show a compact counter.
+        html = `${icon('heart', 22, lost ? 'lost' : '')}<b class="heart-count">${w.hearts}<small>/${w.stats.maxHearts}</small></b>`;
+      } else {
+        for (let i = 0; i < w.stats.maxHearts; i++) {
+          const full = i < w.hearts;
+          html += icon(full ? 'heart' : 'heartEmpty', 22, full ? '' : lost && i === w.hearts ? 'empty lost' : 'empty');
+        }
       }
       if (w.shieldUp) html += `<span class="shield">${icon('shield', 20)}</span>`;
       this.hearts.innerHTML = html;
@@ -157,7 +162,8 @@ export class Hud {
       this.pulse.classList.toggle('off', w.stats.noPulse);
       v.noPulse = w.stats.noPulse;
     }
-    const p = Math.round(w.pulseCharge * 50) / 50;
+    const p = Math.round(Math.min(1, w.pulseCharge) * 50) / 50;
+    this.pulse.classList.toggle('double', w.pulseCharge >= 2);
     if (p !== v.pulse) {
       this.pulse.style.setProperty('--p', String(p));
       v.pulse = p;

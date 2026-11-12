@@ -1,4 +1,4 @@
-import { t, fmt, type I18nKey } from '../core/i18n';
+import { t, fmt, fmtShort, type I18nKey } from '../core/i18n';
 import { CHARACTERS, getCharacter } from '../game/characters';
 import { META, metaCost } from '../game/meta';
 import { ACHIEVEMENTS } from '../game/achievements';
@@ -81,6 +81,8 @@ export class UI {
   private toasts: HTMLElement;
   private tut: HTMLElement | null = null;
   private bannerTimer = 0;
+  private toastQueue: { kicker: string; title: string; ico: string }[] = [];
+  private toastBusy = false;
   screenName = '';
 
   constructor(private app: App) {
@@ -116,6 +118,20 @@ export class UI {
     this.screenName = '';
     old.classList.add('leaving');
     setTimeout(() => old.remove(), 200);
+  }
+
+  /** Full-screen "loading…" hint (used while a native ad loads). */
+  loading(on: boolean): void {
+    let el = document.getElementById('loading');
+    if (!on) {
+      el?.remove();
+      return;
+    }
+    if (el) return;
+    el = document.createElement('div');
+    el.id = 'loading';
+    el.innerHTML = `<div class="spinner"></div><span>${t('ads.loading')}</span>`;
+    document.body.appendChild(el);
   }
 
   /** Closes the top-most modal dialog (Android back button). Returns true if one was open. */
@@ -161,14 +177,34 @@ export class UI {
     this.banner.className = '';
   }
 
+  /**
+   * Notifications are queued and shown one after another at the very top (over the HUD), so
+   * several unlocks at once never bury the upgrade cards or the result screen.
+   */
   toast(kicker: string, title: string, ico = 'trophy'): void {
-    // Several unlocks at once must not bury the screen: keep at most three visible.
-    while (this.toasts.children.length >= 3) this.toasts.firstElementChild?.remove();
+    if (this.toastQueue.length > 8) this.toastQueue.shift();
+    this.toastQueue.push({ kicker, title, ico });
+    if (!this.toastBusy) this.nextToast();
+  }
+
+  private nextToast(): void {
+    const next = this.toastQueue.shift();
+    if (!next) {
+      this.toastBusy = false;
+      return;
+    }
+    this.toastBusy = true;
     const el = document.createElement('div');
     el.className = 'toast';
-    el.innerHTML = `<div class="ico-wrap">${icon(ico, 22)}</div><div><div class="t1">${esc(kicker)}</div><div class="t2">${esc(title)}</div></div>`;
+    el.innerHTML = `<div class="ico-wrap">${icon(next.ico, 20)}</div><div><div class="t1">${esc(next.kicker)}</div><div class="t2">${esc(next.title)}</div></div>`;
     this.toasts.appendChild(el);
-    setTimeout(() => el.remove(), 3700);
+    // Shorter when more are waiting.
+    const ms = this.toastQueue.length ? 1900 : 2900;
+    setTimeout(() => {
+      el.classList.add('out');
+      setTimeout(() => el.remove(), 260);
+      this.nextToast();
+    }, ms);
   }
 
   newEnemyText(type: EnemyType): string {
@@ -191,8 +227,8 @@ export class UI {
   private wallet(): string {
     const s = this.app.save.data;
     return `<div class="wallet">
-      <button class="pill" data-act="shop" aria-label="${t('menu.shop')}">${icon('shard', 15)}<span>${fmt(s.bank)}</span></button>
-      <button class="pill gem" data-act="shop" aria-label="${t('menu.shop')}">${icon('gem', 15)}<span>${fmt(s.diamonds)}</span><b class="plus">+</b></button>
+      <button class="pill" data-act="shop" aria-label="${t('menu.shop')}">${icon('shard', 15)}<span>${fmtShort(s.bank)}</span></button>
+      <button class="pill gem" data-act="shop" aria-label="${t('menu.shop')}">${icon('gem', 15)}<span>${fmtShort(s.diamonds)}</span><b class="plus">+</b></button>
     </div>`;
   }
 
@@ -312,7 +348,7 @@ export class UI {
         if (act === 'back') this.back();
         else if (act === 'sparks') {
           this.app.audio.uiClick();
-          this.showSparks();
+          this.showSparks(() => this.showPrerun(daily));
         } else if (act === 'toggle') {
           const id = btn.dataset.id as BoosterId;
           selected = selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id];
@@ -371,6 +407,7 @@ export class UI {
 
   showShop(): void {
     const s = this.app.save.data;
+    this.app.refreshPrices();
     const left = this.app.freeDiamondsLeft();
     const offer = (id: ProductId, desc: string) => {
       const owned = (id === 'no_ads' && s.owned.noAds) || (id === 'starter_pack' && s.owned.starter);
@@ -452,7 +489,7 @@ export class UI {
       })
       .join('');
     const bonusReady = canClaimMissionBonus(s);
-    const html = `${this.backBar(t('missions.title'), this.wallet())}
+    const html = `${this.backBar(t('menu.missions'), this.wallet())}
       <div class="screen-inner top">
         <p class="hint" style="margin:0">${t('missions.desc')}</p>
         <div class="list">${items}</div>
@@ -540,8 +577,9 @@ export class UI {
 
   // ───────────────────────── Sparks ─────────────────────────
 
-  showSparks(): void {
+  showSparks(returnTo?: () => void): void {
     const s = this.app.save.data;
+    const goBack = returnTo ?? (() => this.back());
     const bar = (label: string, v: number, color: string) =>
       `<span>${label}</span><div class="bar"><i style="width:${Math.round(Math.min(1, v) * 100)}%;--c:${color}"></i></div>`;
     const cards = CHARACTERS.map((c) => {
@@ -569,12 +607,16 @@ export class UI {
       onAction: (act, el) => {
         if (this.walletAction(act)) return;
         const id = el.dataset.id as CharacterId;
-        if (act === 'back') this.back();
-        else if (act === 'select') {
+        if (act === 'back') {
+          this.app.audio.uiBack();
+          goBack();
+        } else if (act === 'select') {
           this.app.selectChar(id);
-          this.showSparks();
+          // Picking a spark from the preparation screen goes straight back there.
+          if (returnTo) returnTo();
+          else this.showSparks();
         } else if (act === 'buy') {
-          if (this.app.buyChar(id, el.dataset.cur as Currency)) this.showSparks();
+          if (this.app.buyChar(id, el.dataset.cur as Currency)) this.showSparks(returnTo);
         }
       },
     });
@@ -807,7 +849,7 @@ export class UI {
 
   // ───────────────────────── Continue (revive) ─────────────────────────
 
-  showContinue(offer: ContinueOffer): void {
+  showContinue(offer: ContinueOffer, timeLeft = REVIVE_COUNTDOWN): void {
     const s = this.app.save.data;
     const opts: string[] = [];
     if (offer.adAvailable) {
@@ -817,19 +859,20 @@ export class UI {
     }
     opts.push(`<button class="btn gem-btn" data-act="diamonds" ${s.diamonds >= offer.diamonds ? '' : 'disabled'}>${t('revive.pay')} ${this.price('diamonds', offer.diamonds)}</button>`);
     const html = `<div class="screen-inner">
-        <div class="continue-ring"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="54" class="track"/><circle cx="60" cy="60" r="54" class="fill"/></svg><span>${REVIVE_COUNTDOWN}</span></div>
+        <div class="continue-ring"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="54" class="track"/><circle cx="60" cy="60" r="54" class="fill"/></svg><span>${Math.ceil(timeLeft)}</span></div>
         <div class="upgrade-head"><h2>${t('revive.title')}</h2><p class="hint" style="margin:6px 0 0">${t('revive.sub')}</p></div>
         <div class="list">${opts.join('')}</div>
         ${s.diamonds < offer.diamonds ? `<button class="btn ghost small" data-act="shop">${icon('gem', 16)}${t('menu.shop')}</button>` : ''}
         <button class="btn ghost" data-act="giveup">${t('revive.giveUp')}</button>
       </div>`;
-    let left = REVIVE_COUNTDOWN;
+    let left = timeLeft;
     let paused = false;
     let finished = false;
     const el = this.open('continue', html, {
       dim: true,
       onAction: (act) => {
-        if (finished) return;
+        // While an ad is loading/playing every other button waits.
+        if (finished || paused) return;
         if (act === 'giveup') {
           finished = true;
           clearInterval(timer);
@@ -847,8 +890,16 @@ export class UI {
             if (ok) {
               finished = true;
               clearInterval(timer);
-            } else {
-              paused = false; // failed or cancelled – the countdown resumes
+            } else if (this.app.state === 'continue') {
+              const next = this.app.continueOffer();
+              if (next.adAvailable !== offer.adAvailable) {
+                // No ad available → the shard option appears; keep the remaining time.
+                finished = true;
+                clearInterval(timer);
+                this.showContinue(next, Math.max(2, left));
+              } else {
+                paused = false; // cancelled – the countdown resumes
+              }
             }
           });
         }
@@ -858,8 +909,10 @@ export class UI {
     const fill = el.querySelector<SVGCircleElement>('.continue-ring .fill')!;
     const circ = 2 * Math.PI * 54;
     fill.style.strokeDasharray = `${circ}`;
+    fill.style.strokeDashoffset = `${circ * (1 - left / REVIVE_COUNTDOWN)}`;
     const timer = window.setInterval(() => {
-      if (paused || finished) return;
+      // Switching apps must not cost the run: the countdown only runs while the game is visible.
+      if (paused || finished || document.visibilityState === 'hidden') return;
       left -= 0.1;
       fill.style.strokeDashoffset = `${circ * (1 - left / REVIVE_COUNTDOWN)}`;
       num.textContent = String(Math.max(0, Math.ceil(left)));

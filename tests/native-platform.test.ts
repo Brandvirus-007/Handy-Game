@@ -83,7 +83,7 @@ describe('native ads', () => {
       }, 1);
       return { type: 'r', amount: 1 };
     });
-    expect(await p.showRewarded('revive')).toBe(true);
+    expect(await p.showRewarded('revive')).toBe('earned');
   });
 
   it('gives nothing if the ad is closed early', async () => {
@@ -92,7 +92,7 @@ describe('native ads', () => {
       setTimeout(() => m.adListeners.dismissed?.(), 1);
       return new Promise(() => undefined); // never resolves: no reward
     });
-    expect(await p.showRewarded('double')).toBe(false);
+    expect(await p.showRewarded('double')).toBe('dismissed');
   });
 
   it('gives nothing if the ad fails to show and preloads a new one', async () => {
@@ -100,7 +100,7 @@ describe('native ads', () => {
     m.admob.AdMob.showRewardVideoAd.mockImplementation(async () => {
       throw new Error('failed to show');
     });
-    expect(await p.showRewarded('reroll')).toBe(false);
+    expect(await p.showRewarded('reroll')).toBe('unavailable');
     expect(m.admob.AdMob.prepareRewardVideoAd).toHaveBeenCalled();
   });
 

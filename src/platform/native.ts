@@ -1,7 +1,7 @@
 import type { PluginListenerHandle } from '@capacitor/core';
 import { PRODUCTS, getProduct, type ProductId } from '../economy/defs';
 import { ADMOB, ADS_ARE_TEST } from './config';
-import type { AdPlacement, CompletedPurchase, Platform, PurchaseOutcome, StoreProduct } from './types';
+import type { AdPlacement, CompletedPurchase, Platform, PurchaseOutcome, RewardResult, StoreProduct } from './types';
 
 type AdMobModule = typeof import('@capacitor-community/admob');
 type PurchasesModule = typeof import('@capgo/native-purchases');
@@ -88,32 +88,41 @@ export class NativePlatform implements Platform {
       .catch(() => false);
   }
 
-  async showRewarded(_placement: AdPlacement): Promise<boolean> {
-    if (!this.ads || !this.canRequestAds) return false;
+  async showRewarded(_placement: AdPlacement): Promise<RewardResult> {
+    if (!this.ads || !this.canRequestAds) return 'unavailable';
     const { AdMob, RewardAdPluginEvents } = this.ads;
     let ready = await (this.rewardedReady ?? Promise.resolve(false));
     if (!ready) {
       this.loadRewarded();
       ready = await (this.rewardedReady ?? Promise.resolve(false));
-      if (!ready) return false;
+      if (!ready) return 'unavailable';
     }
     this.rewardedReady = null;
     let earned = false;
+    let failed = false;
     const handles: PluginListenerHandle[] = [];
     let close!: () => void;
     const closed = new Promise<void>((r) => (close = r));
     // Rewards are granted only from the Rewarded event – never on click or dismiss.
     handles.push(await AdMob.addListener(RewardAdPluginEvents.Rewarded, () => (earned = true)));
     handles.push(await AdMob.addListener(RewardAdPluginEvents.Dismissed, () => close()));
-    handles.push(await AdMob.addListener(RewardAdPluginEvents.FailedToShow, () => close()));
+    handles.push(
+      await AdMob.addListener(RewardAdPluginEvents.FailedToShow, () => {
+        failed = true;
+        close();
+      }),
+    );
     AdMob.showRewardVideoAd().then(
       () => (earned = true),
-      () => close(),
+      () => {
+        failed = true;
+        close();
+      },
     );
     await Promise.race([closed, sleep(180_000)]);
     for (const h of handles) void h.remove();
     this.loadRewarded();
-    return earned;
+    return earned ? 'earned' : failed ? 'unavailable' : 'dismissed';
   }
 
   async showInterstitial(): Promise<void> {
