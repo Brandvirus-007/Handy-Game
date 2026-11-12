@@ -69,6 +69,16 @@ self.addEventListener('fetch', (e) => {
   };
 }
 
+/** Single-file build (embeddable page): drop links to files that only exist in the full PWA build. */
+function stripPwaLinks(): Plugin {
+  return {
+    name: 'lumen-strip-pwa-links',
+    transformIndexHtml(html) {
+      return html.replace(/\s*<link rel="(manifest|icon|apple-touch-icon)"[^>]*>/g, '');
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const single = mode === 'single';
   return {
@@ -77,7 +87,7 @@ export default defineConfig(({ mode }) => {
       __SINGLE_FILE__: JSON.stringify(single),
       __APP_VERSION__: JSON.stringify(JSON.parse(readFileSync('package.json', 'utf8')).version),
     },
-    plugins: single ? [viteSingleFile()] : [serviceWorker()],
+    plugins: single ? [stripPwaLinks(), viteSingleFile()] : [serviceWorker()],
     publicDir: single ? false : 'public',
     build: {
       outDir: single ? 'dist-single' : 'dist',
