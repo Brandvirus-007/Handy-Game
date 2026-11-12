@@ -53,7 +53,8 @@ describe('upgrades', () => {
   it('modifiers and characters shape stats', () => {
     expect(computeStats('spark', {}, {}, ['glass']).maxHearts).toBe(1);
     expect(computeStats('prism', {}, {}, []).maxHearts).toBe(2);
-    expect(computeStats('comet', {}, {}, []).speed).toBeGreaterThan(computeStats('spark', {}, {}, []).speed);
+    expect(computeStats('comet', {}, {}, []).hitRadius).toBeLessThan(computeStats('spark', {}, {}, []).hitRadius);
+    expect(computeStats('spark', {}, { nimble: 3 }, []).hitRadius).toBeLessThan(computeStats('spark', {}, {}, []).hitRadius);
     expect(computeStats('ember', {}, {}, []).ember).toBe(1);
     expect(computeStats('spark', { heart: 2 }, {}, []).maxHearts).toBe(5);
   });

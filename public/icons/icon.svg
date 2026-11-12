@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="38%" r="78%"><stop offset="0" stop-color="#1d1650"/><stop offset=".6" stop-color="#0c0924"/><stop offset="1" stop-color="#05040c"/></radialGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7df9ff"/><stop offset=".55" stop-color="#9fb4ff"/><stop offset="1" stop-color="#c98bff"/></linearGradient>
+    <radialGradient id="spark"><stop offset="0" stop-color="#fff"/><stop offset=".3" stop-color="#c8fdff" stop-opacity=".9"/><stop offset="1" stop-color="#7df9ff" stop-opacity="0"/></radialGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="16"/></filter>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  
+  <g transform="translate(256 256) scale(0.92) translate(-256 -256)">
+    <path d="M96 438 C 210 380 386 332 386 214 C 386 118 312 84 256 84 C 182 84 126 136 126 214 C 126 332 302 380 416 438"
+      fill="none" stroke="url(#ring)" stroke-width="46" stroke-linecap="round" opacity=".55" filter="url(#glow)"/>
+    <path d="M96 438 C 210 380 386 332 386 214 C 386 118 312 84 256 84 C 182 84 126 136 126 214 C 126 332 302 380 416 438"
+      fill="none" stroke="url(#ring)" stroke-width="20" stroke-linecap="round"/>
+    <path d="M96 438 C 210 380 386 332 386 214 C 386 118 312 84 256 84 C 182 84 126 136 126 214 C 126 332 302 380 416 438"
+      fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" opacity=".85"/>
+    <circle cx="256" cy="212" r="58" fill="#a66bff" opacity=".5" filter="url(#glow)"/>
+    <circle cx="256" cy="212" r="46" fill="#0b0716" stroke="#a66bff" stroke-width="7"/>
+    <circle cx="238" cy="206" r="10" fill="#fff"/><circle cx="274" cy="206" r="10" fill="#fff"/>
+    <circle cx="240" cy="210" r="4.5" fill="#0b0716"/><circle cx="276" cy="210" r="4.5" fill="#0b0716"/>
+    <circle cx="416" cy="438" r="70" fill="url(#spark)"/>
+    <circle cx="416" cy="438" r="17" fill="#fff"/>
+  </g>
+</svg>

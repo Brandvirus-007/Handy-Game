@@ -21,7 +21,7 @@ export type CharacterId = 'spark' | 'comet' | 'ember' | 'prism';
 export type UpgradeId =
   | 'trail'
   | 'afterglow'
-  | 'swift'
+  | 'nimble'
   | 'magnet'
   | 'shardrain'
   | 'combo'
@@ -153,6 +153,7 @@ export interface TrailPoint {
 
 export interface PlayerStats {
   speed: number;
+  hitRadius: number;
   trailLength: number;
   trailLife: number;
   magnet: number;

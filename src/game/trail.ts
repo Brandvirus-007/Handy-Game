@@ -1,4 +1,4 @@
-import { segmentIntersection, polygonArea, distPointSegment2 } from '../core/geometry';
+import { segmentIntersection, polygonArea, polygonPerimeter, distPointSegment2 } from '../core/geometry';
 import type { Vec } from '../core/math';
 import { TUNING } from './config';
 import type { TrailPoint } from './types';
@@ -100,6 +100,36 @@ export class Trail {
       const area = polygonArea(poly);
       if (area < TUNING.trail.minLoopArea) continue;
       return { poly, area, x: hit.x, y: hit.y };
+    }
+    return this.detectSnap(bx, by);
+  }
+
+  /**
+   * Touch-friendly closing: if the new point lands near an older part of the trail (without
+   * an exact crossing), the loop snaps shut there. Walks backwards along the trail so only
+   * points far enough back (by arc length) qualify.
+   */
+  private detectSnap(bx: number, by: number): LoopResult | null {
+    const pts = this.points;
+    const snap2 = TUNING.trail.snapRadius * TUNING.trail.snapRadius;
+    let arc = Math.hypot(bx - pts[pts.length - 1].x, by - pts[pts.length - 1].y);
+    for (let i = pts.length - 1; i > 0; i--) {
+      arc += this.segLen[i - 1];
+      if (arc < TUNING.trail.snapMinArc) continue;
+      const p = pts[i - 1];
+      const dx = bx - p.x;
+      const dy = by - p.y;
+      if (dx * dx + dy * dy > snap2) continue;
+      const poly: Vec[] = [];
+      for (let k = i - 1; k < pts.length; k++) poly.push({ x: pts[k].x, y: pts[k].y });
+      poly.push({ x: bx, y: by });
+      const area = polygonArea(poly);
+      if (area < TUNING.trail.minLoopArea) continue;
+      // Snapped loops must be reasonably round (isoperimetric quotient: circle = 1, sliver ≈ 0.1),
+      // so a tight U-turn alongside the trail never closes by accident.
+      const per = polygonPerimeter(poly);
+      if ((4 * Math.PI * area) / (per * per) < 0.3) continue;
+      return { poly, area, x: p.x, y: p.y };
     }
     return null;
   }

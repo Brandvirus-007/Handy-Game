@@ -33,6 +33,42 @@ describe('trail loop detection', () => {
     }
   });
 
+  it('closes when a lap retraces the trail exactly (shared endpoints)', () => {
+    const trail = new Trail(520, 10);
+    let t = 0;
+    let loop = null;
+    // 36 identical positions per lap, two laps – like a finger that retraces perfectly.
+    for (let i = 0; i <= 72 && !loop; i++) {
+      const a = (i / 36) * Math.PI * 2;
+      loop = trail.update(100 + Math.cos(a) * 76, 100 + Math.sin(a) * 76, (t += 0.03));
+    }
+    expect(loop).not.toBeNull();
+    expect(pointInPolygon(100, 100, loop!.poly)).toBe(true);
+  });
+
+  it('snaps shut on a near miss (finger misses its own trail by a few pixels)', () => {
+    const trail = new Trail(2000, 10);
+    let t = 0;
+    let loop = null;
+    // A spiral that ends 6 units outside its start without ever crossing it.
+    for (let i = 0; i <= 100 && !loop; i++) {
+      const a = (i / 100) * Math.PI * 2;
+      const r = 60 + (i / 100) * 6;
+      loop = trail.update(100 + Math.cos(a) * r, 100 + Math.sin(a) * r, (t += 0.01));
+    }
+    expect(loop).not.toBeNull();
+    expect(pointInPolygon(100, 100, loop!.poly)).toBe(true);
+  });
+
+  it('does not snap on a tight parallel U-turn', () => {
+    const trail = new Trail(2000, 10);
+    let t = 0;
+    let loop = null;
+    for (let i = 0; i <= 30 && !loop; i++) loop = trail.update(i * 6, 0, (t += 0.01));
+    for (let i = 30; i >= 0 && !loop; i--) loop = trail.update(i * 6, 8, (t += 0.01));
+    expect(loop).toBeNull();
+  });
+
   it('ignores tiny jitter loops', () => {
     const trail = new Trail(2000, 10);
     expect(drawCircle(trail, 100, 100, 8, 1.5, 40)).toBeNull();

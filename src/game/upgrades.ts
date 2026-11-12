@@ -10,7 +10,7 @@ export interface UpgradeDef {
 export const UPGRADES: UpgradeDef[] = [
   { id: 'trail', rarity: 'common', max: 5 },
   { id: 'afterglow', rarity: 'common', max: 3 },
-  { id: 'swift', rarity: 'common', max: 5 },
+  { id: 'nimble', rarity: 'common', max: 3 },
   { id: 'magnet', rarity: 'common', max: 3 },
   { id: 'shardrain', rarity: 'common', max: 3 },
   { id: 'combo', rarity: 'common', max: 3 },
@@ -62,7 +62,7 @@ export function rollOffer(rng: Rng, levels: UpgradeLevels, count = 3, opts: Offe
 export const UPGRADE_VALUES = {
   trail: (l: number) => 0.2 * l,
   afterglow: (l: number) => 0.25 * l,
-  swift: (l: number) => 0.12 * l,
+  nimble: (l: number) => 1 - 0.12 * l,
   magnet: (l: number) => 0.4 * l,
   shardrain: (l: number) => 0.25 * l,
   combo: (l: number) => 0.5 * l,

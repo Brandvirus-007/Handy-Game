@@ -2,7 +2,7 @@
 import { defineConfig, type Plugin } from 'vite';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 import { createHash } from 'node:crypto';
-import { readdirSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 /** Lists every file in /public so the service worker can precache it. */
@@ -73,7 +73,10 @@ export default defineConfig(({ mode }) => {
   const single = mode === 'single';
   return {
     base: './',
-    define: { __SINGLE_FILE__: JSON.stringify(single) },
+    define: {
+      __SINGLE_FILE__: JSON.stringify(single),
+      __APP_VERSION__: JSON.stringify(JSON.parse(readFileSync('package.json', 'utf8')).version),
+    },
     plugins: single ? [viteSingleFile()] : [serviceWorker()],
     publicDir: single ? false : 'public',
     build: {

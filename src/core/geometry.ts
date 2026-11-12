@@ -24,7 +24,9 @@ export function segmentIntersection(
   const qpY = cy - ay;
   const t = (qpX * sY - qpY * sX) / denom;
   const u = (qpX * rY - qpY * rX) / denom;
-  if (t < 0 || t > 1 || u < 0 || u > 1) return null;
+  // Small tolerance so touching endpoints count despite floating-point error.
+  const e = 1e-7;
+  if (t < -e || t > 1 + e || u < -e || u > 1 + e) return null;
   return { x: ax + t * rX, y: ay + t * rY, t, u };
 }
 

@@ -1,0 +1,48 @@
+/* Hand-drawn 24×24 line icons (stroke = currentColor). */
+const P: Record<string, string> = {
+  heart: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill="currentColor" stroke="none"/>',
+  heartEmpty: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
+  shard: '<path d="M12 3l6 9-6 9-6-9z" fill="currentColor" stroke="none"/>',
+  pause: '<path d="M9 5v14M15 5v14" stroke-width="3"/>',
+  play: '<path d="M8 5l11 7-11 7z" fill="currentColor"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+  back: '<path d="M15 5l-7 7 7 7"/>',
+  trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8"/>',
+  wrench: '<path d="M14.5 5.5a4 4 0 0 0 4.9 5.1L11 19a2 2 0 0 1-3-3l8.4-8.4a4 4 0 0 0-1.9-2.1z"/>',
+  spark: '<path d="M12 3v5M12 16v5M3 12h5M16 12h5M6 6l3 3M15 15l3 3M6 18l3-3M15 9l3-3"/>',
+  calendar: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
+  lock: '<rect x="6" y="11" width="12" height="9" rx="2"/><path d="M9 11V8a3 3 0 0 1 6 0v3"/>',
+  refresh: '<path d="M19 12a7 7 0 1 1-2-5M19 4v4h-4"/>',
+  check: '<path d="M5 12l5 5 9-10"/>',
+  star: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
+  download: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+  // upgrades
+  trail: '<path d="M3 16c3 0 3-8 6-8s3 8 6 8 3-8 6-8"/>',
+  afterglow: '<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/>',
+  nimble: '<circle cx="12" cy="12" r="2.5" fill="currentColor"/><circle cx="12" cy="12" r="8" stroke-dasharray="3 3"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3"/>',
+  magnet: '<path d="M6 4v8a6 6 0 0 0 12 0V4M6 8h4M14 8h4M10 4v8a2 2 0 0 0 4 0V4"/>',
+  shardrain: '<path d="M12 3l4 6-4 6-4-6z"/><path d="M6 17v2M12 18v3M18 17v2"/>',
+  combo: '<path d="M5 6l14 12M19 6L5 18"/><circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/>',
+  shockwave: '<circle cx="12" cy="12" r="2.5" fill="currentColor"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/>',
+  frost: '<path d="M12 2v20M3.3 7l17.4 10M3.3 17L20.7 7M9 4l3 2 3-2M9 20l3-2 3 2"/>',
+  chain: '<path d="M13 2L5 14h6l-2 8 8-12h-6z"/>',
+  ember: '<path d="M12 21a6 6 0 0 0 6-6c0-4-3-5-3-9-2 1-4 3-4 6-1-1-1-2-1-3-2 2-4 4-4 6a6 6 0 0 0 6 6z"/>',
+  pulsecharge: '<circle cx="12" cy="12" r="2"/><circle cx="12" cy="12" r="5.5"/><circle cx="12" cy="12" r="9" stroke-dasharray="2.5 2.5"/>',
+  shield: '<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/>',
+  echo: '<circle cx="9" cy="12" r="5"/><circle cx="15" cy="12" r="5" stroke-dasharray="2.5 2"/>',
+  slowmo: '<path d="M7 3h10M7 21h10M8 3c0 5 8 5 8 9s-8 4-8 9M16 3c0 5-8 5-8 9"/>',
+  double: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/>',
+  secondwind: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/><path d="M12 9v6M9 12h6"/>',
+  // meta
+  'meta.heart': '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/><path d="M12 10v4M10 12h4"/>',
+  'meta.trail': '<path d="M3 16c3 0 3-8 6-8s3 8 6 8 3-8 6-8"/><path d="M3 20h18"/>',
+  'meta.shards': '<path d="M12 3l5 7-5 7-5-7z"/><path d="M5 20h14"/>',
+  'meta.magnet': '<path d="M6 4v8a6 6 0 0 0 12 0V4M6 8h4M14 8h4"/>',
+  'meta.reroll': '<path d="M19 12a7 7 0 1 1-2-5M19 4v4h-4"/>',
+  'meta.precharge': '<circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/>',
+};
+
+export function icon(name: string, size = 22, cls = ''): string {
+  const body = P[name] ?? P.spark;
+  return `<svg class="ico ${cls}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+}

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <title>LUMEN LOOP</title>
+    <meta name="description" content="LUMEN LOOP – ein Arcade-Roguelite für das Handy. Zieh Kreise aus Licht und fang die Schatten." />
+    <meta name="theme-color" content="#05040c" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="LUMEN LOOP" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <style>
+      /* Critical styles – visible before the bundle loads. */
+      html, body { margin: 0; height: 100%; background: #05040c; overflow: hidden; }
+      #boot { position: fixed; inset: 0; display: grid; place-items: center; transition: opacity .4s; }
+      #boot i { width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 0 24px 8px #7df9ff, 0 0 60px 20px rgba(176,108,255,.5); animation: b 1.2s ease-in-out infinite; }
+      @keyframes b { 50% { transform: scale(.6); opacity: .6 } }
+      body.ready #boot { opacity: 0; pointer-events: none; }
+    </style>
+  </head>
+  <body>
+    <canvas id="game" aria-label="LUMEN LOOP"></canvas>
+    <div id="hud" class="hidden"></div>
+    <div id="banner"></div>
+    <div id="ui"></div>
+    <div id="toasts"></div>
+    <div id="safe-probe"></div>
+    <div id="boot"><i></i></div>
+    <noscript><p style="color:#fff;font-family:sans-serif;text-align:center;margin-top:40vh">LUMEN LOOP benötigt JavaScript.</p></noscript>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

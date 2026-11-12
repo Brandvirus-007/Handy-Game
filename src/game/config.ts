@@ -7,9 +7,13 @@ export const TUNING = {
     radius: 8,
     /** Collision radius is smaller than the visual – forgiving hitbox. */
     hitRadius: 6,
-    speed: 265,
-    /** Max distance the steering target may lead the spark. */
-    maxLead: 70,
+    /** Movement cap (units/s). High on purpose: touch steering is 1:1 relative, so the spark
+     *  traces exactly what the finger draws – this only prevents teleport-like flicks. */
+    speed: 950,
+    /** Max distance the steering target may lead the spark (excess finger travel is dropped). */
+    maxLead: 150,
+    /** Keyboard movement speed (desktop). */
+    keyboardSpeed: 300,
     hearts: 3,
     invuln: 1.6,
     hitKnockRadius: 95,
@@ -17,11 +21,16 @@ export const TUNING = {
   },
   trail: {
     length: 520,
-    life: 1.8,
+    /** Seconds a trail point lives – generous so calm, deliberate circles still close. */
+    life: 2.6,
     pointSpacing: 5,
     minLoopArea: 650,
     /** Neighbouring segments skipped during self-intersection tests. */
     skipSegments: 2,
+    /** Magnetic closing: coming this close to an older trail point closes the loop. */
+    snapRadius: 11,
+    /** …but only for points at least this far back along the trail. */
+    snapMinArc: 90,
   },
   combo: { window: 2.2, perStep: 0.1, max: 3 },
   multiKillBonus: 0.5,
@@ -34,7 +43,7 @@ export const TUNING = {
     gainPerLoop: 0.03,
     knock: 300,
     invuln: 0.6,
-    cometPerUnit: 0.0004,
+    cometPerUnit: 0.00011,
     /** Passive regen per second – guarantees a way out of stalemates. */
     passive: 0.022,
   },

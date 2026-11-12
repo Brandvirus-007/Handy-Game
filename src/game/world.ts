@@ -281,8 +281,9 @@ export class World {
     if (!this.alive) return;
     const s = this.stats.speed;
     if (this.kbx || this.kby) {
-      this.tx = this.px + this.kbx * TUNING.player.maxLead;
-      this.ty = this.py + this.kby * TUNING.player.maxLead;
+      // Keyboard (desktop): constant-speed movement instead of 1:1 drag.
+      this.tx = this.px + this.kbx * TUNING.player.keyboardSpeed * dt;
+      this.ty = this.py + this.kby * TUNING.player.keyboardSpeed * dt;
       this.clampTarget();
     }
     const dx = this.tx - this.px;
@@ -855,7 +856,7 @@ export class World {
     this.grid.clear();
     for (const e of this.enemies) if (!e.dead) this.grid.insert(e);
 
-    const hitR = TUNING.player.hitRadius;
+    const hitR = this.stats.hitRadius;
     for (const e of this.enemies) {
       if (e.dead) continue;
       e.t += dt;
@@ -909,7 +910,7 @@ export class World {
   }
 
   private updateProjectiles(dt: number): void {
-    const hitR = TUNING.player.hitRadius;
+    const hitR = this.stats.hitRadius;
     for (const p of this.projectiles) {
       if (p.dead) continue;
       let slow = 1;
@@ -946,7 +947,7 @@ export class World {
     const beam = twinBeam(this);
     if (beam) segs.push(beam);
     for (const s of segs) {
-      if (this.alive && segmentCircle(s.ax, s.ay, s.bx, s.by, this.px, this.py, TUNING.player.hitRadius + 2)) this.hitPlayer();
+      if (this.alive && segmentCircle(s.ax, s.ay, s.bx, s.by, this.px, this.py, this.stats.hitRadius + 2)) this.hitPlayer();
       const cut = this.trail.cutBySegment(s.ax, s.ay, s.bx, s.by);
       if (cut) this.emit({ type: 'trailCut', x: cut.x, y: cut.y });
     }

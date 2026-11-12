@@ -16,7 +16,7 @@ export function computeStats(
   const m = (k: keyof MetaLevels) => meta[k] ?? 0;
 
   let trailLength = TUNING.trail.length * c.trailMul * (1 + 0.08 * m('trail')) * (1 + UPGRADE_VALUES.trail(lv('trail')));
-  let trailLife = TUNING.trail.life * (1 + UPGRADE_VALUES.afterglow(lv('afterglow')));
+  let trailLife = TUNING.trail.life * c.lifeMul * (1 + UPGRADE_VALUES.afterglow(lv('afterglow')));
   if (modifiers.includes('longtrail')) {
     trailLength *= 1.5;
     trailLife *= 0.7;
@@ -27,7 +27,8 @@ export function computeStats(
 
   const pulseLevel = lv('pulsecharge');
   return {
-    speed: TUNING.player.speed * c.speedMul * (1 + UPGRADE_VALUES.swift(lv('swift'))),
+    speed: TUNING.player.speed,
+    hitRadius: TUNING.player.hitRadius * c.hitMul * UPGRADE_VALUES.nimble(lv('nimble')),
     trailLength,
     trailLife,
     magnet: TUNING.magnet * (1 + 0.15 * m('magnet')) * (1 + UPGRADE_VALUES.magnet(lv('magnet'))),

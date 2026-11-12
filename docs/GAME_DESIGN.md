@@ -74,7 +74,7 @@ wellenbonus    = 100 × welle  (× 1,5 wenn ohne Schaden = „Makellos“)
 ## 4. Die Schleife (Kernmechanik)
 
 - Die Spur besteht aus Punkten mit Mindestabstand 5 Einheiten. Sie wird durch **maximale Länge**
-  (Basis 520) und **Lebensdauer** (Basis 1,6 s) begrenzt.
+  (Basis 520) und **Lebensdauer** (Basis 2,6 s) begrenzt.
 - Bei jedem neuen Segment wird auf Schnitt mit allen älteren Segmenten geprüft (außer den
   direkten Nachbarn). Das kostet O(n) pro Punkt bei n ≤ ~120.
 - Schnittpunkt X → Polygon = [X, p(i+1) … p(n−1)]. Ist die Fläche kleiner als 700 E² (Zitter-Schleifen),
@@ -122,7 +122,7 @@ Nach jeder Welle wählst du eins von drei. Die Seltenheit bestimmt die Wahrschei
 |---|---|---|---|
 | Lange Spur | G | 5 | +20 % Spurlänge |
 | Nachglühen | G | 3 | +25 % Spur-Lebensdauer |
-| Flinker Funke | G | 5 | +12 % Tempo |
+| Feinfunke | G | 3 | −12 % Trefferzone |
 | Magnet | G | 3 | +40 % Sammelradius |
 | Splitterregen | G | 3 | +25 % Splitter |
 | Kombo-Meister | G | 3 | +0,5 s Kombo-Zeitfenster |
@@ -150,8 +150,8 @@ Neu würfeln (+1 Reroll pro Runde, max. 3) · Vorladung (Puls startet mit 50 %, 
 | Funke | Preis | Eigenschaft |
 |---|---|---|
 | Funke | – | ausgewogen |
-| Komet | 400 | +25 % Tempo, −20 % Spur, Puls lädt durch Bewegung |
-| Glut | 900 | −15 % Tempo, +30 % Spur, Spur brennt (Glutspur 1) |
+| Komet | 400 | −28 % Trefferzone, −20 % Spur, Puls lädt durch Bewegung |
+| Glut | 900 | +30 % Spur, Spur brennt (Glutspur 1), verblasst 15 % schneller |
 | Prisma | 1500 | Kettenblitz 1 angeboren, nur 2 Herzen, +25 % Punkte |
 
 **Tägliche Herausforderung:** Seed aus dem Datum, fester (auch noch gesperrter!) Funke und 2 Modifikatoren
