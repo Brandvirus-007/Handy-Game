@@ -94,7 +94,7 @@ Diese Hinweise passen, wenn schon eine ältere Version im Store ist. Für die al
 **Deutsch (max. 500 Zeichen):**
 ```
 • Neue Steuerung: Der Funke schwebt über deinem Finger. Abstand und Trackpad-Modus findest du in den Einstellungen.
-• 4 neue Funken: Frost, Volt, Sonnenkern (ab Stufe 50) und Polarlicht (nur im Shop)
+• 4 neue Funken: Frost, Volt, Sonnenkern (ab Stufe 50) und Polarlicht (im Shop)
 • Stufenpfad: Tipp auf deine Stufe und sieh, was als Nächstes kommt
 • Werkstatt: 4 neue Verbesserungen und höhere Ränge
 • Neue Upgrades: Sogschleife, Lichtsatelliten und die Fusion Galaxie
@@ -104,7 +104,7 @@ Diese Hinweise passen, wenn schon eine ältere Version im Store ist. Für die al
 **English (max. 500 characters):**
 ```
 • New controls: the spark hovers above your finger. Distance and trackpad mode are in the settings.
-• 4 new sparks: Frost, Volt, Sun Core (level 50) and Aurora (shop only)
+• 4 new sparks: Frost, Volt, Sun Core (level 50) and Aurora (in the shop)
 • Level path: tap your level to see what comes next
 • Workshop: 4 new improvements and higher ranks
 • New upgrades: Gravity Loop, Light Satellites and the Galaxy fusion

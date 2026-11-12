@@ -153,6 +153,7 @@ export class App {
   private pricesLoading = false;
   /** Live demo behind the main menu: a bot catching shadows. */
   private demo: World | null = null;
+  private demoVisible = false;
   private demoAcc = 0;
   private demoAngle = 0;
   private lastPx = 0;
@@ -1038,8 +1039,15 @@ export class App {
       this.trackPerformance(rdt);
       this.stepWorld(w, rdt);
     }
+    // The demo run plays only behind the main menu; content screens (shop, workshop …) get calm motes.
+    const demoVisible = this.state === 'menu' && !!this.demo && this.ui.screenName === 'menu';
+    if (demoVisible !== this.demoVisible) {
+      this.demoVisible = demoVisible;
+      this.fx.clear();
+    }
+    this.fx.calm = this.state === 'menu';
     if (this.state === 'menu') {
-      if (this.demo) this.stepDemo(rdt);
+      if (demoVisible) this.stepDemo(rdt);
       else this.fx.ambient(this.renderer.cssW, this.renderer.cssH);
     }
     this.emitTrailSparks();
@@ -1048,14 +1056,14 @@ export class App {
     this.fx.update(frozen ? 0 : rdt * (this.state === 'playing' || this.state === 'dying' ? Math.max(0.3, this.timeScale) : 1));
 
     const dimTarget =
-      this.state === 'menu' ? (this.demo ? 0.5 : 0.12) : frozen || this.state === 'upgrade' ? 0.35 : this.state === 'gameover' ? 0.45 : 0;
+      this.state === 'menu' ? (demoVisible ? 0.64 : 0.12) : frozen || this.state === 'upgrade' ? 0.35 : this.state === 'gameover' ? 0.45 : 0;
     this.dim = damp(this.dim, dimTarget, 8, rdt);
 
     const c = getCharacter(this.state === 'menu' ? this.save.data.selected : (this.setup?.character ?? this.save.data.selected));
     const showWorld = this.state !== 'menu' ? this.world : null;
     this.renderer.frame({
       ambient: this.state === 'menu',
-      world: showWorld ?? (this.state === 'menu' ? this.demo : null),
+      world: showWorld ?? (demoVisible ? this.demo : null),
       fx: this.fx,
       time: this.time,
       color: c.color,
@@ -1069,7 +1077,7 @@ export class App {
 
   /** Small embers behind the moving spark (game and menu demo). */
   private emitTrailSparks(): void {
-    const w = this.state === 'menu' ? this.demo : this.state === 'playing' ? this.world : null;
+    const w = this.state === 'menu' ? (this.demoVisible ? this.demo : null) : this.state === 'playing' ? this.world : null;
     if (!w || !w.alive) return;
     const moved = Math.hypot(w.px - this.lastPx, w.py - this.lastPy);
     this.lastPx = w.px;
@@ -1093,8 +1101,6 @@ export class App {
       meta: {},
       daily: false,
       tutorial: false,
-      // Start a few waves in so the backdrop has something going on.
-      boosters: ['headstart'],
     });
     demo.start();
     this.demo = demo;
@@ -1127,11 +1133,8 @@ export class App {
       if (d.pulseReady && d.enemies.length > 5) d.triggerPulse();
       d.update(DT);
       for (const e of d.drainEvents()) this.fx.handle(e);
-      if (d.awaitingUpgrade) {
-        const [id] = d.rollOffer();
-        if (id) d.applyUpgrade(id);
-        d.nextWave();
-      }
+      // No upgrades in the backdrop: their explosions and lightning are too busy behind menus.
+      if (d.awaitingUpgrade) d.nextWave();
     }
     // The menu should stay calm: no shake, flashes or hit-stop from the demo.
     this.fx.trauma = 0;

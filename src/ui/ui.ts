@@ -14,6 +14,7 @@ import {
   MILESTONES,
   MISSION_BONUS,
   PRODUCTS,
+  getProduct,
   REVIVE_COUNTDOWN,
   diamondsForCoins,
   xpForLevel,
@@ -516,14 +517,12 @@ export class UI {
     const html = `${this.backBar(t('shop.title'), this.wallet())}
       <div class="screen-inner top">
         ${this.app.platform.demo ? `<p class="demo-note">${t('shop.demo')}</p>` : ''}
-        <div class="panel free">
-          <div class="item">
+        <div class="item free-ad">
             <div class="ico-wrap">${icon('ad', 26)}</div>
             <div class="body"><div class="name">${t('shop.freeAd', { n: FREE_DIAMOND_AD_REWARD })}</div>
               <div class="desc">${left > 0 ? t('shop.freeAdSub', { n: left }) : t('shop.freeAdNone')}</div></div>
             <button class="btn small" data-act="freead" ${left > 0 ? '' : 'disabled'}>${icon('play', 16)}${t('common.free')}</button>
           </div>
-        </div>
         ${s.chars.includes('aurora') ? '' : this.exclusiveOffer()}
         <div class="panel"><h3>${t('shop.offers')}</h3><div class="list">
           ${offer('starter_pack', t('shop.starterDesc'))}
@@ -552,13 +551,55 @@ export class UI {
     });
   }
 
-  /** Featured store-exclusive spark (real money only). */
+  /** What a spark brings (and costs), generated from its definition so text and game never drift apart. */
+  private sparkPerks(id: CharacterId): { ico: string; text: string; minus?: boolean }[] {
+    const c = getCharacter(id);
+    const pct = (m: number) => Math.round(Math.abs(m - 1) * 100);
+    const out: { ico: string; text: string; minus?: boolean }[] = [];
+    const innate = (ico: string, name: I18nKey) => out.push({ ico, text: t('perk.innate', { name: t(name) }) });
+    if (c.heartsDelta > 0) out.push({ ico: 'heart', text: t('perk.hearts', { n: c.heartsDelta }) });
+    if (c.secondWind) out.push({ ico: 'secondwind', text: t('perk.secondWind') });
+    if (c.startEpic) out.push({ ico: 'star', text: t('perk.startEpic') });
+    if (c.phase) out.push({ ico: 'shield', text: t('perk.phase') });
+    if (c.innateEcho) innate('echo', 'upgrade.echo.name');
+    if (c.innateChain) innate('chain', 'upgrade.chain.name');
+    if (c.innateShockwave) innate('shockwave', 'upgrade.shockwave.name');
+    if (c.innateFrost) innate('frost', 'upgrade.frost.name');
+    if (c.innateEmber) innate('ember', 'upgrade.ember.name');
+    if (c.cometCharge) out.push({ ico: 'pulsecharge', text: t('perk.cometCharge') });
+    if (c.shardMul > 1) out.push({ ico: 'shard', text: t('perk.shards', { n: pct(c.shardMul) }) });
+    if (c.scoreMul > 1) out.push({ ico: 'stardust', text: t('perk.score', { n: pct(c.scoreMul) }) });
+    if (c.hitMul < 1) out.push({ ico: 'nimble', text: t('perk.hitbox', { n: pct(c.hitMul) }) });
+    if (c.trailMul > 1) out.push({ ico: 'trail', text: t('perk.trail', { n: pct(c.trailMul) }) });
+    if (c.lifeMul > 1) out.push({ ico: 'afterglow', text: t('perk.trailLife', { n: pct(c.lifeMul) }) });
+    if (c.pulseRadiusMul > 1) out.push({ ico: 'pulsecharge', text: t('perk.pulseSize', { n: pct(c.pulseRadiusMul) }) });
+    if (c.pulseGainMul > 1) out.push({ ico: 'bolt', text: t('perk.pulseGain', { n: pct(c.pulseGainMul) }) });
+    if (c.heartsDelta < 0) out.push({ ico: 'heart', text: t('perk.heartsMinus', { n: -c.heartsDelta }), minus: true });
+    if (c.trailMul < 1) out.push({ ico: 'trail', text: t('perk.trailMinus', { n: pct(c.trailMul) }), minus: true });
+    if (c.lifeMul < 1) out.push({ ico: 'afterglow', text: t('perk.trailLifeMinus', { n: pct(c.lifeMul) }), minus: true });
+    return out;
+  }
+
+  /** Ability chips on a spark card; a spark without any gets one neutral line. */
+  private perkChips(id: CharacterId): string {
+    const perks = this.sparkPerks(id);
+    if (perks.length === 0) return `<p class="spark-plain">${t(`char.${id}.desc` as I18nKey)}</p>`;
+    return `<ul class="perk-chips">${perks
+      .map((p) => `<li class="${p.minus ? 'minus' : ''}">${icon(p.ico, 14)}<span>${esc(p.text)}</span></li>`)
+      .join('')}</ul>`;
+  }
+
+  /** Featured store spark: shows what it does, what is included and the price. */
   private exclusiveOffer(): string {
+    const gems = getProduct('spark_aurora').reward.diamonds ?? 0;
+    const perks = this.sparkPerks('aurora').map((p) => `<li>${icon(p.ico, 16)}<span>${esc(p.text)}</span></li>`);
+    if (gems) perks.push(`<li class="bonus">${icon('gem', 16)}<span>${esc(t('perk.diamonds', { n: gems }))}</span></li>`);
     return `<div class="panel exclusive-offer">
       <span class="tag">${t('sparks.exclusive')}</span>
       <div class="row">${orb('aurora', true)}
         <div class="body"><div class="name">${t('char.aurora.name')}</div><div class="desc">${t('shop.auroraDesc')}</div></div>
       </div>
+      <ul class="perks">${perks.join('')}</ul>
       <button class="btn buy" data-act="buy" data-id="spark_aurora">${icon('crown', 18)}${esc(this.app.priceOf('spark_aurora'))}</button>
     </div>`;
   }
@@ -660,7 +701,7 @@ export class UI {
       </div>`;
     }).join('');
     const html = `${this.backBar(t('workshop.title'), this.wallet())}
-      <div class="screen-inner top"><p class="hint" style="margin:0">${t('workshop.desc')}</p><div class="list">${items}</div></div>`;
+      <div class="screen-inner top"><p class="hint" style="margin:0">${t('workshop.desc')}</p><div class="list ws">${items}</div></div>`;
     this.open('workshop', html, {
       onAction: (act, el) => {
         if (this.walletAction(act)) return;
@@ -716,7 +757,7 @@ export class UI {
       return `<div class="spark-card ${sel ? 'selected' : ''} ${c.premium ? 'premium' : ''} ${c.exclusive ? 'exclusive' : ''} ${locked ? 'locked' : ''}">${orb(c.id, true)}
         <div class="body"><div class="name" style="font-weight:750;font-size:18px">${t(`char.${c.id}.name` as I18nKey)}
           ${tag}</div>
-          <div class="desc" style="color:var(--muted);font-size:13.5px;margin-top:2px">${t(`char.${c.id}.desc` as I18nKey)}</div>
+          ${this.perkChips(c.id)}
           <div class="bars">${bar(t('sparks.agility'), 1 / c.hitMul / 1.45, c.color)}${bar(t('sparks.trail'), c.trailMul / 1.35, c.color)}${bar(t('sparks.hearts'), hearts, '#ff5577')}</div>
           ${btn}</div></div>`;
     }).join('');
@@ -1091,7 +1132,14 @@ export class UI {
     const rewards: string[] = [];
     rewards.push(`<div class="reward-row">${icon('star', 18)}<span>${t('over.xp', { n: fmt(r.xp) })}</span>
       <span class="xpbar"><i style="width:${Math.round((s.xp / need) * 100)}%"></i></span><b>${t('menu.level', { n: s.level })}</b></div>`);
-    for (const lu of r.levelUps) rewards.push(`<div class="reward-row hl">${icon('star', 18)}<span>${t('over.levelUp', { n: lu.level })}</span>${this.rewardChips(lu.reward)}</div>`);
+    if (r.levelUps.length > 0) {
+      // Several level-ups in one run share one line with the summed rewards.
+      const first = r.levelUps[0].level;
+      const last = r.levelUps[r.levelUps.length - 1].level;
+      const sum = r.levelUps.reduce<Reward>((acc, lu) => ({ coins: (acc.coins ?? 0) + (lu.reward.coins ?? 0), diamonds: (acc.diamonds ?? 0) + (lu.reward.diamonds ?? 0) }), {});
+      const label = first === last ? t('over.levelUp', { n: last }) : t('over.levelUps', { a: first, b: last });
+      rewards.push(`<div class="reward-row hl">${icon('star', 18)}<span>${label}</span>${this.rewardChips(sum)}</div>`);
+    }
     for (const u of r.unlocked) rewards.push(`<div class="reward-row unlock">${this.unlockIcon(u, 18)}<span>${t('over.unlocked', { name: this.unlockName(u) })}</span></div>`);
     for (const m of r.milestones) rewards.push(`<div class="reward-row hl">${icon('gem', 18)}<span>${t('over.milestone', { n: m.wave })}</span>${this.price('diamonds', m.diamonds)}</div>`);
     if (r.missionsDone) rewards.push(`<div class="reward-row">${icon('target', 18)}<span>${t('over.missionsDone', { n: r.missionsDone })}</span></div>`);

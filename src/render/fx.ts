@@ -4,7 +4,7 @@ import { t } from '../core/i18n';
 import { COLORS, ENEMIES, TWIN_COLORS } from '../game/config';
 import type { GameEvent } from '../game/types';
 import { drawGlow } from './sprites';
-import { rgba } from './color';
+import { lighten, rgba } from './color';
 
 const enum Kind {
   Spark,
@@ -83,6 +83,9 @@ export class Fx {
   /** Full-screen colour flash (rgba string + alpha decay). */
   screenFlash = 0;
   screenFlashColor = '#ffffff';
+  /** Menu backdrop: no texts, flashes or white sparks – the UI on top must stay readable. */
+  calm = false;
+  private lastScoreText = -1;
   damagePulse = 0;
   private time = 0;
   /** Beams can cut the trail many times per second – show the label only occasionally. */
@@ -98,7 +101,9 @@ export class Fx {
   }
 
   private burst(x: number, y: number, color: string, count: number, speed: number, life = 0.6, size = 5, kind: Kind = Kind.Spark): void {
-    const n = Math.round(count * this.settings.density);
+    // Calm mode (menu backdrop): no white sparks, fewer particles.
+    if (this.calm && color === '#ffffff') return;
+    const n = Math.round(count * this.settings.density * (this.calm ? 0.5 : 1));
     for (let i = 0; i < n; i++) {
       const p = this.spawn();
       if (!p) return;
@@ -165,6 +170,7 @@ export class Fx {
   }
 
   ring(x: number, y: number, color: string, r0: number, r1: number, life = 0.45, width = 3): void {
+    if (this.calm && color === '#ffffff') return;
     const p = this.spawn();
     if (!p) return;
     p.kind = Kind.Ring;
@@ -182,6 +188,7 @@ export class Fx {
   }
 
   text(text: string, x: number, y: number, color = '#ffffff', size = 14, life = 0.9): void {
+    if (this.calm) return;
     if (this.texts.length > 24) this.texts.shift();
     this.texts.push({ text, x, y, vy: -38, life, maxLife: life, size, color });
   }
@@ -197,6 +204,7 @@ export class Fx {
   }
 
   flash(color: string, amount: number): void {
+    if (this.calm) return;
     const a = this.settings.reducedMotion ? amount * 0.4 : amount;
     if (a > this.screenFlash) {
       this.screenFlash = a;
@@ -233,8 +241,8 @@ export class Fx {
         if (strong) {
           // Shockwave rolling outward from the middle of the loop.
           const rad = Math.sqrt(e.area / Math.PI);
-          this.ring(e.cx, e.cy, '#ffffff', rad * 0.3, rad * 1.5, 0.55, 3.5);
-          this.ring(e.cx, e.cy, color, rad * 0.2, rad * 1.9, 0.75, 2);
+          this.ring(e.cx, e.cy, lighten(color, 0.5), rad * 0.3, rad * 1.5, 0.5, 2.5);
+          this.ring(e.cx, e.cy, color, rad * 0.2, rad * 1.9, 0.7, 2);
         }
         // Sparks along the perimeter, flying outward from the centroid.
         const per = polygonPerimeter(e.poly);
@@ -261,7 +269,7 @@ export class Fx {
           p.rot = 0;
           p.spin = 0;
         }
-        if (e.kills >= 2) this.text(t('float.multi', { n: e.kills }), e.cx, e.cy - 8, '#ffffff', 15 + Math.min(10, e.kills * 1.5), 1.1);
+        if (e.kills >= 2) this.text(t('float.multi', { n: e.kills }), e.cx, e.cy - 8, '#ffffff', 14 + Math.min(6, e.kills), 1);
         if (e.echo && e.kills > 0) this.text(t('float.echo'), e.cx, e.cy + 14, '#c38bff', 12);
         if (strong) {
           this.shake(0.12 + 0.05 * Math.min(8, e.kills));
@@ -273,16 +281,20 @@ export class Fx {
         const color = e.enemy === 'twin' ? TWIN_COLORS[0] : ENEMIES[e.enemy].color;
         const big = e.r > 14 || e.elite;
         this.burst(e.x, e.y, color, big ? 16 : 8, big ? 220 : 160, 0.6, big ? 7 : 5);
-        this.burst(e.x, e.y, '#ffffff', 4, 90, 0.3, 3, Kind.Streak);
+        this.burst(e.x, e.y, '#ffffff', 2, 90, 0.25, 3, Kind.Streak);
         this.shatter(e.x, e.y, color, e.r, big ? 10 : 6);
         this.ring(e.x, e.y, color, e.r * 0.6, e.r * 2.6, 0.4, 2.5);
-        if (e.score > 0 && e.source !== 'boss') this.text(`+${e.score}`, e.x, e.y - e.r - 4, e.elite ? COLORS.shard : '#e9e4ff', e.elite ? 13 : 11, 0.75);
+        // Several kills in the same instant (one loop) show a single score number, not a stack of them.
+        if (e.score > 0 && e.source !== 'boss' && this.time - this.lastScoreText > 0.05) {
+          this.lastScoreText = this.time;
+          this.text(`+${e.score}`, e.x, e.y - e.r - 4, e.elite ? COLORS.shard : '#e9e4ff', e.elite ? 13 : 11, 0.75);
+        }
         this.shake(big ? 0.12 : 0.05);
         break;
       }
       case 'enemyHit':
-        this.burst(e.x, e.y, '#ffffff', 8, 140, 0.35, 4);
-        this.ring(e.x, e.y, '#ffffff', 6, 34, 0.3, 2);
+        this.burst(e.x, e.y, '#ffffff', 5, 130, 0.3, 3.5);
+        this.ring(e.x, e.y, '#ffffff', 6, 30, 0.28, 1.5);
         this.shake(0.1);
         break;
       case 'playerHit':
@@ -304,14 +316,14 @@ export class Fx {
         this.burst(e.x, e.y, this.playerColor, 70, 340, 1.4, 8);
         this.burst(e.x, e.y, '#ffffff', 30, 200, 1, 4, Kind.Streak);
         this.ring(e.x, e.y, this.playerColor, 10, 220, 1.1, 5);
-        this.flash('#ffffff', 0.5);
+        this.flash('#ffffff', 0.32);
         this.shake(1);
         this.stop(0.25);
         break;
       case 'revive':
         this.ring(e.x, e.y, '#ffffff', 10, 260, 0.9, 6);
         this.burst(e.x, e.y, '#ffffff', 40, 300, 0.9, 6);
-        this.flash('#ffffff', 0.45);
+        this.flash('#ffffff', 0.28);
         break;
       case 'pickup':
         if (e.kind === 'heart') break;
@@ -333,7 +345,7 @@ export class Fx {
         this.ring(e.x, e.y, '#ffffff', 8, e.radius, 0.45, 6);
         this.ring(e.x, e.y, this.playerColor, 4, e.radius * 1.12, 0.65, 3);
         this.burst(e.x, e.y, this.playerColor, 46, 420, 0.6, 6, Kind.Streak);
-        this.flash(this.playerColor, 0.18);
+        this.flash(this.playerColor, 0.12);
         this.shake(0.45);
         this.stop(0.05);
         break;
@@ -380,7 +392,7 @@ export class Fx {
         for (let i = 0; i < 4; i++) this.ring(e.x, e.y, i % 2 ? '#ffffff' : this.playerColor, 10, 120 + i * 70, 0.7 + i * 0.25, 5);
         this.burst(e.x, e.y, '#ffffff', 60, 420, 1.2, 7);
         this.burst(e.x, e.y, COLORS.shard, 40, 300, 1.4, 6);
-        this.flash('#ffffff', 0.6);
+        this.flash('#ffffff', 0.38);
         this.shake(1);
         this.stop(0.35);
         break;
@@ -478,10 +490,11 @@ export class Fx {
       for (let i = 1; i < f.poly.length; i++) ctx.lineTo(f.poly[i].x, f.poly[i].y);
       ctx.closePath();
       ctx.globalAlpha = 1;
-      ctx.fillStyle = rgba(f.color, (f.strong ? 0.42 : 0.16) * k * k);
+      const calm = this.calm ? 0.35 : 1;
+      ctx.fillStyle = rgba(f.color, (f.strong ? 0.3 : 0.12) * k * k * calm);
       ctx.fill();
-      ctx.lineWidth = 1 + 4 * k;
-      ctx.strokeStyle = rgba('#ffffff', 0.85 * k);
+      ctx.lineWidth = 1 + 3 * k;
+      ctx.strokeStyle = rgba(lighten(f.color, 0.6), 0.65 * k * calm);
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
