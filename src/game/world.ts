@@ -2,15 +2,17 @@ import { Rng } from '../core/rng';
 import { SpatialGrid } from '../core/grid';
 import { TAU, clamp, dist2, len, type Vec } from '../core/math';
 import { inBounds, pointInPolygon, polygonArea, polygonBounds, segmentCircle, polygonCentroid } from '../core/geometry';
-import { ENEMIES, TUNING } from './config';
+import { BOMB, BOSS_TYPES, ENEMIES, TUNING, WARDEN_AURA } from './config';
 import { Trail } from './trail';
 import { buildWave, type WavePlan } from './waves';
 import { rollOffer, UPGRADE_VALUES, getUpgrade, type UpgradeLevels } from './upgrades';
 import { computeStats } from './stats';
-import { updateEnemy, splitterBurst } from './enemies';
-import { updateBoss, twinBeam } from './bosses';
+import { updateEnemy, splitterBurst, isHarmless } from './enemies';
+import { updateBoss, hazardBeams } from './bosses';
 import type { MetaLevels } from './meta';
+import { HEADSTART_WAVE, type BoosterId } from '../economy/defs';
 import type {
+  Bomb,
   BossType,
   CharacterId,
   EchoLoop,
@@ -39,6 +41,8 @@ export interface RunOptions {
   meta: MetaLevels;
   daily: boolean;
   tutorial: boolean;
+  /** Boosters bought for this run. */
+  boosters?: BoosterId[];
 }
 
 export type WavePhase = 'intro' | 'active' | 'cleared' | 'upgrade' | 'idle';
@@ -73,6 +77,8 @@ export class World {
   alive = true;
   secondWindUsed = false;
   over = false;
+  /** Phantom spark: hits it can still ignore this wave. */
+  phaseCharges = 0;
 
   trail: Trail;
   enemies: Enemy[] = [];
@@ -82,6 +88,7 @@ export class World {
   threads: Thread[] = [];
   frost: FrostField[] = [];
   echoes: EchoLoop[] = [];
+  bombs: Bomb[] = [];
   events: GameEvent[] = [];
 
   combo = 0;
@@ -107,13 +114,16 @@ export class World {
   private flockSums = new Map<number, { x: number; y: number; n: number }>();
   private nextFlock = 1;
   private pendingSpawns: Enemy[] = [];
+  private loopsWithKills = 0;
+  private healReadyAt = 0;
+  private magnetClock = 0;
 
   constructor(opts: RunOptions) {
     this.opts = opts;
     this.w = opts.width;
     this.h = opts.height;
     this.rng = new Rng(opts.seed);
-    this.stats = computeStats(opts.character, opts.meta, this.upgrades, opts.modifiers);
+    this.stats = computeStats(opts.character, opts.meta, this.upgrades, opts.modifiers, this.bonus());
     this.hearts = this.stats.maxHearts;
     this.px = this.tx = this.w / 2;
     this.py = this.ty = this.h * 0.62;
@@ -134,9 +144,27 @@ export class World {
       bossesKilled: [],
       damageTaken: 0,
       bestPulse: 0,
+      pulses: 0,
+      revives: 0,
       time: 0,
       flawlessStreak: 0,
     };
+    const b = opts.boosters ?? [];
+    if (b.includes('shield')) this.shieldUp = true;
+    if (b.includes('charge') && !this.stats.noPulse) this.pulseCharge = 1;
+    if (b.includes('lucky')) {
+      const [id] = rollOffer(this.rng, this.upgrades, 1, { exclude: this.offerExclusions(), guaranteeRare: true });
+      if (id) this.applyUpgrade(id);
+    }
+  }
+
+  private bonus(): { hearts: number; shardMul: number } {
+    const b = this.opts.boosters ?? [];
+    return { hearts: b.includes('heart') ? 1 : 0, shardMul: b.includes('magnet') ? 1.5 : 1 };
+  }
+
+  has(booster: BoosterId): boolean {
+    return (this.opts.boosters ?? []).includes(booster);
   }
 
   emit(e: GameEvent): void {
@@ -186,6 +214,15 @@ export class World {
       this.phase = 'idle';
       return;
     }
+    if (this.has('headstart')) {
+      // Skip the opening waves: three free upgrades to match the stronger enemies.
+      for (let i = 0; i < 3; i++) {
+        const [id] = rollOffer(this.rng, this.upgrades, 1, { exclude: this.offerExclusions() });
+        if (id) this.applyUpgrade(id);
+      }
+      this.beginWave(HEADSTART_WAVE);
+      return;
+    }
     this.beginWave(1);
   }
 
@@ -197,6 +234,7 @@ export class World {
     this.groupIdx = 0;
     this.waveTime = 0;
     this.tookDamageThisWave = false;
+    this.phaseCharges = this.stats.phase ? 1 : 0;
     this.phase = 'intro';
     this.phaseTimer = TUNING.wave.startDelay;
     this.emit({ type: 'waveStart', wave: n, boss: this.plan.boss, newEnemy: this.plan.newEnemy });
@@ -235,7 +273,7 @@ export class World {
     const def = getUpgrade(id);
     const lvl = Math.min(def.max, (this.upgrades[id] ?? 0) + 1);
     this.upgrades[id] = lvl;
-    this.stats = computeStats(this.opts.character, this.opts.meta, this.upgrades, this.opts.modifiers);
+    this.stats = computeStats(this.opts.character, this.opts.meta, this.upgrades, this.opts.modifiers, this.bonus());
     this.trail.maxLength = this.stats.trailLength;
     this.trail.life = this.stats.trailLife;
     if (id === 'heart') this.hearts = Math.min(this.stats.maxHearts, this.hearts + 1);
@@ -259,10 +297,12 @@ export class World {
     this.updateWave(dt);
     this.updateMarkers(dt);
     this.updateEnemies(dt);
+    this.updateShields();
     this.updateProjectiles(dt);
     this.updateThreads(dt);
     this.updateHazardContacts();
     this.updateFrost(dt);
+    this.updateBombs(dt);
     this.updateEmber(dt);
     this.updatePickups(dt);
     this.flushSpawns();
@@ -309,8 +349,8 @@ export class World {
   private addPulse(amount: number): void {
     if (this.stats.noPulse) return;
     const before = this.pulseCharge;
-    this.pulseCharge = Math.min(1, this.pulseCharge + amount);
-    if (before < 1 && this.pulseCharge >= 1) this.emit({ type: 'pulseReady' });
+    this.pulseCharge = Math.min(this.stats.maxPulse, this.pulseCharge + amount);
+    if (Math.floor(this.pulseCharge) > Math.floor(before)) this.emit({ type: 'pulseReady' });
   }
 
   comboMult(): number {
@@ -334,7 +374,12 @@ export class World {
 
     const killed: Enemy[] = [];
     for (const e of inside) {
-      let dmg = this.stats.loopDamage;
+      if (e.shielded && !this.stats.pierce) {
+        // Protected by a warden – the loop bounces off.
+        this.emit({ type: 'blocked', x: e.x, y: e.y });
+        continue;
+      }
+      let dmg = this.stats.loopDamage + (e.boss && this.stats.pierce ? 1 : 0);
       if (bothTwins && e.type === 'twin') {
         dmg *= 2;
         e.stun = 1.6;
@@ -363,6 +408,7 @@ export class World {
       const hit = new Set<Enemy>(killed);
       for (const e of killed) this.chainFrom(e, this.stats.chain, hit);
     }
+    if (this.stats.treasure > 0) for (const e of killed) this.dropShards(e.x, e.y, this.stats.treasure);
 
     // Projectiles and pickups inside are captured too.
     for (const p of this.projectiles) {
@@ -384,6 +430,12 @@ export class World {
       for (let i = 0; i < this.stats.echo; i++) this.echoes.push({ poly, bounds: b, at: this.time + 0.6 * (i + 1) });
       if (k >= 3 && this.stats.slowmo > 0) this.emit({ type: 'slowmo', duration: UPGRADE_VALUES.slowmoTime(this.stats.slowmo) });
       if (k > 0) this.addPulse(TUNING.pulse.gainPerLoop * this.stats.pulseGain);
+      if (k > 0 && this.stats.supernovaEvery > 0 && ++this.loopsWithKills % this.stats.supernovaEvery === 0) this.triggerPulse(true);
+      if (k >= 6 && this.stats.healLoop && this.time >= this.healReadyAt && this.hearts < this.stats.maxHearts) {
+        this.hearts++;
+        this.healReadyAt = this.time + 15;
+        this.emit({ type: 'heal', x: this.px, y: this.py });
+      }
     }
     this.run.bestLoop = Math.max(this.run.bestLoop, k);
     const c = polygonCentroid(poly);
@@ -404,14 +456,14 @@ export class World {
   private explode(x: number, y: number, r: number): void {
     this.emit({ type: 'explosion', x, y, r });
     for (const o of this.enemies) {
-      if (o.dead) continue;
+      if (o.dead || (o.shielded && !this.stats.pierce)) continue;
       if (dist2(x, y, o.x, o.y) <= (r + o.r) * (r + o.r)) this.damage(o, 1, 'shockwave');
     }
   }
 
   private chainFrom(src: Enemy, count: number, hit: Set<Enemy>): void {
     const candidates = this.enemies
-      .filter((o) => !o.dead && !hit.has(o) && dist2(src.x, src.y, o.x, o.y) < 135 * 135)
+      .filter((o) => !o.dead && !hit.has(o) && !(o.shielded && !this.stats.pierce) && dist2(src.x, src.y, o.x, o.y) < 135 * 135)
       .sort((a, b) => dist2(src.x, src.y, a.x, a.y) - dist2(src.x, src.y, b.x, b.y))
       .slice(0, count);
     for (const o of candidates) {
@@ -461,6 +513,11 @@ export class World {
     this.addPulse(TUNING.pulse.gainPerKill * this.stats.pulseGain);
 
     if (e.type === 'splitter' && source !== 'boss') splitterBurst(this, e);
+    if (e.type === 'bomber' && source !== 'boss') {
+      this.bombs.push({ x: e.x, y: e.y, t: BOMB.fuse, total: BOMB.fuse, r: BOMB.radius });
+      this.emit({ type: 'bombArmed', x: e.x, y: e.y });
+    }
+    if (e.type === 'head' && this.enemies.some((o) => o !== e && o.type === 'head' && !o.dead)) return;
     if (e.type === 'twin') {
       const p = this.enemyById(e.partner);
       if (p && !p.dead) {
@@ -474,7 +531,7 @@ export class World {
   }
 
   private bossDefeated(e: Enemy): void {
-    const boss: BossType = e.type === 'twin' ? 'twins' : (e.type as BossType);
+    const boss: BossType = e.type === 'twin' ? 'twins' : e.type === 'head' ? 'hydra' : (e.type as BossType);
     this.run.bossesKilled.push(boss);
     this.emit({ type: 'bossDeath', boss, x: e.x, y: e.y });
     // The boss takes its minions with it.
@@ -484,6 +541,7 @@ export class World {
     if (this.plan) this.groupIdx = this.plan.groups.length;
     for (const p of this.projectiles) p.dead = true;
     this.threads.length = 0;
+    this.bombs.length = 0;
     this.dropPickup('heart', e.x, e.y, 1);
     if (this.hearts < this.stats.maxHearts) {
       this.hearts++;
@@ -527,6 +585,13 @@ export class World {
       this.emit({ type: 'shieldBreak', x: this.px, y: this.py });
       return;
     }
+    if (this.phaseCharges > 0) {
+      // Phantom slips through the first hit of each wave.
+      this.phaseCharges--;
+      this.invuln = 1.2;
+      this.emit({ type: 'shieldBreak', x: this.px, y: this.py });
+      return;
+    }
     if (this.shieldUp) {
       this.shieldUp = false;
       this.shieldTimer = TUNING.shield.regen[Math.min(3, this.stats.shield)];
@@ -542,6 +607,7 @@ export class World {
     this.combo = 0;
     this.comboTimer = 0;
     this.emit({ type: 'playerHit', x: this.px, y: this.py, hearts: this.hearts });
+    if (this.hearts > 0 && this.stats.retaliate) this.triggerPulse(true);
     if (this.hearts <= 0) {
       if (this.stats.secondWind && !this.secondWindUsed) {
         this.secondWindUsed = true;
@@ -580,7 +646,10 @@ export class World {
   triggerPulse(free = false): boolean {
     if (!this.alive || this.stats.noPulse) return false;
     if (!free && this.pulseCharge < 1) return false;
-    if (!free) this.pulseCharge = 0;
+    if (!free) {
+      this.pulseCharge = Math.max(0, this.pulseCharge - 1);
+      this.run.pulses++;
+    }
     const r = this.stats.pulseRadius;
     let kills = 0;
     for (const e of this.enemies) {
@@ -600,6 +669,25 @@ export class World {
     this.run.bestPulse = Math.max(this.run.bestPulse, kills);
     this.emit({ type: 'pulse', x: this.px, y: this.py, radius: r, kills });
     return true;
+  }
+
+  /**
+   * Continues a finished run (paid or ad-based revive): full hearts, a free pulse that clears
+   * the surroundings, and a few seconds of invulnerability.
+   */
+  revive(): void {
+    if (!this.over) return;
+    this.over = false;
+    this.alive = true;
+    this.hearts = this.stats.maxHearts;
+    this.invuln = 3;
+    this.run.revives++;
+    this.tx = this.px;
+    this.ty = this.py;
+    this.trail.reset(this.px, this.py, this.time);
+    for (const p of this.projectiles) p.dead = true;
+    this.emit({ type: 'revive', x: this.px, y: this.py });
+    this.triggerPulse(true);
   }
 
   // ───────────────────────── Waves & spawning ─────────────────────────
@@ -645,6 +733,7 @@ export class World {
     for (const p of this.pickups) p.magnet = true;
     for (const p of this.projectiles) p.dead = true;
     this.threads.length = 0;
+    this.bombs.length = 0;
     this.phase = 'cleared';
     this.phaseTimer = TUNING.wave.breakDelay;
     this.emit({ type: 'waveClear', wave: this.wave, flawless, bonus, boss: this.plan?.boss != null });
@@ -728,8 +817,10 @@ export class World {
     const x = this.w / 2;
     const y = this.py > this.h / 2 ? this.h * 0.27 : this.h * 0.73;
     const type: EnemyType = boss === 'twins' ? 'twin' : boss;
-    this.markers.push({ x, y, t: warn, total: warn, type, elite: false, flock: -1 });
-    this.emit({ type: 'spawnWarn', x, y, enemy: type });
+    const bx = boss === 'eye' ? this.w / 2 : x;
+    const by = boss === 'eye' ? this.h / 2 : y;
+    this.markers.push({ x: bx, y: by, t: warn, total: warn, type, elite: false, flock: -1 });
+    this.emit({ type: 'spawnWarn', x: bx, y: by, enemy: type });
   }
 
   private updateMarkers(dt: number): void {
@@ -761,6 +852,8 @@ export class World {
       a.angle = Math.PI;
       b.seed = 1; // colour index
       this.enemies.push(a, b);
+    } else if (boss === 'eye') {
+      this.enemies.push(this.createEnemy('eye', this.w / 2, this.h / 2, false, 0, tier));
     } else {
       this.enemies.push(this.createEnemy(boss, x, y, false, 0, tier));
     }
@@ -769,7 +862,7 @@ export class World {
 
   createEnemy(type: EnemyType, x: number, y: number, elite: boolean, flock = 0, tier = 0): Enemy {
     const def = ENEMIES[type];
-    const boss = type === 'maw' || type === 'weaver' || type === 'twin';
+    const boss = BOSS_TYPES.includes(type);
     const hp = boss ? Math.round(def.hp * (1 + 0.6 * tier)) : def.hp + (elite ? 1 : 0);
     return {
       id: this.nextId++,
@@ -807,7 +900,28 @@ export class World {
       partner: -1,
       phase: 0,
       mass: def.mass,
+      shielded: false,
     };
+  }
+
+  /** Hydra at half health: the body bursts into three heads (the fight continues). */
+  splitHydra(e: Enemy): void {
+    if (e.dead) return;
+    e.dead = true;
+    const tier = e.orbit;
+    this.run.score += Math.round(e.score * this.stats.scoreMul);
+    this.emit({ type: 'bossPhase', x: e.x, y: e.y });
+    this.emit({ type: 'explosion', x: e.x, y: e.y, r: 60 });
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * TAU + this.rng.range(-0.3, 0.3);
+      const h = this.createEnemy('head', e.x + Math.cos(a) * 24, e.y + Math.sin(a) * 24, false, 0, tier);
+      h.kx = Math.cos(a) * 260;
+      h.ky = Math.sin(a) * 260;
+      h.t = 0.6;
+      h.seed = i * 2.1;
+      h.timer = 1.5 + i * 0.6;
+      this.queueSpawn(h);
+    }
   }
 
   /** Tutorial helper: spawns an enemy directly (optionally frozen in place). */
@@ -835,7 +949,7 @@ export class World {
   }
 
   addThread(ax: number, ay: number, bx: number, by: number): void {
-    this.threads.push({ ax, ay, bx, by, warn: 0.45, life: 3.6, maxLife: 3.6 });
+    this.threads.push({ ax, ay, bx, by, warn: 0.45, life: 3, maxLife: 3 });
     this.emit({ type: 'thread', ax, ay, bx, by });
   }
 
@@ -893,7 +1007,7 @@ export class World {
       e.y = clamp(e.y, e.r, this.h - e.r);
 
       // Contact with the player (after a short spawn grace period).
-      if (this.alive && e.t > 0.35) {
+      if (this.alive && e.t > 0.35 && !isHarmless(e)) {
         const rr = e.r * 0.9 + hitR;
         if (dist2(e.x, e.y, this.px, this.py) < rr * rr) this.hitPlayer();
       }
@@ -906,6 +1020,35 @@ export class World {
           this.emit({ type: 'trailCut', x: cut.x, y: cut.y });
         }
       }
+    }
+  }
+
+  /** Wardens protect every other non-boss shadow inside their aura. */
+  private updateShields(): void {
+    const wardens = this.enemies.filter((e) => e.type === 'warden' && !e.dead && e.t > 0.3);
+    for (const e of this.enemies) {
+      e.shielded = false;
+      if (e.dead || e.boss || e.type === 'warden' || wardens.length === 0) continue;
+      for (const w of wardens) {
+        if (dist2(e.x, e.y, w.x, w.y) < WARDEN_AURA * WARDEN_AURA) {
+          e.shielded = true;
+          break;
+        }
+      }
+    }
+  }
+
+  private updateBombs(dt: number): void {
+    for (let i = this.bombs.length - 1; i >= 0; i--) {
+      const b = this.bombs[i];
+      b.t -= dt;
+      if (b.t > 0) continue;
+      this.bombs.splice(i, 1);
+      this.emit({ type: 'explosion', x: b.x, y: b.y, r: b.r });
+      const rr = b.r + this.stats.hitRadius;
+      if (this.alive && dist2(b.x, b.y, this.px, this.py) < rr * rr) this.hitPlayer();
+      // Bombs also blow up nearby shadows – chain reactions are part of the fun.
+      for (const o of this.enemies) if (!o.dead && dist2(b.x, b.y, o.x, o.y) < (b.r + o.r) ** 2) this.damage(o, 1, 'shockwave');
     }
   }
 
@@ -944,8 +1087,7 @@ export class World {
   private updateHazardContacts(): void {
     const segs: { ax: number; ay: number; bx: number; by: number }[] = [];
     for (const t of this.threads) if (t.warn <= 0) segs.push(t);
-    const beam = twinBeam(this);
-    if (beam) segs.push(beam);
+    segs.push(...hazardBeams(this));
     for (const s of segs) {
       if (this.alive && segmentCircle(s.ax, s.ay, s.bx, s.by, this.px, this.py, this.stats.hitRadius + 2)) this.hitPlayer();
       const cut = this.trail.cutBySegment(s.ax, s.ay, s.bx, s.by);
@@ -995,6 +1137,10 @@ export class World {
 
   private updatePickups(dt: number): void {
     const magnet = this.stats.magnet;
+    if (this.stats.magnetTrail && this.trail.points.length > 1 && (this.magnetClock += dt) >= 0.1) {
+      this.magnetClock = 0;
+      for (const p of this.pickups) if (!p.dead && !p.magnet && this.trail.touchesCircle(p.x, p.y, 18)) p.magnet = true;
+    }
     const fr = Math.exp(-TUNING.pickup.friction * dt);
     for (const p of this.pickups) {
       if (p.dead) continue;

@@ -1,5 +1,6 @@
 import { makeCanvas } from './sprites';
 import { noise1 } from '../core/math';
+import { BIOMES } from '../game/config';
 
 interface Star {
   x: number;
@@ -16,6 +17,14 @@ export class Background {
   private stars: Star[] = [];
   private w = 0;
   private h = 0;
+  private biome = 0;
+
+  /** Switches the colour world (rebuilds the nebula only when it changes). */
+  setBiome(index: number): void {
+    if (index === this.biome) return;
+    this.biome = index;
+    if (this.w > 0) this.resize(this.w, this.h);
+  }
 
   constructor() {
     for (let i = 0; i < 150; i++) {
@@ -39,19 +48,21 @@ export class Background {
     const nh = Math.max(1, Math.round((160 * h) / Math.max(1, w)));
     const c = makeCanvas(nw, nh);
     const g = c.getContext('2d')!;
+    const pal = BIOMES[this.biome] ?? BIOMES[0];
     const base = g.createLinearGradient(0, 0, 0, nh);
-    base.addColorStop(0, '#0b0820');
+    base.addColorStop(0, pal.top);
     base.addColorStop(0.55, '#070614');
     base.addColorStop(1, '#04030b');
     g.fillStyle = base;
     g.fillRect(0, 0, nw, nh);
-    const blobs: [number, number, number, string][] = [
-      [0.2, 0.18, 0.75, 'rgba(92,52,190,0.28)'],
-      [0.85, 0.35, 0.6, 'rgba(30,110,170,0.20)'],
-      [0.35, 0.8, 0.8, 'rgba(150,40,140,0.18)'],
-      [0.75, 0.9, 0.55, 'rgba(40,60,160,0.22)'],
-      [0.55, 0.5, 0.45, 'rgba(70,40,150,0.12)'],
+    const pos: [number, number, number][] = [
+      [0.2, 0.18, 0.75],
+      [0.85, 0.35, 0.6],
+      [0.35, 0.8, 0.8],
+      [0.75, 0.9, 0.55],
+      [0.55, 0.5, 0.45],
     ];
+    const blobs = pos.map(([x, y, r], i) => [x, y, r, pal.blobs[i]] as [number, number, number, string]);
     for (const [bx, by, br, col] of blobs) {
       const r = br * Math.max(nw, nh);
       const grad = g.createRadialGradient(bx * nw, by * nh, 0, bx * nw, by * nh, r);

@@ -16,6 +16,12 @@ export function updateBoss(w: World, e: Enemy, dt: number): void {
       return updateWeaver(w, e, dt);
     case 'twin':
       return updateTwin(w, e, dt);
+    case 'hydra':
+      return updateHydra(w, e, dt);
+    case 'head':
+      return updateHead(w, e, dt);
+    case 'eye':
+      return updateEye(w, e, dt);
     default:
       return;
   }
@@ -186,6 +192,125 @@ function updateTwin(w: World, e: Enemy, dt: number): void {
   const ty = clamp(leader.by + Math.sin(a) * spread, e.r, w.h - e.r);
   e.vx = (tx - e.x) * 7;
   e.vy = (ty - e.y) * 7;
+}
+
+/* ───────────── Die Hydra ───────────── */
+export const HYDRA_TELEGRAPH = 0.7;
+
+function updateHydra(w: World, e: Enemy, dt: number): void {
+  if (e.phase > 0) {
+    w.splitHydra(e);
+    return;
+  }
+  e.timer -= dt;
+  e.angle += dt;
+  const dx = w.px - e.x;
+  const dy = w.py - e.y;
+  const d = len(dx, dy) || 1;
+  if (e.state === 0) {
+    const sp = e.speed * tierSpeed(e);
+    e.vx = (dx / d) * sp;
+    e.vy = (dy / d) * sp;
+    if (e.timer <= 0) {
+      e.state = 1;
+      e.timer = HYDRA_TELEGRAPH;
+      w.emit({ type: 'bossAttack', x: e.x, y: e.y });
+    }
+  } else {
+    e.vx *= 0.9;
+    e.vy *= 0.9;
+    if (e.timer <= 0) {
+      // Fan of five venom orbs towards the player.
+      const base = Math.atan2(dy, dx);
+      for (let i = -2; i <= 2; i++) {
+        const a = base + i * 0.24;
+        w.shoot(e.x + Math.cos(a) * e.r, e.y + Math.sin(a) * e.r, a, 100 * tierSpeed(e), 5.5);
+      }
+      w.emit({ type: 'shoot', x: e.x, y: e.y });
+      e.state = 0;
+      e.timer = 4.6 / tierSpeed(e);
+    }
+  }
+}
+
+function updateHead(w: World, e: Enemy, dt: number): void {
+  e.timer -= dt;
+  const dx = w.px - e.x;
+  const dy = w.py - e.y;
+  const d = len(dx, dy) || 1;
+  const a = Math.atan2(dy, dx) + Math.sin(e.t * 1.7 + e.seed) * 0.7;
+  const sp = e.speed * tierSpeed(e);
+  e.vx = Math.cos(a) * sp;
+  e.vy = Math.sin(a) * sp;
+  if (e.timer <= 0) {
+    w.shoot(e.x + (dx / d) * e.r, e.y + (dy / d) * e.r, Math.atan2(dy, dx), 110 * tierSpeed(e), 5);
+    w.emit({ type: 'shoot', x: e.x, y: e.y });
+    e.timer = w.rng.range(2.8, 3.8) / tierSpeed(e);
+  }
+}
+
+/* ───────────── Das Auge ───────────── */
+export const EYE_CHARGE = 2.4;
+export const EYE_FIRE = 3.6;
+
+function updateEye(w: World, e: Enemy, dt: number): void {
+  const enraged = e.phase > 0;
+  e.timer -= dt;
+  e.ax -= dt; // summon timer
+  e.vx = (w.w / 2 - e.x) * 0.25;
+  e.vy = (w.h / 2 - e.y) * 0.25;
+  e.angle += dt * (e.state === 1 ? (enraged ? 0.8 : 0.58) * tierSpeed(e) : 0.12);
+  if (e.timer <= 0) {
+    if (e.state === 0) {
+      e.state = 1;
+      e.timer = EYE_FIRE;
+      w.emit({ type: 'bossAttack', x: e.x, y: e.y });
+    } else {
+      e.state = 0;
+      e.timer = (enraged ? EYE_CHARGE * 0.8 : EYE_CHARGE) / tierSpeed(e);
+    }
+  }
+  if (e.ax <= 0) {
+    e.ax = enraged ? 6 : 8;
+    if (w.countType('mote') < 6) {
+      for (let i = 0; i < 2; i++) {
+        const a = w.rng.range(0, TAU);
+        w.queueMarker('mote', clamp(e.x + Math.cos(a) * 90, 20, w.w - 20), clamp(e.y + Math.sin(a) * 90, 20, w.h - 20), false, 0);
+      }
+    }
+  }
+}
+
+export interface Beam {
+  ax: number;
+  ay: number;
+  bx: number;
+  by: number;
+  /** Rendering hint. */
+  kind: 'twin' | 'eye';
+}
+
+/** Rays of the eye boss; `armed` = currently dangerous (false = telegraph only). */
+export function eyeRays(w: World, armed: boolean): Beam[] {
+  const out: Beam[] = [];
+  for (const e of w.enemies) {
+    if (e.type !== 'eye' || e.dead || e.t < 1) continue;
+    if ((e.state === 1) !== armed) continue;
+    const n = e.phase > 0 ? 2 : 1;
+    for (let k = 0; k < n; k++) {
+      const a = e.angle + (k * TAU) / n;
+      out.push({ ax: e.x + Math.cos(a) * e.r, ay: e.y + Math.sin(a) * e.r, bx: e.x + Math.cos(a) * 1400, by: e.y + Math.sin(a) * 1400, kind: 'eye' });
+    }
+  }
+  return out;
+}
+
+/** All boss hazard beams that hurt the player and cut the trail right now. */
+export function hazardBeams(w: World): Beam[] {
+  const out = eyeRays(w, true);
+  const tb = twinBeam(w);
+  if (tb) out.push({ ...tb, kind: 'twin' });
+  return out;
 }
 
 /** The beam between living, non-stunned twins. */

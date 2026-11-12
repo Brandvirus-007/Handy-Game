@@ -13,6 +13,7 @@ function seek(e: Enemy, tx: number, ty: number, speed: number, wobble = 0, wobbl
 }
 
 export const DART_AIM = 0.65;
+export const BLINK_WARN = 0.6;
 export const DART_DASH_SPEED = 330;
 export const SPITTER_CHARGE = 0.6;
 
@@ -137,10 +138,58 @@ export function updateEnemy(w: World, e: Enemy, dt: number): void {
       break;
     }
 
+    case 'warden':
+      // Stays a little behind the pack so its aura covers other shadows.
+      seek(e, px, py, e.speed, 0.3, 1.1);
+      break;
+
+    case 'bomber':
+      seek(e, px, py, e.speed, 0.5, 1.7);
+      break;
+
+    case 'blinker': {
+      e.timer -= dt;
+      if (e.state === 0) {
+        seek(e, px, py, e.speed, 0.5, 2.2);
+        if (e.timer <= 0) {
+          // Pick a destination near the player and announce it.
+          const a = w.rng.range(0, TAU);
+          const r = w.rng.range(85, 135);
+          e.bx = clamp(px + Math.cos(a) * r, e.r + 6, w.w - e.r - 6);
+          e.by = clamp(py + Math.sin(a) * r, e.r + 6, w.h - e.r - 6);
+          e.state = 1;
+          e.timer = BLINK_WARN;
+          w.emit({ type: 'blink', x: e.bx, y: e.by });
+        }
+      } else if (e.state === 1) {
+        e.vx = 0;
+        e.vy = 0;
+        if (e.timer <= 0) {
+          w.emit({ type: 'blink', x: e.x, y: e.y });
+          e.x = e.bx;
+          e.y = e.by;
+          e.state = 2;
+          e.timer = 0.4;
+        }
+      } else {
+        // Just arrived: harmless for a moment (fair after a teleport).
+        e.vx = 0;
+        e.vy = 0;
+        if (e.timer <= 0) {
+          e.state = 0;
+          e.timer = w.rng.range(2.1, 3);
+        }
+      }
+      break;
+    }
+
     default:
       break;
   }
 }
+
+/** Enemies that may not deal contact damage right now. */
+export const isHarmless = (e: Enemy): boolean => e.type === 'blinker' && e.state === 2;
 
 /** Spawn burst of minis when a splitter dies. */
 export function splitterBurst(w: World, e: Enemy): void {

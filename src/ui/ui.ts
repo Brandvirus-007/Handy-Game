@@ -5,7 +5,25 @@ import { ACHIEVEMENTS } from '../game/achievements';
 import { getUpgrade, UPGRADE_VALUES } from '../game/upgrades';
 import { TUNING } from '../game/config';
 import type { CharacterId, EnemyType, MetaId, UpgradeId } from '../game/types';
-import type { App, RunResult } from '../app';
+import type { App, ContinueOffer, RunResult } from '../app';
+import {
+  BOOSTERS,
+  EXCHANGE,
+  FREE_DIAMOND_AD_REWARD,
+  LOGIN_REWARDS,
+  MILESTONES,
+  MISSION_BONUS,
+  PRODUCTS,
+  REVIVE_COUNTDOWN,
+  diamondsForCoins,
+  xpForLevel,
+  type BoosterId,
+  type Currency,
+  type ProductId,
+  type Reward,
+} from '../economy/defs';
+import { achievementDiamonds, availableBoosters, boosterCost, canClaimMissionBonus, missionsClaimable } from '../economy/profile';
+import { privacyHtml } from './privacy';
 import { icon } from './icons';
 import { Hud } from './hud';
 
@@ -48,6 +66,8 @@ export function upgradeDesc(id: UpgradeId, level: number): string {
       return t(key, { v: level });
     case 'slowmo':
       return t(key, { v: fmt(UPGRADE_VALUES.slowmoTime(level), 1) });
+    case 'supernova':
+      return t(key, { v: UPGRADE_VALUES.supernovaEvery(level) });
     default:
       return t(key);
   }
@@ -98,6 +118,17 @@ export class UI {
     setTimeout(() => old.remove(), 200);
   }
 
+  /** Closes the top-most modal dialog (Android back button). Returns true if one was open. */
+  closeTopDialog(): boolean {
+    const dialogs = document.querySelectorAll<HTMLElement>('.dialog-wrap');
+    const top = dialogs[dialogs.length - 1];
+    if (!top || top.querySelector('.login')) return false;
+    const cancel = top.querySelector<HTMLElement>('[data-act=no], [data-act=close]');
+    if (cancel) cancel.click();
+    else top.remove();
+    return true;
+  }
+
   dialog(message: string, confirmLabel: string, onConfirm: () => void, danger = true): void {
     const wrap = document.createElement('div');
     wrap.className = 'dialog-wrap';
@@ -142,6 +173,45 @@ export class UI {
     return `<b>${esc(t('banner.newEnemy', { name: t(`enemy.${type}` as I18nKey) }))}</b> – ${esc(t(`hint.${type}` as I18nKey))}`;
   }
 
+  // ───────────────────────── Shared bits ─────────────────────────
+
+  /** Re-renders the current menu screen after balances changed (purchases, rewards). */
+  refresh(): void {
+    const name = this.screenName;
+    if (this.app.state !== 'menu' && this.app.state !== 'gameover') return;
+    if (name === 'menu') this.showMenu();
+    else if (name === 'shop') this.showShop();
+    else if (name === 'sparks') this.showSparks();
+    else if (name === 'workshop') this.showWorkshop();
+    else if (name === 'missions') this.showMissions();
+  }
+
+  private wallet(): string {
+    const s = this.app.save.data;
+    return `<div class="wallet">
+      <button class="pill" data-act="shop" aria-label="${t('menu.shop')}">${icon('shard', 15)}<span>${fmt(s.bank)}</span></button>
+      <button class="pill gem" data-act="shop" aria-label="${t('menu.shop')}">${icon('gem', 15)}<span>${fmt(s.diamonds)}</span><b class="plus">+</b></button>
+    </div>`;
+  }
+
+  private price(currency: Currency, amount: number): string {
+    return `<span class="price ${currency === 'diamonds' ? 'gem' : ''}">${icon(currency === 'coins' ? 'shard' : 'gem', 14)}${fmt(amount)}</span>`;
+  }
+
+  private rewardChips(r: Reward): string {
+    return `${r.coins ? this.price('coins', r.coins) : ''}${r.diamonds ? this.price('diamonds', r.diamonds) : ''}`;
+  }
+
+  /** Common handler for wallet/shop buttons that appear on many screens. */
+  private walletAction(act: string): boolean {
+    if (act === 'shop') {
+      this.app.audio.uiClick();
+      this.showShop();
+      return true;
+    }
+    return false;
+  }
+
   // ───────────────────────── Menu ─────────────────────────
 
   showMenu(): void {
@@ -149,20 +219,26 @@ export class UI {
     const daily = this.app.dailyInfo();
     const dailyPlayed = s.daily.date === daily.date;
     const canAffordAny = META.some((m) => (s.meta[m.id] ?? 0) < m.max && s.bank >= metaCost(m, s.meta[m.id] ?? 0));
+    const missions = missionsClaimable(s);
+    const freeAds = this.app.freeDiamondsLeft() > 0;
+    const need = xpForLevel(s.level);
     const html = `
       <div class="topbar">
         <button class="icon-btn" data-act="settings" aria-label="${t('menu.settings')}">${icon('gear')}</button>
-        <div class="pill">${icon('shard', 16)}<span>${fmt(s.bank)}</span></div>
+        <div class="level-chip" title="${t('level.title')}"><b>${s.level}</b><span><i style="width:${Math.round((s.xp / need) * 100)}%"></i></span></div>
+        ${this.wallet()}
       </div>
       <div class="screen-inner">
         <div class="logo"><h1><span>LUMEN</span><span>LOOP</span></h1><p>${t('app.tagline')}</p></div>
         <button class="char-chip" data-act="sparks">${orb(s.selected)}<span>${t(`char.${s.selected}.name` as I18nKey)}</span></button>
         <button class="btn primary" data-act="play">${icon('play', 22)}${t('menu.play')}</button>
-        <div class="grid2">
-          <button class="btn" data-act="daily">${icon('calendar', 26)}${t('menu.daily')}${dailyPlayed ? '' : '<span class="badge"></span>'}</button>
-          <button class="btn" data-act="workshop">${icon('wrench', 26)}${t('menu.workshop')}${canAffordAny ? '<span class="badge"></span>' : ''}</button>
-          <button class="btn" data-act="sparks">${icon('spark', 26)}${t('menu.sparks')}</button>
-          <button class="btn" data-act="achievements">${icon('trophy', 26)}${t('menu.achievements')}</button>
+        <div class="grid3">
+          <button class="btn" data-act="missions">${icon('target', 24)}${t('menu.missions')}${missions ? `<span class="count">${missions}</span>` : ''}</button>
+          <button class="btn" data-act="daily">${icon('calendar', 24)}${t('menu.daily')}${dailyPlayed ? '' : '<span class="badge"></span>'}</button>
+          <button class="btn shop-btn" data-act="shop">${icon('shop', 24)}${t('menu.shop')}${freeAds ? '<span class="badge"></span>' : ''}</button>
+          <button class="btn" data-act="workshop">${icon('wrench', 24)}${t('menu.workshop')}${canAffordAny ? '<span class="badge"></span>' : ''}</button>
+          <button class="btn" data-act="sparks">${icon('spark', 24)}${t('menu.sparks')}</button>
+          <button class="btn" data-act="achievements">${icon('trophy', 24)}${t('menu.achievements')}</button>
         </div>
         <div class="records">
           <span>${t('menu.best')}: <b>${fmt(s.best)}</b></span>
@@ -173,12 +249,14 @@ export class UI {
       </div>`;
     this.open('menu', html, {
       onAction: (act) => {
+        if (this.walletAction(act)) return;
         this.app.audio.uiClick();
         if (act === 'play') this.app.startRun(false);
         else if (act === 'daily') this.showDaily();
         else if (act === 'workshop') this.showWorkshop();
         else if (act === 'sparks') this.showSparks();
         else if (act === 'achievements') this.showAchievements();
+        else if (act === 'missions') this.showMissions();
         else if (act === 'settings') this.showSettings('menu');
         else if (act === 'install') this.app.install();
       },
@@ -189,8 +267,61 @@ export class UI {
     return `<div class="topbar"><button class="icon-btn" data-act="back" aria-label="${t('common.back')}">${icon('back')}</button><h2>${esc(title)}</h2>${right}</div>`;
   }
 
-  private bankPill(): string {
-    return `<div class="pill">${icon('shard', 16)}<span>${fmt(this.app.save.data.bank)}</span></div>`;
+  private back(): void {
+    this.app.audio.uiBack();
+    this.showMenu();
+  }
+
+  // ───────────────────────── Preparation (boosters) ─────────────────────────
+
+  showPrerun(daily: boolean): void {
+    const s = this.app.save.data;
+    const available = availableBoosters(s).map((b) => b.id);
+    let selected = s.boosters.filter((b) => available.includes(b));
+    const charId = daily ? this.app.dailyInfo().character : s.selected;
+
+    const render = () => {
+      const cost = boosterCost(selected);
+      const affordable = s.bank >= (cost.coins ?? 0) && s.diamonds >= (cost.diamonds ?? 0);
+      const items = BOOSTERS.map((b) => {
+        const unlocked = available.includes(b.id);
+        const on = selected.includes(b.id);
+        return `<button class="booster ${on ? 'on' : ''}" data-act="toggle" data-id="${b.id}" ${unlocked ? '' : 'disabled'} aria-pressed="${on}">
+          <span class="ico-wrap">${icon(`booster.${b.id}`, 24)}</span>
+          <span class="body"><span class="name">${t(`booster.${b.id}.name` as I18nKey)}</span>
+          <span class="desc">${unlocked ? t(`booster.${b.id}.desc` as I18nKey) : t('prerun.locked', { n: b.requiresWave })}</span></span>
+          ${this.price(b.currency, b.price)}<span class="check">${icon('check', 18)}</span>
+        </button>`;
+      }).join('');
+      const costText = cost.coins || cost.diamonds ? `${t('prerun.cost')} ${this.rewardChips(cost)}` : '';
+      return `${this.backBar(t('prerun.title'), this.wallet())}
+        <div class="screen-inner">
+          <button class="char-chip" data-act="${daily ? 'none' : 'sparks'}">${orb(charId)}<span>${t(`char.${charId}.name` as I18nKey)}</span>
+            ${daily ? '' : `<small>${t('prerun.changeSpark')}</small>`}</button>
+          <div class="panel"><h3>${t('prerun.boosters')}</h3><div class="boosters">${items}</div></div>
+          <div class="records">${costText}</div>
+          <button class="btn primary" data-act="start" ${affordable ? '' : 'disabled'}>${icon('play', 22)}${t('prerun.start')}</button>
+          ${affordable ? '' : `<p class="hint">${t('common.notEnough', { c: t(s.bank < (cost.coins ?? 0) ? 'currency.coins' : 'currency.diamonds') })}</p>`}
+        </div>`;
+    };
+    const el = this.open('prerun', render(), {
+      onAction: (act, btn) => {
+        if (this.walletAction(act)) return;
+        if (act === 'back') this.back();
+        else if (act === 'sparks') {
+          this.app.audio.uiClick();
+          this.showSparks();
+        } else if (act === 'toggle') {
+          const id = btn.dataset.id as BoosterId;
+          selected = selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id];
+          this.app.audio.uiClick();
+          el.innerHTML = render();
+        } else if (act === 'start') {
+          this.app.audio.uiSelect();
+          if (!this.app.launchRun(daily, selected)) el.innerHTML = render();
+        }
+      },
+    });
   }
 
   // ───────────────────────── Daily ─────────────────────────
@@ -225,15 +356,146 @@ export class UI {
       </div>`;
     this.open('daily', html, {
       onAction: (act) => {
-        if (act === 'back') {
-          this.app.audio.uiBack();
-          this.showMenu();
-        } else if (act === 'start') {
+        if (act === 'back') this.back();
+        else if (act === 'start') {
           this.app.audio.uiSelect();
           this.app.startRun(true);
         }
       },
     });
+  }
+
+  // ───────────────────────── Shop ─────────────────────────
+
+  showShop(): void {
+    const s = this.app.save.data;
+    const left = this.app.freeDiamondsLeft();
+    const offer = (id: ProductId, desc: string) => {
+      const owned = (id === 'no_ads' && s.owned.noAds) || (id === 'starter_pack' && s.owned.starter);
+      return `<div class="offer ${id === 'starter_pack' ? 'starter' : ''}">
+        <div class="ico-wrap">${icon(id === 'no_ads' ? 'shieldB' : 'gift', 28)}</div>
+        <div class="body"><div class="name">${t(`shop.product.${id}` as I18nKey)}</div><div class="desc">${desc}</div></div>
+        <button class="btn small buy" data-act="buy" data-id="${id}" ${owned ? 'disabled' : ''}>${owned ? t('shop.owned') : esc(this.app.priceOf(id))}</button>
+      </div>`;
+    };
+    const packs = PRODUCTS.filter((p) => p.id.startsWith('diamonds_'))
+      .map(
+        (p) => `<button class="pack ${p.badge ?? ''}" data-act="buy" data-id="${p.id}">
+          ${p.badge ? `<span class="tag">${t(p.badge === 'best' ? 'shop.best' : 'shop.popular')}</span>` : ''}
+          <span class="gemstack">${icon('gem', 30)}</span>
+          <span class="amount">${fmt(p.reward.diamonds ?? 0)}</span>
+          <span class="label">${t(`shop.product.${p.id}` as I18nKey)}</span>
+          ${p.bonusPct ? `<span class="bonus">${t('shop.bonus', { n: p.bonusPct })}</span>` : '<span class="bonus"></span>'}
+          <span class="cost">${esc(this.app.priceOf(p.id))}</span>
+        </button>`,
+      )
+      .join('');
+    const exchange = EXCHANGE.map(
+      (x, i) => `<button class="btn small" data-act="exchange" data-i="${i}" ${s.diamonds >= x.diamonds ? '' : 'disabled'}>
+        ${this.price('diamonds', x.diamonds)} → ${this.price('coins', x.coins)}</button>`,
+    ).join('');
+    const html = `${this.backBar(t('shop.title'), this.wallet())}
+      <div class="screen-inner top">
+        ${this.app.platform.demo ? `<p class="demo-note">${t('shop.demo')}</p>` : ''}
+        <div class="panel free">
+          <div class="item">
+            <div class="ico-wrap">${icon('ad', 26)}</div>
+            <div class="body"><div class="name">${t('shop.freeAd', { n: FREE_DIAMOND_AD_REWARD })}</div>
+              <div class="desc">${left > 0 ? t('shop.freeAdSub', { n: left }) : t('shop.freeAdNone')}</div></div>
+            <button class="btn small" data-act="freead" ${left > 0 ? '' : 'disabled'}>${icon('play', 16)}${t('common.free')}</button>
+          </div>
+        </div>
+        <div class="panel"><h3>${t('shop.offers')}</h3><div class="list">
+          ${offer('starter_pack', t('shop.starterDesc'))}
+          ${offer('no_ads', t('shop.noAdsDesc'))}
+        </div></div>
+        <div class="panel"><h3>${t('shop.diamonds')}</h3><div class="packs">${packs}</div></div>
+        <div class="panel"><h3>${t('shop.exchange')}</h3><div class="exchange">${exchange}</div></div>
+        <button class="btn ghost small" data-act="restore">${icon('refresh', 16)}${t('shop.restore')}</button>
+        <p class="hint">${t('shop.legal')}</p>
+      </div>`;
+    this.open('shop', html, {
+      onAction: (act, btn) => {
+        if (act === 'back') this.back();
+        else if (act === 'buy') {
+          this.app.audio.uiClick();
+          void this.app.buyProduct(btn.dataset.id as ProductId).then(() => this.refresh());
+        } else if (act === 'freead') {
+          void this.app.freeDiamonds().then(() => this.refresh());
+        } else if (act === 'exchange') {
+          if (this.app.exchange(Number(btn.dataset.i))) this.showShop();
+        } else if (act === 'restore') {
+          this.app.audio.uiClick();
+          void this.app.restoreEntitlements(false);
+        }
+      },
+    });
+  }
+
+  // ───────────────────────── Missions ─────────────────────────
+
+  showMissions(): void {
+    const s = this.app.save.data;
+    const items = s.missions.list
+      .map((m, i) => {
+        const done = m.progress >= m.target;
+        const pct = Math.round((m.progress / m.target) * 100);
+        return `<div class="item mission ${m.claimed ? 'claimed' : done ? 'ready' : ''}">
+          <div class="ico-wrap">${icon(m.claimed ? 'check' : 'target', 22)}</div>
+          <div class="body"><div class="name">${t(`mission.${m.type}` as I18nKey, { n: m.target })}</div>
+            <div class="bar"><i style="width:${pct}%"></i></div>
+            <div class="desc">${t('missions.progress', { n: fmt(m.progress), max: fmt(m.target) })} · ${this.rewardChips(m.reward)}</div></div>
+          <button class="btn small" data-act="claim" data-i="${i}" ${done && !m.claimed ? '' : 'disabled'}>${m.claimed ? t('missions.claimed') : t('missions.claim')}</button>
+        </div>`;
+      })
+      .join('');
+    const bonusReady = canClaimMissionBonus(s);
+    const html = `${this.backBar(t('missions.title'), this.wallet())}
+      <div class="screen-inner top">
+        <p class="hint" style="margin:0">${t('missions.desc')}</p>
+        <div class="list">${items}</div>
+        <div class="panel"><div class="item">
+          <div class="ico-wrap">${icon('gift', 24)}</div>
+          <div class="body"><div class="name">${t('missions.bonus')}</div><div class="desc">${this.rewardChips(MISSION_BONUS)}</div></div>
+          <button class="btn small" data-act="bonus" ${bonusReady ? '' : 'disabled'}>${s.missions.bonusClaimed ? t('missions.claimed') : t('missions.claim')}</button>
+        </div></div>
+      </div>`;
+    this.open('missions', html, {
+      onAction: (act, btn) => {
+        if (this.walletAction(act)) return;
+        if (act === 'back') this.back();
+        else if (act === 'claim') {
+          if (this.app.claimMission(Number(btn.dataset.i))) this.showMissions();
+        } else if (act === 'bonus') {
+          if (this.app.claimMissionBonus()) this.showMissions();
+        }
+      },
+    });
+  }
+
+  // ───────────────────────── Daily login ─────────────────────────
+
+  showLogin(day: number, onClaim: () => void): void {
+    const wrap = document.createElement('div');
+    wrap.className = 'dialog-wrap';
+    const days = LOGIN_REWARDS.map(
+      (r, i) => `<div class="day ${i < day ? 'past' : i === day ? 'today' : ''} ${i === 6 ? 'big' : ''}">
+        <small>${t('login.day', { n: i + 1 })}</small>${icon(r.diamonds ? 'gem' : 'shard', i === 6 ? 30 : 22)}
+        <b>${r.diamonds ? fmt(r.diamonds) : fmt(r.coins ?? 0)}</b>${i === 6 && r.coins ? `<small>+${fmt(r.coins)}</small>` : ''}</div>`,
+    ).join('');
+    wrap.innerHTML = `<div class="dialog login">
+      <h2>${t('login.title')}</h2>
+      <div class="days">${days}</div>
+      <p class="hint" style="margin:0">${t('login.desc')}</p>
+      <button class="btn primary" data-act="claim">${icon('gift', 20)}${t('login.claim')} ${this.rewardChips(LOGIN_REWARDS[day])}</button>
+    </div>`;
+    wrap.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('[data-act=claim]')) {
+        wrap.remove();
+        onClaim();
+      }
+    });
+    document.body.appendChild(wrap);
   }
 
   // ───────────────────────── Workshop ─────────────────────────
@@ -244,24 +506,31 @@ export class UI {
       const lv = s.meta[m.id] ?? 0;
       const maxed = lv >= m.max;
       const cost = metaCost(m, lv);
+      const gems = diamondsForCoins(cost);
       const afford = s.bank >= cost;
+      const btn = maxed
+        ? `<button class="btn small" disabled>${t('common.max')}</button>`
+        : afford
+          ? `<button class="btn small" data-act="buy" data-id="${m.id}">${this.price('coins', cost)}</button>`
+          : `<button class="btn small gem-btn" data-act="instant" data-id="${m.id}" ${s.diamonds >= gems ? '' : 'disabled'}>
+              <small>${t('workshop.instant')}</small>${this.price('diamonds', gems)}</button>`;
       return `<div class="item">
         <div class="ico-wrap">${icon(`meta.${m.id}`, 24)}</div>
         <div class="body"><div class="name">${t(`meta.${m.id}.name` as I18nKey)}</div>
           <div class="desc">${t(`meta.${m.id}.desc` as I18nKey)}</div>${pips(lv, m.max)}</div>
-        <button class="btn small" data-act="buy" data-id="${m.id}" ${maxed || !afford ? 'disabled' : ''}>
-          ${maxed ? t('common.max') : `<span class="price">${icon('shard', 14)}${fmt(cost)}</span>`}</button>
+        ${btn}
       </div>`;
     }).join('');
-    const html = `${this.backBar(t('workshop.title'), this.bankPill())}
+    const html = `${this.backBar(t('workshop.title'), this.wallet())}
       <div class="screen-inner top"><p class="hint" style="margin:0">${t('workshop.desc')}</p><div class="list">${items}</div></div>`;
     this.open('workshop', html, {
       onAction: (act, el) => {
-        if (act === 'back') {
-          this.app.audio.uiBack();
-          this.showMenu();
-        } else if (act === 'buy') {
-          if (this.app.buyMeta(el.dataset.id as MetaId)) this.showWorkshop();
+        if (this.walletAction(act)) return;
+        if (act === 'back') this.back();
+        else if (act === 'buy') {
+          if (this.app.buyMeta(el.dataset.id as MetaId, 'coins')) this.showWorkshop();
+        } else if (act === 'instant') {
+          if (this.app.buyMeta(el.dataset.id as MetaId, 'diamonds')) this.showWorkshop();
         }
       },
     });
@@ -277,31 +546,33 @@ export class UI {
       const owned = s.chars.includes(c.id);
       const sel = s.selected === c.id;
       const hearts = (TUNING.player.hearts + c.heartsDelta) / 4;
-      const btn = sel
-        ? `<button class="btn small" disabled>${icon('check', 18)}${t('common.selected')}</button>`
-        : owned
-          ? `<button class="btn small" data-act="select" data-id="${c.id}">${t('common.select')}</button>`
-          : `<button class="btn small" data-act="buy" data-id="${c.id}" ${s.bank >= c.price ? '' : 'disabled'}>
-              ${icon('lock', 16)}<span class="price">${icon('shard', 14)}${fmt(c.price)}</span></button>`;
-      return `<div class="spark-card ${sel ? 'selected' : ''}">${orb(c.id, true)}
-        <div class="body"><div class="name" style="font-weight:750;font-size:18px">${t(`char.${c.id}.name` as I18nKey)}</div>
+      let btn: string;
+      if (sel) btn = `<button class="btn small" disabled>${icon('check', 18)}${t('common.selected')}</button>`;
+      else if (owned) btn = `<button class="btn small" data-act="select" data-id="${c.id}">${t('common.select')}</button>`;
+      else {
+        const coinBtn = c.price > 0 ? `<button class="btn small" data-act="buy" data-cur="coins" data-id="${c.id}" ${s.bank >= c.price ? '' : 'disabled'}>${icon('lock', 15)}${this.price('coins', c.price)}</button>` : '';
+        const gemBtn = `<button class="btn small gem-btn" data-act="buy" data-cur="diamonds" data-id="${c.id}" ${s.diamonds >= c.diamondPrice ? '' : 'disabled'}>${this.price('diamonds', c.diamondPrice)}</button>`;
+        btn = `<div class="buy-row">${coinBtn}${coinBtn ? `<span class="or">${t('common.or')}</span>` : ''}${gemBtn}</div>`;
+      }
+      return `<div class="spark-card ${sel ? 'selected' : ''} ${c.premium ? 'premium' : ''}">${orb(c.id, true)}
+        <div class="body"><div class="name" style="font-weight:750;font-size:18px">${t(`char.${c.id}.name` as I18nKey)}
+          ${c.premium ? `<span class="premium-tag">${t('sparks.premium')}</span>` : ''}</div>
           <div class="desc" style="color:var(--muted);font-size:13.5px;margin-top:2px">${t(`char.${c.id}.desc` as I18nKey)}</div>
           <div class="bars">${bar(t('sparks.agility'), 1 / c.hitMul / 1.45, c.color)}${bar(t('sparks.trail'), c.trailMul / 1.35, c.color)}${bar(t('sparks.hearts'), hearts, '#ff5577')}</div>
           ${btn}</div></div>`;
     }).join('');
-    const html = `${this.backBar(t('sparks.title'), this.bankPill())}
+    const html = `${this.backBar(t('sparks.title'), this.wallet())}
       <div class="screen-inner top"><p class="hint" style="margin:0">${t('sparks.desc')}</p><div class="list">${cards}</div></div>`;
     this.open('sparks', html, {
       onAction: (act, el) => {
+        if (this.walletAction(act)) return;
         const id = el.dataset.id as CharacterId;
-        if (act === 'back') {
-          this.app.audio.uiBack();
-          this.showMenu();
-        } else if (act === 'select') {
+        if (act === 'back') this.back();
+        else if (act === 'select') {
           this.app.selectChar(id);
           this.showSparks();
         } else if (act === 'buy') {
-          if (this.app.buyChar(id)) this.showSparks();
+          if (this.app.buyChar(id, el.dataset.cur as Currency)) this.showSparks();
         }
       },
     });
@@ -315,7 +586,12 @@ export class UI {
     const items = ACHIEVEMENTS.map((a) => {
       const ok = !!s.ach[a];
       return `<div class="item ${ok ? 'done' : 'locked'}"><div class="ico-wrap">${icon(ok ? 'trophy' : 'lock', 22)}</div>
-        <div class="body"><div class="name">${t(`ach.${a}.name` as I18nKey)}</div><div class="desc">${t(`ach.${a}.desc` as I18nKey)}</div></div></div>`;
+        <div class="body"><div class="name">${t(`ach.${a}.name` as I18nKey)}</div><div class="desc">${t(`ach.${a}.desc` as I18nKey)}</div></div>
+        ${this.price('diamonds', achievementDiamonds(a))}</div>`;
+    }).join('');
+    const stones = MILESTONES.map((m) => {
+      const ok = s.milestones.includes(m.wave);
+      return `<div class="stone ${ok ? 'done' : ''}"><b>${m.wave}</b>${this.price('diamonds', m.diamonds)}</div>`;
     }).join('');
     const st = s.stats;
     const stat = (k: I18nKey, v: string) => `<div class="stat"><div class="v">${v}</div><div class="l">${t(k)}</div></div>`;
@@ -326,14 +602,12 @@ export class UI {
           ${stat('stats.bestWave', fmt(st.bestWave))}${stat('stats.bestLoop', fmt(st.bestLoop))}${stat('stats.bestCombo', '×' + fmt(st.bestCombo))}
           ${stat('stats.bossKills', fmt(st.bossKills))}${stat('stats.shardsTotal', fmt(st.shardsTotal))}${stat('stats.playTime', fmtTime(st.playTime))}
         </div></div>
+        <div class="panel"><h3>${t('milestones.title')}</h3><div class="stones">${stones}</div></div>
         <div class="list">${items}</div>
       </div>`;
     this.open('achievements', html, {
       onAction: (act) => {
-        if (act === 'back') {
-          this.app.audio.uiBack();
-          this.showMenu();
-        }
+        if (act === 'back') this.back();
       },
     });
   }
@@ -351,6 +625,9 @@ export class UI {
       `<div class="row"><label>${t(label)}</label><div class="seg">${options
         .map(([v, l]) => `<button class="${v === value ? 'on' : ''}" data-act="seg" data-key="${key}" data-value="${v}">${esc(l)}</button>`)
         .join('')}</div></div>`;
+    const privacy = this.app.platform.privacyOptionsAvailable()
+      ? `<button class="btn" data-act="consent">${t('settings.privacy')}</button>`
+      : '';
     const html = `${this.backBar(t('settings.title'))}
       <div class="screen-inner top">
         <div class="panel"><h3>${t('settings.audio')}</h3>
@@ -371,6 +648,8 @@ export class UI {
           from === 'menu'
             ? `<div class="panel"><h3>${t('settings.data')}</h3><div class="list">
           <button class="btn" data-act="tutorial">${t('settings.tutorial')}</button>
+          ${privacy}
+          <button class="btn" data-act="policy">${t('settings.privacyPolicy')}</button>
           <button class="btn danger" data-act="reset">${t('settings.reset')}</button></div>
           ${this.app.save.persistent ? '' : `<p class="hint">${t('settings.noStorage')}</p>`}</div>`
             : ''
@@ -401,6 +680,10 @@ export class UI {
         } else if (act === 'tutorial') {
           this.app.audio.uiSelect();
           this.app.startTutorial();
+        } else if (act === 'consent') {
+          void this.app.platform.showPrivacyOptions();
+        } else if (act === 'policy') {
+          this.showPrivacy();
         } else if (act === 'reset') {
           this.dialog(t('settings.resetConfirm'), t('settings.reset'), () => {
             this.app.resetSave();
@@ -417,6 +700,16 @@ export class UI {
         this.app.applySettings();
       });
       input.addEventListener('change', () => this.app.audio.uiClick());
+    });
+  }
+
+  showPrivacy(): void {
+    const html = `${this.backBar(t('settings.privacyPolicy'))}
+      <div class="screen-inner top"><div class="panel policy">${privacyHtml()}</div></div>`;
+    this.open('privacy', html, {
+      onAction: (act) => {
+        if (act === 'back') this.showSettings('menu');
+      },
     });
   }
 
@@ -460,7 +753,7 @@ export class UI {
 
   // ───────────────────────── Upgrade choice ─────────────────────────
 
-  showUpgrade(offer: UpgradeId[], wave: number, rerolls: number): void {
+  showUpgrade(offer: UpgradeId[], wave: number, rerolls: number, adReroll: boolean): void {
     const w = this.app.world!;
     const cards = offer
       .map((id) => {
@@ -474,10 +767,16 @@ export class UI {
         </button>`;
       })
       .join('');
+    const rerollBtn =
+      rerolls > 0
+        ? `<button class="btn ghost small" data-act="reroll">${icon('refresh', 18)}${t('upgrade.reroll', { n: rerolls })}</button>`
+        : adReroll
+          ? `<button class="btn ghost small" data-act="adreroll">${icon('ad', 18)}${t('upgrade.adReroll')}</button>`
+          : '';
     const html = `<div class="screen-inner">
         <div class="upgrade-head"><div class="kicker">${t('upgrade.subtitle', { n: wave })}</div><h2>${t('upgrade.title')}</h2></div>
         <div class="cards">${cards}</div>
-        ${rerolls > 0 ? `<button class="btn ghost small" data-act="reroll">${icon('refresh', 18)}${t('upgrade.reroll', { n: rerolls })}</button>` : ''}
+        ${rerollBtn}
       </div>`;
     let picked = false;
     const el = this.open('upgrade', html, {
@@ -493,6 +792,9 @@ export class UI {
         } else if (act === 'reroll') {
           this.app.audio.uiClick();
           this.app.rerollUpgrade();
+        } else if (act === 'adreroll') {
+          this.app.audio.uiClick();
+          void this.app.adReroll();
         }
       },
     });
@@ -501,14 +803,113 @@ export class UI {
     setTimeout(() => cardsEl.classList.add('armed'), 650);
   }
 
+  // ───────────────────────── Continue (revive) ─────────────────────────
+
+  showContinue(offer: ContinueOffer): void {
+    const s = this.app.save.data;
+    const opts: string[] = [];
+    if (offer.adAvailable) {
+      opts.push(`<button class="btn primary revive-ad" data-act="ad">${icon('ad', 24)}<span class="col"><b>${t('revive.ad')}</b><small>${t('revive.adSub')}</small></span></button>`);
+    } else if (offer.coins > 0) {
+      opts.push(`<button class="btn" data-act="coins" ${s.bank >= offer.coins ? '' : 'disabled'}>${t('revive.pay')} ${this.price('coins', offer.coins)}</button>`);
+    }
+    opts.push(`<button class="btn gem-btn" data-act="diamonds" ${s.diamonds >= offer.diamonds ? '' : 'disabled'}>${t('revive.pay')} ${this.price('diamonds', offer.diamonds)}</button>`);
+    const html = `<div class="screen-inner">
+        <div class="continue-ring"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="54" class="track"/><circle cx="60" cy="60" r="54" class="fill"/></svg><span>${REVIVE_COUNTDOWN}</span></div>
+        <div class="upgrade-head"><h2>${t('revive.title')}</h2><p class="hint" style="margin:6px 0 0">${t('revive.sub')}</p></div>
+        <div class="list">${opts.join('')}</div>
+        ${s.diamonds < offer.diamonds ? `<button class="btn ghost small" data-act="shop">${icon('gem', 16)}${t('menu.shop')}</button>` : ''}
+        <button class="btn ghost" data-act="giveup">${t('revive.giveUp')}</button>
+      </div>`;
+    let left = REVIVE_COUNTDOWN;
+    let paused = false;
+    let finished = false;
+    const el = this.open('continue', html, {
+      dim: true,
+      onAction: (act) => {
+        if (finished) return;
+        if (act === 'giveup') {
+          finished = true;
+          clearInterval(timer);
+          this.app.audio.uiBack();
+          this.app.giveUp();
+        } else if (act === 'shop') {
+          // Buying diamonds pauses the countdown; the dialog re-opens afterwards.
+          paused = true;
+          finished = true;
+          clearInterval(timer);
+          this.showShopOverlay(() => this.showContinue(this.app.continueOffer()));
+        } else {
+          paused = true;
+          void this.app.continueWith(act as 'ad' | Currency).then((ok) => {
+            if (ok) {
+              finished = true;
+              clearInterval(timer);
+            } else {
+              paused = false; // failed or cancelled – the countdown resumes
+            }
+          });
+        }
+      },
+    });
+    const num = el.querySelector('.continue-ring span')!;
+    const fill = el.querySelector<SVGCircleElement>('.continue-ring .fill')!;
+    const circ = 2 * Math.PI * 54;
+    fill.style.strokeDasharray = `${circ}`;
+    const timer = window.setInterval(() => {
+      if (paused || finished) return;
+      left -= 0.1;
+      fill.style.strokeDashoffset = `${circ * (1 - left / REVIVE_COUNTDOWN)}`;
+      num.textContent = String(Math.max(0, Math.ceil(left)));
+      if (left <= 0) {
+        finished = true;
+        clearInterval(timer);
+        this.app.giveUp();
+      }
+    }, 100);
+  }
+
+  /** Minimal shop sheet on top of the continue dialog (diamond packs only). */
+  private showShopOverlay(onClose: () => void): void {
+    const wrap = document.createElement('div');
+    wrap.className = 'dialog-wrap';
+    const packs = PRODUCTS.filter((p) => p.id.startsWith('diamonds_'))
+      .map((p) => `<button class="btn small" data-act="buy" data-id="${p.id}">${this.price('diamonds', p.reward.diamonds ?? 0)} · ${esc(this.app.priceOf(p.id))}</button>`)
+      .join('');
+    wrap.innerHTML = `<div class="dialog"><h2>${t('shop.diamonds')}</h2>
+      ${this.app.platform.demo ? `<p class="demo-note">${t('shop.demo')}</p>` : ''}
+      <div class="list">${packs}</div>
+      <button class="btn ghost" data-act="close">${t('common.back')}</button></div>`;
+    wrap.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-act]');
+      if (!btn) return;
+      if (btn.dataset.act === 'close') {
+        wrap.remove();
+        onClose();
+      } else if (btn.dataset.act === 'buy') {
+        void this.app.buyProduct(btn.dataset.id as ProductId).then(() => {
+          wrap.remove();
+          onClose();
+        });
+      }
+    });
+    document.body.appendChild(wrap);
+  }
+
   // ───────────────────────── Game over ─────────────────────────
 
   showGameOver(r: RunResult): void {
     const stat = (k: I18nKey, v: string) => `<div class="stat"><div class="v">${v}</div><div class="l">${t(k)}</div></div>`;
+    const s = this.app.save.data;
+    const need = xpForLevel(s.level);
+    const rewards: string[] = [];
+    rewards.push(`<div class="reward-row">${icon('star', 18)}<span>${t('over.xp', { n: fmt(r.xp) })}</span>
+      <span class="xpbar"><i style="width:${Math.round((s.xp / need) * 100)}%"></i></span><b>${t('menu.level', { n: s.level })}</b></div>`);
+    for (const lu of r.levelUps) rewards.push(`<div class="reward-row hl">${icon('star', 18)}<span>${t('over.levelUp', { n: lu.level })}</span>${this.rewardChips(lu.reward)}</div>`);
+    for (const m of r.milestones) rewards.push(`<div class="reward-row hl">${icon('gem', 18)}<span>${t('over.milestone', { n: m.wave })}</span>${this.price('diamonds', m.diamonds)}</div>`);
+    if (r.missionsDone) rewards.push(`<div class="reward-row">${icon('target', 18)}<span>${t('over.missionsDone', { n: r.missionsDone })}</span></div>`);
     const ach = r.newAchievements.length
-      ? `<div class="panel"><h3>${t('over.newAch')}</h3><div class="chips">${r.newAchievements
-          .map((a) => `<span class="chip">${icon('trophy', 16)}${t(`ach.${a}.name` as I18nKey)}</span>`)
-          .join('')}</div></div>`
+      ? `<div class="chips">${r.newAchievements.map((a) => `<span class="chip">${icon('trophy', 16)}${t(`ach.${a}.name` as I18nKey)}</span>`).join('')}</div>`
       : '';
     const html = `<div class="screen-inner">
         <div class="over-title"><h2>${t('over.title')}</h2><p>${t('over.subtitle')}</p></div>
@@ -516,10 +917,13 @@ export class UI {
           ${r.newBest ? `<div class="new-best">${t(r.daily ? 'over.newDaily' : 'over.newBest')}</div>` : ''}</div>
         <div class="stats">
           ${stat('over.wave', fmt(r.wave))}${stat('over.kills', fmt(r.kills))}${stat('over.loops', fmt(r.loops))}
-          ${stat('over.bestLoop', fmt(r.bestLoop))}${stat('over.combo', '×' + fmt(r.maxCombo))}${stat('over.time', fmtTime(r.time))}
+          ${stat('over.bestLoop', fmt(r.bestLoop))}${stat('over.combo', r.maxCombo ? '×' + fmt(r.maxCombo) : '–')}${stat('over.time', fmtTime(r.time))}
         </div>
-        <div class="panel earned">${icon('shard', 22)}+${fmt(r.shards)} <span style="color:var(--muted);font-weight:550;font-size:15px">${t('over.shards')}</span></div>
-        ${ach}
+        <div class="panel earned-panel">
+          <div class="earned">${icon('shard', 22)}<span id="earned-shards">+${fmt(r.shards)}</span> <span style="color:var(--muted);font-weight:550;font-size:15px">${t('over.shards')}</span></div>
+          ${r.canDouble ? `<button class="btn double" data-act="double">${icon('ad', 20)}<span class="col"><b>${t('over.double')}</b><small>${t('over.doubleSub', { n: fmt(r.shards) })}</small></span></button>` : ''}
+        </div>
+        <div class="panel"><h3>${t('over.rewards')}</h3><div class="rewards">${rewards.join('')}</div>${ach}</div>
         ${r.canAfford ? `<p class="hint" style="margin:0">${t('over.workshopHint')}</p>` : ''}
         <button class="btn primary" data-act="again">${icon('refresh', 22)}${t('over.again')}</button>
         <div class="grid2">
@@ -529,13 +933,25 @@ export class UI {
       </div>`;
     const el = this.open('gameover', html, {
       dim: true,
-      onAction: (act) => {
+      onAction: (act, btn) => {
+        if (act === 'double') {
+          btn.setAttribute('disabled', '');
+          void this.app.doubleShards().then((ok) => {
+            if (ok) {
+              btn.outerHTML = `<div class="doubled">${icon('check', 18)}${t('over.doubled')}</div>`;
+              el.querySelector('#earned-shards')!.textContent = `+${fmt(r.shards * 2)}`;
+            } else btn.removeAttribute('disabled');
+          });
+          return;
+        }
         this.app.audio.uiClick();
-        if (act === 'again') this.app.startRun(r.daily);
-        else if (act === 'workshop') {
-          this.app.toMenuState();
-          this.showWorkshop();
-        } else if (act === 'menu') this.app.quitToMenu();
+        if (act === 'again') void this.app.afterRun(() => this.app.startRun(r.daily));
+        else if (act === 'workshop')
+          void this.app.afterRun(() => {
+            this.app.toMenuState();
+            this.showWorkshop();
+          });
+        else if (act === 'menu') void this.app.afterRun(() => this.app.quitToMenu());
       },
     });
     // Count-up animation for the final score.

@@ -87,15 +87,37 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
   brute: { r: 18, hp: 2, speed: 27, score: 50, shards: 3, cost: 4, unlock: 6, weight: 1.6, color: '#5b8cff', mass: 0.75, group: [1, 1] },
   spitter: { r: 12, hp: 1, speed: 70, score: 35, shards: 2, cost: 3.5, unlock: 7, weight: 1.8, color: '#c6ff4d', mass: 0.1, group: [1, 2] },
   gnat: { r: 5, hp: 1, speed: 84, score: 6, shards: 0.3, cost: 0.55, unlock: 8, weight: 1.2, color: '#ff7eb6', mass: 0, group: [8, 12] },
+  warden: { r: 13, hp: 1, speed: 30, score: 45, shards: 3, cost: 4, unlock: 11, weight: 1.3, color: '#cfd8ff', mass: 0.4, group: [1, 1] },
+  blinker: { r: 9, hp: 1, speed: 46, score: 30, shards: 2, cost: 3, unlock: 13, weight: 1.6, color: '#ff4dff', mass: 0, group: [1, 2] },
+  bomber: { r: 12, hp: 1, speed: 36, score: 30, shards: 2, cost: 2.5, unlock: 16, weight: 1.8, color: '#ff6a1a', mass: 0.2, group: [1, 3] },
   maw: { r: 36, hp: 8, speed: 24, score: 1500, shards: 40, cost: 0, unlock: 99, weight: 0, color: '#ff3d5a', mass: 1, group: [1, 1] },
-  weaver: { r: 24, hp: 7, speed: 0, score: 2000, shards: 45, cost: 0, unlock: 99, weight: 0, color: '#c77dff', mass: 1, group: [1, 1] },
+  weaver: { r: 24, hp: 6, speed: 0, score: 2000, shards: 45, cost: 0, unlock: 99, weight: 0, color: '#c77dff', mass: 1, group: [1, 1] },
   twin: { r: 20, hp: 5, speed: 22, score: 1200, shards: 25, cost: 0, unlock: 99, weight: 0, color: '#4dd8ff', mass: 1, group: [1, 1] },
+  hydra: { r: 32, hp: 6, speed: 26, score: 800, shards: 15, cost: 0, unlock: 99, weight: 0, color: '#3dff8f', mass: 1, group: [1, 1] },
+  head: { r: 17, hp: 3, speed: 58, score: 600, shards: 12, cost: 0, unlock: 99, weight: 0, color: '#3dff8f', mass: 1, group: [1, 1] },
+  eye: { r: 30, hp: 8, speed: 12, score: 2400, shards: 50, cost: 0, unlock: 99, weight: 0, color: '#ffcf3d', mass: 1, group: [1, 1] },
 };
 
 /** Second twin gets its own colour so the pair reads as two individuals. */
 export const TWIN_COLORS = ['#4dd8ff', '#ff6bd6'] as const;
 
-export const SPAWNABLE: EnemyType[] = ['mote', 'dart', 'cutter', 'splitter', 'brute', 'spitter', 'gnat'];
+export const SPAWNABLE: EnemyType[] = ['mote', 'dart', 'cutter', 'splitter', 'brute', 'spitter', 'gnat', 'warden', 'blinker', 'bomber'];
+
+export const BOSS_TYPES: EnemyType[] = ['maw', 'weaver', 'twin', 'hydra', 'head', 'eye'];
+
+export const WARDEN_AURA = 78;
+export const BOMB = { fuse: 0.75, radius: 64 };
+
+/** Every 10 waves the arena moves to a new region with its own colours. */
+export const BIOMES = [
+  { id: 'nebula', edge: '#7d6bff', blobs: ['rgba(92,52,190,0.28)', 'rgba(30,110,170,0.20)', 'rgba(150,40,140,0.18)', 'rgba(40,60,160,0.22)', 'rgba(70,40,150,0.12)'], top: '#0b0820' },
+  { id: 'ember', edge: '#ff8a4d', blobs: ['rgba(190,70,30,0.26)', 'rgba(160,40,60,0.22)', 'rgba(200,120,40,0.14)', 'rgba(110,30,70,0.22)', 'rgba(150,60,30,0.14)'], top: '#1a0a10' },
+  { id: 'deep', edge: '#3de0d0', blobs: ['rgba(20,120,150,0.28)', 'rgba(20,70,140,0.24)', 'rgba(30,160,140,0.14)', 'rgba(20,50,110,0.22)', 'rgba(40,120,160,0.12)'], top: '#04121c' },
+  { id: 'aurora', edge: '#6dff9d', blobs: ['rgba(40,170,100,0.24)', 'rgba(170,60,170,0.20)', 'rgba(60,200,150,0.14)', 'rgba(90,50,170,0.22)', 'rgba(40,140,90,0.14)'], top: '#07160f' },
+  { id: 'void', edge: '#e6e6f0', blobs: ['rgba(120,120,140,0.16)', 'rgba(80,80,110,0.16)', 'rgba(160,160,180,0.08)', 'rgba(60,60,80,0.18)', 'rgba(100,100,120,0.10)'], top: '#0a0a0e' },
+] as const;
+
+export const biomeForWave = (wave: number): number => Math.floor(Math.max(0, wave - 1) / 10) % BIOMES.length;
 
 export const COLORS = {
   bg0: '#05040c',

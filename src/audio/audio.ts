@@ -251,6 +251,26 @@ export class AudioEngine {
     for (let i = 0; i < 3; i++) this.tone(midiToFreq(pentaNote(76, i * 2)), 0.25, { type: 'sine', vol: 0.06, when: i * 0.05, reverb: 0.6 });
   }
 
+  /** A loop bounced off a warden's shield. */
+  blocked(): void {
+    if (!this.gate('blocked', 0.08)) return;
+    this.tone(220, 0.12, { type: 'square', vol: 0.06, glide: 160 });
+    this.noiseHit(0.08, { type: 'bandpass', freq: 900, q: 3, vol: 0.1 });
+  }
+
+  /** Blinker teleport shimmer. */
+  blink(): void {
+    if (!this.gate('blink', 0.1)) return;
+    this.tone(midiToFreq(88), 0.18, { type: 'sine', vol: 0.05, glide: midiToFreq(76), reverb: 0.5 });
+  }
+
+  /** Bomber fuse hiss. */
+  fuse(): void {
+    if (!this.gate('fuse', 0.1)) return;
+    this.noiseHit(0.7, { type: 'highpass', freq: 3000, freqEnd: 7000, vol: 0.07 });
+    this.tone(440, 0.7, { type: 'square', vol: 0.025, glide: 880 });
+  }
+
   pickup(kind: 'shard' | 'bigshard' | 'heart'): void {
     if (!this.gate('pickup', 0.028)) return;
     const now = this.ctx!.currentTime;

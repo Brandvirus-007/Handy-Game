@@ -311,6 +311,16 @@ export class Fx {
       case 'bossAttack':
         this.ring(e.x, e.y, COLORS.danger, 60, 20, 0.5, 2);
         break;
+      case 'blocked':
+        this.ring(e.x, e.y, '#cfd8ff', 8, 26, 0.35, 2);
+        break;
+      case 'blink':
+        this.ring(e.x, e.y, ENEMIES.blinker.color, 28, 4, 0.35, 2);
+        this.burst(e.x, e.y, ENEMIES.blinker.color, 6, 90, 0.35, 3);
+        break;
+      case 'bombArmed':
+        this.ring(e.x, e.y, '#ff6a1a', 6, 30, 0.4, 2);
+        break;
       case 'thread': {
         const n = Math.round(10 * this.settings.density);
         for (let i = 0; i < n; i++) {

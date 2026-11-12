@@ -73,14 +73,58 @@ describe('headless simulation', () => {
     expect(w.run.score).toBeGreaterThan(0);
   });
 
-  it('god-mode bot reaches and defeats all three bosses', () => {
+  it('god-mode bot reaches and defeats all five bosses', () => {
     const w = new World(baseOpts({ seed: 777 }));
-    const events = play(w, 1500, true, 16);
+    const events = play(w, 3000, true, 26);
     const bossSpawns = events.filter((e) => e.type === 'bossSpawn').map((e) => (e as { boss: string }).boss);
-    expect(bossSpawns).toEqual(expect.arrayContaining(['maw', 'weaver', 'twins']));
-    expect(w.run.bossesKilled).toEqual(expect.arrayContaining(['maw', 'weaver', 'twins']));
-    expect(w.wave).toBeGreaterThanOrEqual(15);
-  }, 60_000);
+    expect(bossSpawns).toEqual(expect.arrayContaining(['maw', 'weaver', 'twins', 'hydra', 'eye']));
+    expect(w.run.bossesKilled).toEqual(expect.arrayContaining(['maw', 'weaver', 'twins', 'hydra', 'eye']));
+    expect(w.wave).toBeGreaterThanOrEqual(25);
+    // New enemy types appeared along the way.
+    const spawned = new Set(events.filter((e) => e.type === 'spawn').map((e) => (e as { enemy: string }).enemy));
+    for (const t of ['warden', 'blinker', 'bomber']) expect(spawned.has(t)).toBe(true);
+  }, 120_000);
+
+  it('revive restores a finished run', () => {
+    const w = new World(baseOpts({ seed: 5 }));
+    w.start();
+    for (let i = 0; i < 60 * 400 && !w.over; i++) {
+      w.update(DT);
+      if (w.awaitingUpgrade) w.nextWave();
+    }
+    expect(w.over).toBe(true);
+    w.drainEvents();
+    w.revive();
+    expect(w.over).toBe(false);
+    expect(w.alive).toBe(true);
+    expect(w.hearts).toBe(w.stats.maxHearts);
+    expect(w.run.revives).toBe(1);
+    expect(w.drainEvents().some((e) => e.type === 'revive')).toBe(true);
+    for (let i = 0; i < 120; i++) w.update(DT);
+    expect(w.hearts).toBe(w.stats.maxHearts); // invulnerable right after reviving
+  });
+
+  it('boosters shape the start of a run', () => {
+    const w = new World(baseOpts({ boosters: ['shield', 'heart', 'charge', 'lucky', 'magnet', 'headstart'] }));
+    w.start();
+    expect(w.shieldUp).toBe(true);
+    expect(w.stats.maxHearts).toBe(4);
+    expect(w.pulseCharge).toBe(1);
+    expect(w.wave).toBe(6);
+    const upgrades = Object.values(w.upgrades).reduce((a, b) => a + (b ?? 0), 0);
+    expect(upgrades).toBeGreaterThanOrEqual(4);
+  });
+
+  it('phantom ignores the first hit of each wave', () => {
+    const w = new World(baseOpts({ character: 'phantom' }));
+    w.start();
+    const hearts = w.hearts;
+    w.hitPlayer();
+    expect(w.hearts).toBe(hearts);
+    w.invuln = 0;
+    w.hitPlayer();
+    expect(w.hearts).toBe(hearts - 1);
+  });
 
   it('is deterministic for the same seed and inputs', () => {
     const a = new World(baseOpts({ seed: 99 }));
@@ -93,7 +137,7 @@ describe('headless simulation', () => {
   });
 
   it('every modifier and character combination runs', () => {
-    const chars = ['spark', 'comet', 'ember', 'prism'] as const;
+    const chars = ['spark', 'comet', 'ember', 'prism', 'nova', 'phantom'] as const;
     const mods = ['glass', 'haste', 'swarmy', 'longtrail', 'bossrush', 'nopulse'] as const;
     for (const c of chars) {
       for (const m of mods) {

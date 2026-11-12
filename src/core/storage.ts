@@ -2,6 +2,7 @@ import { META } from '../game/meta';
 import { CHARACTERS } from '../game/characters';
 import { ACHIEVEMENTS } from '../game/achievements';
 import type { CharacterId, MetaId } from '../game/types';
+import type { BoosterId, MissionType, Reward } from '../economy/defs';
 
 export type Quality = 'auto' | 'high' | 'low';
 export type LangSetting = 'auto' | 'de' | 'en';
@@ -29,9 +30,33 @@ export interface LifetimeStats {
   bestWave: number;
 }
 
+export interface MissionState {
+  type: MissionType;
+  target: number;
+  progress: number;
+  reward: Reward;
+  claimed: boolean;
+}
+
 export interface SaveData {
   v: number;
+  /** Shards (soft currency). */
   bank: number;
+  /** Diamonds (premium currency). */
+  diamonds: number;
+  level: number;
+  xp: number;
+  /** Wave milestones already rewarded. */
+  milestones: number[];
+  /** 7-day login calendar: date of the last claim and index of the next day to claim. */
+  login: { last: string; day: number };
+  missions: { date: string; list: MissionState[]; bonusClaimed: boolean };
+  ads: { date: string; freeDiamonds: number; lastInterstitial: number; lastRewarded: number; runsSinceInterstitial: number };
+  owned: { noAds: boolean; starter: boolean };
+  /** Boosters selected for the next run (remembered between runs). */
+  boosters: BoosterId[];
+  /** Purchase tokens already credited – prevents double grants after a crash or restore. */
+  grantedTokens: string[];
   best: number;
   bestWave: number;
   daily: { date: string; best: number };
@@ -44,7 +69,7 @@ export interface SaveData {
   tutorialDone: boolean;
 }
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 export const SAVE_KEY = 'lumen-loop/save';
 
 export const defaultSettings = (): Settings => ({
@@ -61,6 +86,16 @@ export const defaultSettings = (): Settings => ({
 export const defaultSave = (): SaveData => ({
   v: SAVE_VERSION,
   bank: 0,
+  diamonds: 0,
+  level: 1,
+  xp: 0,
+  milestones: [],
+  login: { last: '', day: 0 },
+  missions: { date: '', list: [], bonusClaimed: false },
+  ads: { date: '', freeDiamonds: 0, lastInterstitial: 0, lastRewarded: 0, runsSinceInterstitial: 0 },
+  owned: { noAds: false, starter: false },
+  boosters: [],
+  grantedTokens: [],
   best: 0,
   bestWave: 0,
   daily: { date: '', best: 0 },
@@ -80,6 +115,9 @@ const bool = (v: unknown, def: boolean): boolean => (typeof v === 'boolean' ? v 
 const str = (v: unknown, def: string): string => (typeof v === 'string' ? v : def);
 const oneOf = <T extends string>(v: unknown, allowed: readonly T[], def: T): T =>
   typeof v === 'string' && (allowed as readonly string[]).includes(v) ? (v as T) : def;
+const MISSION_TYPES: MissionType[] = ['kills', 'loops', 'wave', 'bigloop', 'boss', 'shards', 'pulse', 'runs', 'combo'];
+const BOOSTER_IDS: BoosterId[] = ['shield', 'heart', 'charge', 'lucky', 'magnet', 'headstart'];
+
 const obj = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
 
 /**
@@ -124,9 +162,43 @@ export function sanitize(raw: unknown): SaveData {
   };
 
   const daily = obj(r.daily);
+  const login = obj(r.login);
+  const missions = obj(r.missions);
+  const ads = obj(r.ads);
+  const owned = obj(r.owned);
+  const missionList: MissionState[] = Array.isArray(missions.list)
+    ? (missions.list as unknown[]).slice(0, 5).flatMap((m) => {
+        const o = obj(m);
+        if (typeof o.type !== 'string' || !MISSION_TYPES.includes(o.type as MissionType)) return [];
+        const rw = obj(o.reward);
+        return [{
+          type: o.type as MissionType,
+          target: int(o.target, 1, 1),
+          progress: int(o.progress, 0),
+          reward: { coins: int(rw.coins, 0), diamonds: int(rw.diamonds, 0) },
+          claimed: bool(o.claimed, false),
+        }];
+      })
+    : [];
   return {
     v: SAVE_VERSION,
     bank: int(r.bank, 0),
+    diamonds: int(r.diamonds, 0),
+    level: int(r.level, 1, 1, 999),
+    xp: int(r.xp, 0),
+    milestones: Array.isArray(r.milestones) ? [...new Set(r.milestones.filter((x): x is number => typeof x === 'number'))] : [],
+    login: { last: str(login.last, ''), day: int(login.day, 0, 0, 6) },
+    missions: { date: str(missions.date, ''), list: missionList, bonusClaimed: bool(missions.bonusClaimed, false) },
+    ads: {
+      date: str(ads.date, ''),
+      freeDiamonds: int(ads.freeDiamonds, 0),
+      lastInterstitial: num(ads.lastInterstitial, 0, 0),
+      lastRewarded: num(ads.lastRewarded, 0, 0),
+      runsSinceInterstitial: int(ads.runsSinceInterstitial, 0),
+    },
+    owned: { noAds: bool(owned.noAds, false), starter: bool(owned.starter, false) },
+    boosters: Array.isArray(r.boosters) ? (r.boosters.filter((b) => BOOSTER_IDS.includes(b as BoosterId)) as BoosterId[]) : [],
+    grantedTokens: Array.isArray(r.grantedTokens) ? r.grantedTokens.filter((x): x is string => typeof x === 'string').slice(-100) : [],
     best: int(r.best, 0),
     bestWave: int(r.bestWave, 0),
     daily: { date: str(daily.date, ''), best: int(daily.best, 0) },

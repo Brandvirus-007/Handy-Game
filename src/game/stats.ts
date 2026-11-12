@@ -10,6 +10,7 @@ export function computeStats(
   meta: MetaLevels,
   up: UpgradeLevels,
   modifiers: readonly ModifierId[],
+  bonus: { hearts?: number; shardMul?: number } = {},
 ): PlayerStats {
   const c = getCharacter(characterId);
   const lv = (k: keyof UpgradeLevels) => up[k] ?? 0;
@@ -21,7 +22,7 @@ export function computeStats(
     trailLength *= 1.5;
     trailLife *= 0.7;
   }
-  let maxHearts = TUNING.player.hearts + c.heartsDelta + m('heart') + lv('heart');
+  let maxHearts = TUNING.player.hearts + c.heartsDelta + m('heart') + lv('heart') + (bonus.hearts ?? 0);
   if (modifiers.includes('nopulse')) maxHearts += 1;
   if (modifiers.includes('glass')) maxHearts = 1;
 
@@ -33,21 +34,29 @@ export function computeStats(
     trailLife,
     magnet: TUNING.magnet * (1 + 0.15 * m('magnet')) * (1 + UPGRADE_VALUES.magnet(lv('magnet'))),
     maxHearts,
-    shardMul: (1 + 0.1 * m('shards')) * (1 + UPGRADE_VALUES.shardrain(lv('shardrain'))) * (modifiers.includes('glass') ? 2 : 1),
-    scoreMul: c.scoreMul,
+    shardMul: (1 + 0.1 * m('shards')) * (1 + UPGRADE_VALUES.shardrain(lv('shardrain'))) * (modifiers.includes('glass') ? 2 : 1) * (bonus.shardMul ?? 1),
+    scoreMul: c.scoreMul * (1 + UPGRADE_VALUES.stardust(lv('stardust'))),
     comboWindow: TUNING.combo.window + UPGRADE_VALUES.combo(lv('combo')),
     loopDamage: 1 + lv('double'),
     shockwave: lv('shockwave'),
     frost: lv('frost'),
     chain: lv('chain') + c.innateChain,
-    echo: lv('echo'),
+    echo: lv('echo') + c.innateEcho,
     slowmo: lv('slowmo'),
     ember: lv('ember') + c.innateEmber,
     pulseLevel,
-    pulseRadius: TUNING.pulse.radius + TUNING.pulse.perLevelRadius * pulseLevel,
+    pulseRadius: (TUNING.pulse.radius + TUNING.pulse.perLevelRadius * pulseLevel) * c.pulseRadiusMul,
     pulseGain: 1 + 0.3 * pulseLevel,
     shield: lv('shield'),
     secondWind: lv('secondwind') > 0,
+    phase: c.phase,
+    treasure: UPGRADE_VALUES.treasure(lv('treasure')),
+    retaliate: lv('retaliate') > 0,
+    maxPulse: 1 + lv('doublepulse'),
+    magnetTrail: lv('magnettrail') > 0,
+    supernovaEvery: UPGRADE_VALUES.supernovaEvery(lv('supernova')),
+    healLoop: lv('healloop') > 0,
+    pierce: lv('pierce') > 0,
     cometCharge: c.cometCharge,
     noPulse: modifiers.includes('nopulse'),
   };

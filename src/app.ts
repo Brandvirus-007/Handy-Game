@@ -2,7 +2,7 @@ import { clamp, damp } from './core/math';
 import { dailySeed, localDateKey, randomSeed } from './core/rng';
 import { SaveStore } from './core/storage';
 import { detectLang, setLang, t, type I18nKey } from './core/i18n';
-import { TUNING } from './game/config';
+import { BIOMES, TUNING, biomeForWave } from './game/config';
 import { World } from './game/world';
 import { getCharacter, CHARACTERS } from './game/characters';
 import { META, metaCost, getMeta } from './game/meta';
@@ -16,6 +16,43 @@ import { Haptics } from './haptics';
 import { Input } from './input';
 import { UI } from './ui/ui';
 import { Tutorial } from './tutorial';
+import { createPlatform, type Platform } from './platform';
+import { WebPlatform } from './platform/web';
+import type { CompletedPurchase, StoreProduct } from './platform/types';
+import {
+  EXCHANGE,
+  FREE_DIAMOND_AD_REWARD,
+  INTERSTITIAL,
+  REVIVE_COINS,
+  REVIVE_DIAMONDS,
+  diamondsForCoins,
+  getProduct,
+  reviveCost,
+  xpForRun,
+  type BoosterId,
+  type Currency,
+  type ProductId,
+  type Reward,
+} from './economy/defs';
+import {
+  achievementDiamonds,
+  addXp,
+  availableBoosters,
+  canClaimMissionBonus,
+  claimLogin,
+  claimMilestone,
+  claimMission,
+  claimMissionBonus,
+  countFreeDiamondAd,
+  ensureMissions,
+  freeDiamondAdsLeft,
+  grant,
+  loginDayToClaim,
+  payBoosters,
+  progressMissions,
+  spend,
+  type LevelUp,
+} from './economy/profile';
 
 export interface RunResult {
   score: number;
@@ -30,9 +67,20 @@ export interface RunResult {
   daily: boolean;
   newAchievements: AchievementId[];
   canAfford: boolean;
+  xp: number;
+  levelUps: LevelUp[];
+  milestones: { wave: number; diamonds: number }[];
+  missionsDone: number;
+  canDouble: boolean;
 }
 
-type State = 'menu' | 'playing' | 'paused' | 'upgrade' | 'dying' | 'gameover';
+export interface ContinueOffer {
+  adAvailable: boolean;
+  coins: number;
+  diamonds: number;
+}
+
+type State = 'menu' | 'playing' | 'paused' | 'upgrade' | 'dying' | 'continue' | 'gameover';
 
 interface RunSetup {
   daily: boolean;
@@ -40,6 +88,7 @@ interface RunSetup {
   character: CharacterId;
   modifiers: ModifierId[];
   seed: number;
+  boosters: BoosterId[];
 }
 
 interface BeforeInstallPromptEvent extends Event {
@@ -57,6 +106,9 @@ export class App {
   readonly renderer: Renderer;
   readonly ui: UI;
   readonly input: Input;
+  /** Ads, purchases and device features (Android or browser demo). */
+  platform: Platform = new WebPlatform();
+  products: StoreProduct[] = [];
 
   world: World | null = null;
   state: State = 'menu';
@@ -81,9 +133,14 @@ export class App {
   private slowTime = 0;
   private autoLow = false;
   private installEvent: BeforeInstallPromptEvent | null = null;
-  private wakeLock: { release(): Promise<void> } | null = null;
   private daily: DailySetup | null = null;
   private lang = '';
+  /** Per-run monetisation state. */
+  private runAds = { revive: false, reroll: false, double: false };
+  private paidRevives = 0;
+  private runMilestones: { wave: number; diamonds: number }[] = [];
+  private lastResult: RunResult | null = null;
+  private busy = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
@@ -97,24 +154,22 @@ export class App {
       pause: () => this.pause(),
       gesture: () => this.audio.unlock(),
     });
+    this.haptics.sink = (p) => this.platform.vibrate(p);
   }
 
-  boot(): void {
+  async boot(): Promise<void> {
+    this.platform = await createPlatform();
+    try {
+      await this.platform.init();
+    } catch {
+      /* the game must run even if a plugin fails */
+    }
     this.applySettings(false);
     this.resize();
     window.addEventListener('resize', () => this.resize());
     window.visualViewport?.addEventListener('resize', () => this.resize());
     window.addEventListener('orientationchange', () => setTimeout(() => this.resize(), 200));
-    document.addEventListener('visibilitychange', () => {
-      const visible = document.visibilityState === 'visible';
-      this.audio.setVisible(visible);
-      if (!visible) {
-        if (this.state === 'playing') this.pause();
-        this.save.save();
-      } else if (this.state === 'playing') {
-        void this.lockScreen();
-      }
-    });
+    document.addEventListener('visibilitychange', () => this.setActive(document.visibilityState === 'visible'));
     window.addEventListener('pagehide', () => this.save.save());
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
@@ -122,13 +177,33 @@ export class App {
       this.canInstall = true;
       if (this.state === 'menu' && this.ui.screenName === 'menu') this.ui.showMenu();
     });
+    this.platform.onBackButton(() => this.back());
+    this.platform.onPauseResume((active) => this.setActive(active));
     const nav = navigator as Navigator & { standalone?: boolean };
     const standalone = window.matchMedia?.('(display-mode: standalone)').matches || nav.standalone === true;
-    this.showIosHint = !__SINGLE_FILE__ && /iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone;
+    this.showIosHint = !__SINGLE_FILE__ && !this.platform.native && /iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone;
 
+    ensureMissions(this.save.data, localDateKey());
+    this.save.save();
     this.ui.showMenu();
     this.audio.setIntensity(0);
     requestAnimationFrame(this.loop);
+
+    // Store data loads in the background; purchases that were paid but not yet credited are recovered.
+    void this.platform.getProducts().then((p) => (this.products = p));
+    void this.platform.recoverPurchases((p) => void this.credit(p));
+    void this.restoreEntitlements(true);
+    setTimeout(() => this.offerDailyLogin(), 700);
+  }
+
+  private setActive(active: boolean): void {
+    this.audio.setVisible(active);
+    if (!active) {
+      if (this.state === 'playing') this.pause();
+      this.save.save();
+    } else if (this.state === 'playing') {
+      this.platform.keepAwake(true);
+    }
   }
 
   // ───────────────────────── Layout ─────────────────────────
@@ -204,23 +279,41 @@ export class App {
 
   // ───────────────────────── Run lifecycle ─────────────────────────
 
+  /** "Play": first time → tutorial, otherwise the booster/preparation screen. */
   startRun(daily: boolean): void {
     if (!this.save.data.tutorialDone && !daily) {
       this.startTutorial();
       return;
     }
+    this.toMenuState();
+    this.ui.showPrerun(daily);
+  }
+
+  /** Called by the preparation screen. Pays for the boosters and starts the run. */
+  launchRun(daily: boolean, boosters: BoosterId[]): boolean {
+    const s = this.save.data;
+    const allowed = availableBoosters(s).map((b) => b.id);
+    const chosen = boosters.filter((b) => allowed.includes(b));
+    if (!payBoosters(s, chosen)) {
+      this.audio.denied();
+      return false;
+    }
+    s.boosters = chosen;
+    this.save.save();
     const d = daily ? this.dailyInfo() : null;
     this.begin({
       daily,
       tutorial: false,
-      character: d ? d.character : this.save.data.selected,
+      character: d ? d.character : s.selected,
       modifiers: d ? d.modifiers : [],
       seed: d ? d.seed : randomSeed(),
+      boosters: chosen,
     });
+    return true;
   }
 
   startTutorial(): void {
-    this.begin({ daily: false, tutorial: true, character: this.save.data.selected, modifiers: [], seed: 1 });
+    this.begin({ daily: false, tutorial: true, character: this.save.data.selected, modifiers: [], seed: 1, boosters: [] });
     this.tutorial = new Tutorial(this, this.world!);
   }
 
@@ -248,12 +341,17 @@ export class App {
       meta: setup.tutorial ? {} : { ...this.save.data.meta },
       daily: setup.daily,
       tutorial: setup.tutorial,
+      boosters: setup.boosters,
     });
     this.world = world;
     this.renderer.layout(world.w, world.h, this.arena);
+    this.renderer.setBiome(0);
     this.fx.playerColor = getCharacter(setup.character).color;
     world.start();
     this.newAch = [];
+    this.runAds = { revive: false, reroll: false, double: false };
+    this.paidRevives = 0;
+    this.runMilestones = [];
     this.acc = 0;
     this.timeScale = 1;
     this.slowmo = 0;
@@ -266,7 +364,7 @@ export class App {
     this.input.enabled = true;
     this.audio.duck(false);
     this.audio.setIntensity(1);
-    void this.lockScreen();
+    this.platform.keepAwake(true);
   }
 
   pause(): void {
@@ -275,7 +373,7 @@ export class App {
       this.input.enabled = false;
       this.audio.duck(true);
       this.ui.showPause();
-      this.releaseScreen();
+      this.platform.keepAwake(false);
     } else if (this.state === 'paused' && this.ui.screenName === 'pause') {
       this.resume();
     }
@@ -292,7 +390,7 @@ export class App {
     this.acc = 0;
     // A short grace period so resuming never causes an instant hit.
     this.world.invuln = Math.max(this.world.invuln, 0.8);
-    void this.lockScreen();
+    this.platform.keepAwake(true);
   }
 
   restart(): void {
@@ -313,7 +411,7 @@ export class App {
     this.fx.clear();
     this.audio.duck(false);
     this.audio.setIntensity(0);
-    this.releaseScreen();
+    this.platform.keepAwake(false);
   }
 
   quitToMenu(): void {
@@ -328,6 +426,35 @@ export class App {
     }
   }
 
+  /** Android back button. */
+  back(): void {
+    if (this.ui.closeTopDialog()) return;
+    switch (this.state) {
+      case 'playing':
+        this.pause();
+        return;
+      case 'paused':
+        if (this.ui.screenName === 'settings') this.ui.showPause();
+        else this.resume();
+        return;
+      case 'gameover':
+        void this.afterRun(() => this.quitToMenu());
+        return;
+      case 'menu':
+        if (this.ui.screenName === 'menu' || this.ui.screenName === '') {
+          this.ui.dialog(t('app.exitConfirm'), t('app.exit'), () => this.platform.exitApp());
+        } else {
+          this.audio.uiBack();
+          this.ui.showMenu();
+        }
+        return;
+      default:
+        return; // upgrade choice and continue dialog need an explicit decision
+    }
+  }
+
+  // ───────────────────────── Upgrades ─────────────────────────
+
   private openUpgrade(): void {
     const w = this.world!;
     this.offer = w.rollOffer();
@@ -339,7 +466,7 @@ export class App {
     this.input.enabled = false;
     this.input.reset();
     this.audio.duck(true);
-    this.ui.showUpgrade(this.offer, w.wave, w.rerolls);
+    this.ui.showUpgrade(this.offer, w.wave, w.rerolls, !this.runAds.reroll && !w.opts.tutorial);
   }
 
   pickUpgrade(id: UpgradeId): void {
@@ -361,7 +488,83 @@ export class App {
     const o = w.reroll();
     if (!o) return;
     this.offer = o;
-    this.ui.showUpgrade(o, w.wave, w.rerolls);
+    this.ui.showUpgrade(o, w.wave, w.rerolls, !this.runAds.reroll);
+  }
+
+  async adReroll(): Promise<void> {
+    const w = this.world;
+    if (!w || this.state !== 'upgrade' || this.runAds.reroll || this.busy) return;
+    this.busy = true;
+    const earned = await this.watchAd('reroll');
+    this.busy = false;
+    if (!earned || this.state !== 'upgrade') return;
+    this.runAds.reroll = true;
+    w.rerolls++;
+    this.rerollUpgrade();
+  }
+
+  // ───────────────────────── Death, continue & rewards ─────────────────────────
+
+  continueOffer(): ContinueOffer {
+    return {
+      adAvailable: !this.runAds.revive,
+      coins: this.runAds.revive ? reviveCost(REVIVE_COINS, this.paidRevives) : 0,
+      diamonds: reviveCost(REVIVE_DIAMONDS, this.paidRevives),
+    };
+  }
+
+  private openContinue(): void {
+    this.state = 'continue';
+    this.audio.duck(true);
+    this.platform.keepAwake(false);
+    this.ui.showContinue(this.continueOffer());
+  }
+
+  /** Revive via ad, shards or diamonds. Returns true if the run continues. */
+  async continueWith(kind: 'ad' | Currency): Promise<boolean> {
+    if (this.state !== 'continue' || !this.world || this.busy) return false;
+    const offer = this.continueOffer();
+    if (kind === 'ad') {
+      if (!offer.adAvailable) return false;
+      this.busy = true;
+      const earned = await this.watchAd('revive');
+      this.busy = false;
+      if (!earned) {
+        this.ui.toast(t('revive.title'), t('revive.adFailed'), 'play');
+        return false;
+      }
+      this.runAds.revive = true;
+    } else {
+      const price = kind === 'coins' ? offer.coins : offer.diamonds;
+      if (price <= 0 || !spend(this.save.data, kind, price)) {
+        this.audio.denied();
+        return false;
+      }
+      this.paidRevives++;
+      this.save.save();
+    }
+    this.doRevive();
+    return true;
+  }
+
+  private doRevive(): void {
+    const w = this.world!;
+    this.state = 'playing';
+    this.ui.close();
+    w.revive();
+    this.ui.showBanner(t('revive.banner'));
+    this.audio.duck(false);
+    this.audio.setIntensity(w.plan?.boss ? 3 : w.wave >= 8 ? 2 : 1);
+    this.input.reset();
+    this.input.enabled = true;
+    this.pendingDx = this.pendingDy = 0;
+    this.platform.keepAwake(true);
+    this.unlock('revived');
+  }
+
+  giveUp(): void {
+    if (this.state !== 'continue') return;
+    this.endRun();
   }
 
   private endRun(): void {
@@ -380,8 +583,9 @@ export class App {
     st.shardsTotal += r.shards;
     st.bestLoop = Math.max(st.bestLoop, r.bestLoop);
     st.bestCombo = Math.max(st.bestCombo, r.maxCombo);
-    st.bestWave = Math.max(st.bestWave, r.wave);
+    st.bestWave = Math.max(st.bestWave, r.wavesCleared);
     s.bank += r.shards;
+    s.ads.runsSinceInterstitial++;
 
     let newBest = false;
     if (setup.daily) {
@@ -399,8 +603,29 @@ export class App {
         s.best = r.score;
         newBest = true;
       }
-      s.bestWave = Math.max(s.bestWave, r.wave);
+      s.bestWave = Math.max(s.bestWave, r.wavesCleared);
     }
+
+    // Progression: experience, levels and missions.
+    const xp = xpForRun({ score: r.score, kills: r.kills, wavesCleared: r.wavesCleared });
+    const levelUps = addXp(s, xp);
+    for (const lu of levelUps) {
+      this.ui.toast(t('toast.levelUp'), `${t('level.up', { n: lu.level })} ${rewardText(lu.reward)}`, 'star');
+      if (lu.level >= 10) this.unlock('level10');
+      if (lu.level >= 25) this.unlock('level25');
+    }
+    ensureMissions(s, localDateKey());
+    const done = progressMissions(s, {
+      kills: r.kills,
+      loops: r.loops,
+      wave: r.wavesCleared,
+      bestLoop: r.bestLoop,
+      bosses: r.bossesKilled.length,
+      shards: r.shards,
+      pulses: r.pulses,
+      maxCombo: r.maxCombo,
+    });
+
     if (r.score >= 10000) this.unlock('score10k');
     if (r.score >= 50000) this.unlock('score50k');
     if (st.shardsTotal >= 1000) this.unlock('shards1000');
@@ -410,8 +635,8 @@ export class App {
     this.ui.hud.show(false);
     this.audio.duck(true);
     this.audio.setIntensity(0);
-    this.releaseScreen();
-    this.ui.showGameOver({
+    this.platform.keepAwake(false);
+    this.lastResult = {
       score: r.score,
       wave: r.wave,
       kills: r.kills,
@@ -424,21 +649,87 @@ export class App {
       daily: setup.daily,
       newAchievements: [...this.newAch],
       canAfford,
-    });
+      xp,
+      levelUps,
+      milestones: [...this.runMilestones],
+      missionsDone: done.length,
+      canDouble: r.shards > 0,
+    };
+    this.ui.showGameOver(this.lastResult);
   }
 
-  // ───────────────────────── Economy ─────────────────────────
+  /** Rewarded ad at the end of a run: doubles the shards collected. */
+  async doubleShards(): Promise<boolean> {
+    const r = this.lastResult;
+    if (!r || this.state !== 'gameover' || this.runAds.double || this.busy || r.shards <= 0) return false;
+    this.busy = true;
+    const earned = await this.watchAd('double');
+    this.busy = false;
+    if (!earned) return false;
+    this.runAds.double = true;
+    this.save.data.bank += r.shards;
+    this.save.save();
+    this.audio.purchase();
+    return true;
+  }
 
-  buyMeta(id: MetaId): boolean {
+  /** Leaving the result screen is a natural break – the only place an interstitial may appear. */
+  async afterRun(next: () => void): Promise<void> {
+    if (this.busy) return;
+    const s = this.save.data;
+    const now = Date.now();
+    const due =
+      !s.owned.noAds &&
+      !this.setup?.tutorial &&
+      s.stats.runs >= INTERSTITIAL.minRuns &&
+      s.ads.runsSinceInterstitial >= INTERSTITIAL.everyRuns &&
+      now - s.ads.lastInterstitial >= INTERSTITIAL.minGapSec * 1000 &&
+      now - s.ads.lastRewarded >= INTERSTITIAL.afterRewardedSec * 1000;
+    if (due) {
+      this.busy = true;
+      s.ads.runsSinceInterstitial = 0;
+      s.ads.lastInterstitial = now;
+      this.save.save();
+      this.audio.setVisible(false);
+      try {
+        await this.platform.showInterstitial();
+      } finally {
+        this.audio.setVisible(true);
+        this.busy = false;
+      }
+    }
+    next();
+  }
+
+  private async watchAd(placement: 'revive' | 'double' | 'reroll' | 'freeDiamonds'): Promise<boolean> {
+    this.audio.setVisible(false);
+    let earned = false;
+    try {
+      earned = await this.platform.showRewarded(placement);
+    } catch {
+      earned = false;
+    } finally {
+      this.audio.setVisible(true);
+    }
+    if (earned) {
+      this.save.data.ads.lastRewarded = Date.now();
+      this.save.save();
+    }
+    return earned;
+  }
+
+  // ───────────────────────── Economy actions ─────────────────────────
+
+  buyMeta(id: MetaId, currency: Currency = 'coins'): boolean {
     const s = this.save.data;
     const def = getMeta(id);
     const lv = s.meta[id] ?? 0;
     const cost = metaCost(def, lv);
-    if (lv >= def.max || s.bank < cost) {
+    const price = currency === 'coins' ? cost : diamondsForCoins(cost);
+    if (lv >= def.max || !spend(s, currency, price)) {
       this.audio.denied();
       return false;
     }
-    s.bank -= cost;
     s.meta[id] = lv + 1;
     this.save.save();
     this.audio.purchase();
@@ -446,14 +737,14 @@ export class App {
     return true;
   }
 
-  buyChar(id: CharacterId): boolean {
+  buyChar(id: CharacterId, currency: Currency): boolean {
     const s = this.save.data;
     const c = getCharacter(id);
-    if (s.chars.includes(id) || s.bank < c.price) {
+    const price = currency === 'coins' ? c.price : c.diamondPrice;
+    if (s.chars.includes(id) || price <= 0 || (c.premium && currency === 'coins') || !spend(s, currency, price)) {
       this.audio.denied();
       return false;
     }
-    s.bank -= c.price;
     s.chars.push(id);
     s.selected = id;
     this.save.save();
@@ -468,6 +759,139 @@ export class App {
     this.save.data.selected = id;
     this.save.save();
     this.audio.uiSelect();
+  }
+
+  exchange(index: number): boolean {
+    const offer = EXCHANGE[index];
+    const s = this.save.data;
+    if (!offer || !spend(s, 'diamonds', offer.diamonds)) {
+      this.audio.denied();
+      return false;
+    }
+    s.bank += offer.coins;
+    this.save.save();
+    this.audio.purchase();
+    return true;
+  }
+
+  freeDiamondsLeft(): number {
+    return freeDiamondAdsLeft(this.save.data, localDateKey());
+  }
+
+  async freeDiamonds(): Promise<boolean> {
+    if (this.freeDiamondsLeft() <= 0 || this.busy) return false;
+    this.busy = true;
+    const earned = await this.watchAd('freeDiamonds');
+    this.busy = false;
+    if (!earned) return false;
+    countFreeDiamondAd(this.save.data, localDateKey());
+    grant(this.save.data, { diamonds: FREE_DIAMOND_AD_REWARD });
+    this.save.save();
+    this.audio.purchase();
+    this.ui.toast(t('shop.free'), t('toast.diamonds', { n: FREE_DIAMOND_AD_REWARD }), 'gem');
+    return true;
+  }
+
+  claimMission(index: number): boolean {
+    const r = claimMission(this.save.data, index);
+    if (!r) return false;
+    this.save.save();
+    this.audio.purchase();
+    return true;
+  }
+
+  claimMissionBonus(): boolean {
+    if (!canClaimMissionBonus(this.save.data)) return false;
+    claimMissionBonus(this.save.data);
+    this.save.save();
+    this.audio.purchase();
+    return true;
+  }
+
+  private offerDailyLogin(): void {
+    if (this.state !== 'menu' || !this.save.data.tutorialDone) return;
+    const today = localDateKey();
+    const day = loginDayToClaim(this.save.data, today);
+    if (day === null) return;
+    this.ui.showLogin(day, () => {
+      const reward = claimLogin(this.save.data, today);
+      if (reward) {
+        this.save.save();
+        this.audio.purchase();
+        this.haptics.buzz(30);
+      }
+      if (this.ui.screenName === 'menu') this.ui.showMenu();
+    });
+  }
+
+  // ───────────────────────── Purchases ─────────────────────────
+
+  priceOf(id: ProductId): string {
+    return this.products.find((p) => p.id === id)?.price ?? getProduct(id).fallbackPrice;
+  }
+
+  async buyProduct(id: ProductId): Promise<void> {
+    if (this.busy) return;
+    this.busy = true;
+    let outcome;
+    try {
+      outcome = await this.platform.purchase(id, (p) => void this.credit(p));
+    } finally {
+      this.busy = false;
+    }
+    if (outcome === 'pending') this.ui.toast(t('shop.title'), t('shop.pending'), 'gem');
+    else if (outcome === 'error') this.ui.toast(t('shop.title'), t('shop.error'), 'gem');
+    else if (outcome === 'unavailable') this.ui.toast(t('shop.title'), t('shop.unavailable'), 'gem');
+  }
+
+  /** Credits a paid purchase exactly once, saves, then lets the store consume/acknowledge it. */
+  private async credit(p: CompletedPurchase): Promise<void> {
+    const s = this.save.data;
+    if (!s.grantedTokens.includes(p.token)) {
+      const def = getProduct(p.productId);
+      grant(s, def.reward);
+      if (def.unlocks && !s.chars.includes(def.unlocks)) s.chars.push(def.unlocks);
+      if (p.productId === 'no_ads') s.owned.noAds = true;
+      if (p.productId === 'starter_pack') s.owned.starter = true;
+      s.grantedTokens = [...s.grantedTokens, p.token].slice(-100);
+      this.save.save();
+      this.audio.purchase();
+      this.haptics.buzz([30, 40, 60]);
+      this.ui.toast(t('shop.thanks'), `${t(`shop.product.${p.productId}` as I18nKey)} ${rewardText(def.reward)}`, 'gem');
+      this.unlock('shopper');
+      this.ui.refresh();
+    }
+    try {
+      await p.finish();
+    } catch {
+      /* retried on next launch via recoverPurchases */
+    }
+  }
+
+  /** Restores one-time purchases (no ads, starter spark) – never currency. */
+  async restoreEntitlements(silent = false): Promise<void> {
+    const owned = await this.platform.ownedProducts();
+    const s = this.save.data;
+    let changed = false;
+    if (owned.includes('no_ads') && !s.owned.noAds) {
+      s.owned.noAds = true;
+      changed = true;
+    }
+    if (owned.includes('starter_pack')) {
+      if (!s.owned.starter) {
+        s.owned.starter = true;
+        changed = true;
+      }
+      if (!s.chars.includes('nova')) {
+        s.chars.push('nova');
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.save.save();
+      this.ui.refresh();
+    }
+    if (!silent) this.ui.toast(t('shop.title'), t(changed || owned.length ? 'shop.restored' : 'shop.nothingToRestore'), 'refresh');
   }
 
   resetSave(): void {
@@ -488,27 +912,12 @@ export class App {
     const s = this.save.data;
     if (s.ach[id]) return;
     s.ach[id] = Date.now();
+    const d = achievementDiamonds(id);
+    s.diamonds += d;
     this.newAch.push(id);
     this.save.save();
-    this.ui.toast(t('ach.unlocked'), t(`ach.${id}.name` as I18nKey));
+    this.ui.toast(t('ach.unlocked'), `${t(`ach.${id}.name` as I18nKey)} · ${t('toast.diamonds', { n: d })}`);
     this.audio.achievement();
-  }
-
-  // ───────────────────────── Screen wake lock ─────────────────────────
-
-  private async lockScreen(): Promise<void> {
-    try {
-      const wl = (navigator as Navigator & { wakeLock?: { request(type: 'screen'): Promise<{ release(): Promise<void> }> } }).wakeLock;
-      if (wl && !this.wakeLock) this.wakeLock = await wl.request('screen');
-    } catch {
-      this.wakeLock = null;
-    }
-  }
-
-  private releaseScreen(): void {
-    const lock = this.wakeLock;
-    this.wakeLock = null;
-    lock?.release().catch(() => undefined);
   }
 
   // ───────────────────────── Main loop ─────────────────────────
@@ -526,10 +935,11 @@ export class App {
     }
     if (this.state === 'menu') this.fx.ambient(this.renderer.cssW, this.renderer.cssH);
 
-    const paused = this.state === 'paused';
-    this.fx.update(paused ? 0 : rdt * (this.state === 'playing' || this.state === 'dying' ? Math.max(0.3, this.timeScale) : 1));
+    const frozen = this.state === 'paused' || this.state === 'continue';
+    this.fx.update(frozen ? 0 : rdt * (this.state === 'playing' || this.state === 'dying' ? Math.max(0.3, this.timeScale) : 1));
 
-    const dimTarget = this.state === 'menu' ? 0.12 : paused || this.state === 'upgrade' ? 0.35 : this.state === 'gameover' ? 0.45 : 0;
+    const dimTarget =
+      this.state === 'menu' ? 0.12 : frozen || this.state === 'upgrade' ? 0.35 : this.state === 'gameover' ? 0.45 : 0;
     this.dim = damp(this.dim, dimTarget, 8, rdt);
 
     const c = getCharacter(this.setup?.character ?? this.save.data.selected);
@@ -590,12 +1000,12 @@ export class App {
     if (this.state === 'playing' && w.awaitingUpgrade) this.openUpgrade();
     if (this.state === 'playing' && w.over) {
       this.state = 'dying';
-      this.dyingTimer = 1.6;
+      this.dyingTimer = 1.2;
       this.input.enabled = false;
     }
     if (this.state === 'dying') {
       this.dyingTimer -= rdt;
-      if (this.dyingTimer <= 0) this.endRun();
+      if (this.dyingTimer <= 0) this.openContinue();
     }
   }
 
@@ -617,6 +1027,15 @@ export class App {
         case 'enemyHit':
           this.audio.enemyHit();
           break;
+        case 'blocked':
+          this.audio.blocked();
+          break;
+        case 'blink':
+          this.audio.blink();
+          break;
+        case 'bombArmed':
+          this.audio.fuse();
+          break;
         case 'playerHit':
           this.audio.playerHit();
           this.haptics.buzz([45, 35, 70], 0);
@@ -635,7 +1054,7 @@ export class App {
           break;
         case 'revive':
           this.audio.revive();
-          this.ui.showBanner(t('banner.revive'));
+          if (this.state === 'playing' && w.secondWindUsed && w.run.revives === 0) this.ui.showBanner(t('banner.revive'));
           break;
         case 'pickup':
           this.audio.pickup(e.kind);
@@ -656,7 +1075,7 @@ export class App {
           this.haptics.buzz(12);
           break;
         case 'spawnWarn':
-          this.audio.spawnWarn(e.enemy === 'maw' || e.enemy === 'weaver' || e.enemy === 'twin');
+          this.audio.spawnWarn(e.enemy === 'maw' || e.enemy === 'weaver' || e.enemy === 'twin' || e.enemy === 'hydra' || e.enemy === 'eye');
           break;
         case 'shoot':
           this.audio.shoot();
@@ -667,18 +1086,25 @@ export class App {
         case 'chain':
           this.audio.chain();
           break;
-        case 'waveStart':
+        case 'waveStart': {
           this.audio.waveStart(!!e.boss);
+          const biome = biomeForWave(e.wave);
+          this.renderer.setBiome(biome);
+          const newRegion = e.wave > 1 && (e.wave - 1) % 10 === 0;
           if (e.boss) {
             const type = e.boss === 'twins' ? 'twin' : e.boss;
             this.ui.showBanner(t('banner.bossWave', { n: e.wave }), `<b>${t(`enemy.${type}` as I18nKey)}</b> – ${t(`hint.${type}` as I18nKey)}`, true, 2600);
             this.audio.setIntensity(3);
+          } else if (newRegion) {
+            this.ui.showBanner(t(`biome.${BIOMES[biome].id}` as I18nKey), `${t('banner.biome')} · ${t('banner.wave', { n: e.wave })}`, false, 2600);
+            this.audio.setIntensity(e.wave >= 8 ? 2 : 1);
           } else {
             this.ui.showBanner(t('banner.wave', { n: e.wave }), e.newEnemy ? this.ui.newEnemyText(e.newEnemy) : '', false, e.newEnemy ? 2800 : 1900);
             this.audio.setIntensity(e.wave >= 8 ? 2 : 1);
           }
           break;
-        case 'waveClear':
+        }
+        case 'waveClear': {
           this.audio.waveClear(e.flawless);
           this.haptics.buzz(25);
           this.ui.showBanner(t('banner.cleared'), e.flawless ? t('banner.flawless') : '', false, 1500);
@@ -686,11 +1112,22 @@ export class App {
           if (e.wave >= 10) this.unlock('wave10');
           if (e.wave >= 15) this.unlock('wave15');
           if (e.wave >= 20) this.unlock('wave20');
+          if (e.wave >= 30) this.unlock('wave30');
+          if (e.wave >= 50) this.unlock('wave50');
           if (e.wave >= 5 && w.run.damageTaken === 0) this.unlock('flawless5');
           if (w.run.score >= 10000) this.unlock('score10k');
           if (w.run.score >= 50000) this.unlock('score50k');
+          if (!w.opts.tutorial) {
+            const d = claimMilestone(this.save.data, e.wave);
+            if (d > 0) {
+              this.runMilestones.push({ wave: e.wave, diamonds: d });
+              this.save.save();
+              this.ui.toast(t('toast.milestone'), `${t('milestones.wave', { n: e.wave })} · ${t('toast.diamonds', { n: d })}`, 'gem');
+            }
+          }
           if (e.boss) this.audio.setIntensity(1);
           break;
+        }
         case 'bossSpawn':
           this.audio.bossRoar();
           this.haptics.buzz([60, 40, 60], 0);
@@ -703,7 +1140,13 @@ export class App {
           this.haptics.buzz([80, 50, 140], 0);
           const type = e.boss === 'twins' ? 'twin' : e.boss;
           this.ui.showBanner(t('banner.bossDown', { name: t(`enemy.${type}` as I18nKey) }), '', false, 2000);
-          const ach: Record<BossType, AchievementId> = { maw: 'boss_maw', weaver: 'boss_weaver', twins: 'boss_twins' };
+          const ach: Record<BossType, AchievementId> = {
+            maw: 'boss_maw',
+            weaver: 'boss_weaver',
+            twins: 'boss_twins',
+            hydra: 'boss_hydra',
+            eye: 'boss_eye',
+          };
           this.unlock(ach[e.boss]);
           break;
         }
@@ -724,4 +1167,12 @@ export class App {
       }
     }
   }
+}
+
+/** "+300 ◆ +5 ◇" style summary used in toasts. */
+export function rewardText(r: Reward): string {
+  const parts: string[] = [];
+  if (r.coins) parts.push(`+${r.coins.toLocaleString()} ${t('currency.coins')}`);
+  if (r.diamonds) parts.push(`+${r.diamonds.toLocaleString()} ${t('currency.diamonds')}`);
+  return parts.join(' · ');
 }

@@ -10,13 +10,19 @@ export type EnemyType =
   | 'brute'
   | 'spitter'
   | 'gnat'
+  | 'warden'
+  | 'blinker'
+  | 'bomber'
   | 'maw'
   | 'weaver'
-  | 'twin';
+  | 'twin'
+  | 'hydra'
+  | 'head'
+  | 'eye';
 
-export type BossType = 'maw' | 'weaver' | 'twins';
+export type BossType = 'maw' | 'weaver' | 'twins' | 'hydra' | 'eye';
 
-export type CharacterId = 'spark' | 'comet' | 'ember' | 'prism';
+export type CharacterId = 'spark' | 'comet' | 'ember' | 'prism' | 'nova' | 'phantom';
 
 export type UpgradeId =
   | 'trail'
@@ -35,7 +41,15 @@ export type UpgradeId =
   | 'echo'
   | 'slowmo'
   | 'double'
-  | 'secondwind';
+  | 'secondwind'
+  | 'treasure'
+  | 'retaliate'
+  | 'doublepulse'
+  | 'magnettrail'
+  | 'supernova'
+  | 'healloop'
+  | 'stardust'
+  | 'pierce';
 
 export type Rarity = 'common' | 'rare' | 'epic';
 
@@ -85,6 +99,17 @@ export interface Enemy {
   phase: number;
   /** Knockback resistance 0..1. */
   mass: number;
+  /** Protected by a warden's aura (loops can't hurt it). */
+  shielded: boolean;
+}
+
+/** Delayed explosion left behind by a bomber. */
+export interface Bomb {
+  x: number;
+  y: number;
+  t: number;
+  total: number;
+  r: number;
 }
 
 export interface Projectile {
@@ -173,6 +198,15 @@ export interface PlayerStats {
   pulseGain: number;
   shield: number;
   secondWind: boolean;
+  /** Phantom: ignores the first hit of every wave. */
+  phase: boolean;
+  treasure: number;
+  retaliate: boolean;
+  maxPulse: number;
+  magnetTrail: boolean;
+  supernovaEvery: number;
+  healLoop: boolean;
+  pierce: boolean;
   cometCharge: boolean;
   noPulse: boolean;
 }
@@ -189,6 +223,8 @@ export interface RunStats {
   bossesKilled: BossType[];
   damageTaken: number;
   bestPulse: number;
+  pulses: number;
+  revives: number;
   time: number;
   flawlessStreak: number;
 }
@@ -223,4 +259,7 @@ export type GameEvent =
   | { type: 'combo'; combo: number }
   | { type: 'comboLost'; combo: number }
   | { type: 'thread'; ax: number; ay: number; bx: number; by: number }
+  | { type: 'blocked'; x: number; y: number }
+  | { type: 'blink'; x: number; y: number }
+  | { type: 'bombArmed'; x: number; y: number }
   | { type: 'heal'; x: number; y: number };

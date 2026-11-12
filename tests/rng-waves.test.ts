@@ -56,7 +56,9 @@ describe('waves', () => {
     expect(bossForWave(5, []).boss).toBe('maw');
     expect(bossForWave(10, []).boss).toBe('weaver');
     expect(bossForWave(15, []).boss).toBe('twins');
-    expect(bossForWave(20, [])).toEqual({ boss: 'maw', tier: 1 });
+    expect(bossForWave(20, []).boss).toBe('hydra');
+    expect(bossForWave(25, []).boss).toBe('eye');
+    expect(bossForWave(30, [])).toEqual({ boss: 'maw', tier: 1 });
     expect(isBossWave(3, ['bossrush'])).toBe(true);
   });
 

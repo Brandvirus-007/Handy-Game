@@ -1,7 +1,7 @@
 import { TAU, clamp, easeOutBack, lerp } from '../core/math';
-import { COLORS, ENEMIES, TWIN_COLORS } from '../game/config';
-import { DART_AIM, SPITTER_CHARGE } from '../game/enemies';
-import { MAW_TELEGRAPH, WEAVER_AIM, twinBeam } from '../game/bosses';
+import { BIOMES, COLORS, ENEMIES, TWIN_COLORS, WARDEN_AURA } from '../game/config';
+import { BLINK_WARN, DART_AIM, SPITTER_CHARGE } from '../game/enemies';
+import { HYDRA_TELEGRAPH, MAW_TELEGRAPH, WEAVER_AIM, eyeRays, twinBeam } from '../game/bosses';
 import type { World } from '../game/world';
 import type { Enemy } from '../game/types';
 import { Background } from './background';
@@ -42,6 +42,12 @@ export class Renderer {
   worldW = 420;
   worldH = 760;
   private bg = new Background();
+  private biome = 0;
+
+  setBiome(index: number): void {
+    this.biome = index;
+    this.bg.setBiome(index);
+  }
   private grid: HTMLCanvasElement | null = null;
   private vignette: HTMLCanvasElement | null = null;
 
@@ -187,7 +193,7 @@ export class Renderer {
     }
     const pulse = 0.5 + 0.5 * Math.sin(time * 1.3);
     const boss = w.plan?.boss && w.phase === 'active';
-    const edge = boss ? '#ff4d6d' : '#7d6bff';
+    const edge = boss ? '#ff4d6d' : BIOMES[this.biome]?.edge ?? '#7d6bff';
     ctx.lineJoin = 'round';
     ctx.globalCompositeOperation = 'lighter';
     ctx.strokeStyle = rgba(edge, 0.07 + 0.04 * pulse);
@@ -272,6 +278,69 @@ export class Renderer {
         ctx.stroke();
         ctx.globalCompositeOperation = 'source-over';
       }
+    }
+
+    // Warden auras.
+    for (const e of w.enemies) {
+      if (e.type !== 'warden' || e.dead) continue;
+      const k = Math.min(1, e.t / 0.6);
+      ctx.globalAlpha = 0.07 * k;
+      ctx.fillStyle = '#cfd8ff';
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, WARDEN_AURA, 0, TAU);
+      ctx.fill();
+      ctx.globalAlpha = 0.35 * k;
+      ctx.strokeStyle = '#cfd8ff';
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([2, 6]);
+      ctx.lineDashOffset = -time * 12;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.lineDashOffset = 0;
+    }
+    // Bomb warnings.
+    for (const b of w.bombs) {
+      const p = 1 - b.t / b.total;
+      ctx.globalAlpha = 0.15 + 0.35 * p + 0.2 * Math.sin(time * 40);
+      ctx.fillStyle = 'rgba(255,106,26,0.18)';
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, TAU);
+      ctx.fill();
+      ctx.strokeStyle = '#ff6a1a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r * p, 0, TAU);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, TAU);
+      ctx.stroke();
+    }
+    // Eye: telegraph rays while resting, deadly rays while firing.
+    for (const ray of eyeRays(w, false)) {
+      ctx.globalAlpha = 0.18 + 0.12 * Math.sin(time * 10);
+      ctx.strokeStyle = '#ffcf3d';
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([6, 10]);
+      ctx.beginPath();
+      ctx.moveTo(ray.ax, ray.ay);
+      ctx.lineTo(ray.bx, ray.by);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    for (const ray of eyeRays(w, true)) {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = 0.3;
+      ctx.strokeStyle = '#ffcf3d';
+      ctx.lineWidth = 12;
+      ctx.beginPath();
+      ctx.moveTo(ray.ax, ray.ay);
+      ctx.lineTo(ray.bx, ray.by);
+      ctx.stroke();
+      ctx.globalAlpha = 0.95;
+      ctx.strokeStyle = '#fff6d6';
+      ctx.lineWidth = 2.4;
+      ctx.stroke();
+      ctx.globalCompositeOperation = 'source-over';
     }
 
     const beam = twinBeam(w);
@@ -365,6 +434,29 @@ export class Renderer {
         ctx.beginPath();
         ctx.arc(e.ax, e.ay, lerp(30, e.r, p), 0, TAU);
         ctx.stroke();
+      } else if (e.type === 'blinker' && e.state === 1) {
+        const p = 1 - e.timer / BLINK_WARN;
+        ctx.globalAlpha = 0.3 + 0.6 * p;
+        ctx.strokeStyle = ENEMIES.blinker.color;
+        ctx.lineWidth = 1.6;
+        ctx.setLineDash([3, 4]);
+        ctx.beginPath();
+        ctx.arc(e.bx, e.by, lerp(26, e.r, p), 0, TAU);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      } else if (e.type === 'hydra' && e.state === 1) {
+        const p = 1 - e.timer / HYDRA_TELEGRAPH;
+        const a = Math.atan2(w.py - e.y, w.px - e.x);
+        ctx.globalAlpha = 0.2 + 0.5 * p;
+        ctx.strokeStyle = COLORS.danger;
+        ctx.lineWidth = 1.5;
+        for (let i = -2; i <= 2; i++) {
+          const aa = a + i * 0.24;
+          ctx.beginPath();
+          ctx.moveTo(e.x + Math.cos(aa) * e.r, e.y + Math.sin(aa) * e.r);
+          ctx.lineTo(e.x + Math.cos(aa) * (e.r + 60 * p + 10), e.y + Math.sin(aa) * (e.r + 60 * p + 10));
+          ctx.stroke();
+        }
       } else if (e.type === 'maw' && (e.state === 1 || e.state === 2)) {
         const p = e.state === 1 ? 1 - e.timer / MAW_TELEGRAPH : 1;
         ctx.globalAlpha = 0.3 + 0.6 * p;
@@ -829,6 +921,121 @@ export class Renderer {
         if (e.stun > 0) dizzy(ctx, r, time, color);
         break;
       }
+      case 'warden': {
+        // Shield-bearer: a rounded diamond with an inner ring.
+        ctx.save();
+        ctx.rotate(Math.sin(e.t) * 0.3);
+        ctx.beginPath();
+        ctx.moveTo(0, -r * 1.25);
+        ctx.quadraticCurveTo(r * 1.1, -r * 0.2, 0, r * 1.25);
+        ctx.quadraticCurveTo(-r * 1.1, -r * 0.2, 0, -r * 1.25);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.55, 0, TAU);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        eyes(ctx, look, r * 0.22, r * 0.17, r * 0.08);
+        break;
+      }
+      case 'blinker': {
+        const fade = e.state === 1 ? 0.35 + 0.65 * (e.timer / BLINK_WARN) : e.state === 2 ? 0.6 : 1;
+        ctx.globalAlpha = fade;
+        ctx.save();
+        ctx.rotate(e.t * 3);
+        ctx.beginPath();
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * TAU;
+          const rr = i % 2 ? r * 0.55 : r * 1.2;
+          ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(Math.cos(look) * r * 0.2, Math.sin(look) * r * 0.2, r * 0.22, 0, TAU);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        break;
+      }
+      case 'bomber': {
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, TAU);
+        ctx.fill();
+        ctx.stroke();
+        // Fuse with a flickering spark.
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(r * 0.5, -r * 0.8);
+        ctx.quadraticCurveTo(r * 0.9, -r * 1.4, r * 0.4, -r * 1.6);
+        ctx.stroke();
+        ctx.globalCompositeOperation = 'lighter';
+        drawGlow(ctx, '#ffd166', r * 0.4, -r * 1.6, 6 + 3 * Math.sin(time * 30), 0.9, true);
+        ctx.globalCompositeOperation = 'source-over';
+        eyes(ctx, look, r * 0.3, r * 0.2, r * 0.09, true);
+        break;
+      }
+      case 'hydra':
+      case 'head': {
+        const head = e.type === 'head';
+        // Scaled serpent body: overlapping circles with a crest.
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, TAU);
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.lineWidth = 1.2;
+        ctx.globalAlpha = 0.6;
+        for (let i = 0; i < (head ? 3 : 5); i++) {
+          const a = (i / (head ? 3 : 5)) * TAU + e.t * 0.6;
+          ctx.beginPath();
+          ctx.arc(Math.cos(a) * r * 0.55, Math.sin(a) * r * 0.55, r * 0.28, 0, TAU);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        // Crest spikes.
+        ctx.fillStyle = color;
+        for (let i = 0; i < (head ? 3 : 5); i++) {
+          const a = look + Math.PI + (i - (head ? 1 : 2)) * 0.35;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a - 0.12) * r, Math.sin(a - 0.12) * r);
+          ctx.lineTo(Math.cos(a) * r * 1.45, Math.sin(a) * r * 1.45);
+          ctx.lineTo(Math.cos(a + 0.12) * r, Math.sin(a + 0.12) * r);
+          ctx.fill();
+        }
+        eyes(ctx, look, r * 0.32, r * 0.18, r * 0.08, true);
+        break;
+      }
+      case 'eye': {
+        const firing = e.state === 1;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, TAU);
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        // Lids.
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, r * 0.78, r * (firing ? 0.5 : 0.18 + 0.1 * Math.sin(time * 2)), e.angle, 0, TAU);
+        ctx.fill();
+        // Iris follows the beam direction.
+        const ia = e.angle;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(Math.cos(ia) * r * 0.32, Math.sin(ia) * r * 0.32, r * (firing ? 0.3 : 0.16), 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = BODY;
+        ctx.beginPath();
+        ctx.arc(Math.cos(ia) * r * 0.36, Math.sin(ia) * r * 0.36, r * (firing ? 0.13 : 0.08), 0, TAU);
+        ctx.fill();
+        break;
+      }
     }
 
     if (e.elite) {
@@ -840,6 +1047,18 @@ export class Renderer {
       ctx.arc(0, 0, r + 5, e.t * 2, e.t * 2 + TAU);
       ctx.stroke();
       ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+    }
+    if (e.shielded) {
+      ctx.globalAlpha = 0.5 + 0.2 * Math.sin(time * 6 + e.seed);
+      ctx.strokeStyle = '#cfd8ff';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(0, 0, r + 6, 0, TAU);
+      ctx.stroke();
+      ctx.globalAlpha = 0.08;
+      ctx.fillStyle = '#cfd8ff';
+      ctx.fill();
       ctx.globalAlpha = 1;
     }
     if (e.slow < 1) {

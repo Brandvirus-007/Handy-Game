@@ -25,6 +25,14 @@ export const UPGRADES: UpgradeDef[] = [
   { id: 'slowmo', rarity: 'epic', max: 2 },
   { id: 'double', rarity: 'epic', max: 2 },
   { id: 'secondwind', rarity: 'epic', max: 1 },
+  { id: 'treasure', rarity: 'common', max: 3 },
+  { id: 'magnettrail', rarity: 'common', max: 1 },
+  { id: 'stardust', rarity: 'common', max: 3 },
+  { id: 'retaliate', rarity: 'rare', max: 1 },
+  { id: 'supernova', rarity: 'rare', max: 2 },
+  { id: 'healloop', rarity: 'rare', max: 1 },
+  { id: 'pierce', rarity: 'rare', max: 1 },
+  { id: 'doublepulse', rarity: 'epic', max: 1 },
 ];
 
 export const RARITY_WEIGHT: Record<Rarity, number> = { common: 60, rare: 30, epic: 10 };
@@ -71,4 +79,7 @@ export const UPGRADE_VALUES = {
   frostTime: (l: number) => (l > 0 ? 2 + 0.75 * l : 0),
   emberTick: (l: number) => Math.max(0.35, 1.05 - 0.3 * (l - 1)),
   slowmoTime: (l: number) => 0.45 + 0.35 * l,
+  treasure: (l: number) => 0.4 * l,
+  stardust: (l: number) => 0.15 * l,
+  supernovaEvery: (l: number) => (l > 0 ? 9 - 2 * l : 0),
 } as const;
