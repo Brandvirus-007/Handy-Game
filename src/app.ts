@@ -124,7 +124,7 @@ export class App {
     });
     const nav = navigator as Navigator & { standalone?: boolean };
     const standalone = window.matchMedia?.('(display-mode: standalone)').matches || nav.standalone === true;
-    this.showIosHint = /iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone;
+    this.showIosHint = !__SINGLE_FILE__ && /iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone;
 
     this.ui.showMenu();
     this.audio.setIntensity(0);
