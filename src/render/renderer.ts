@@ -1246,15 +1246,15 @@ export class Renderer {
       ctx.globalAlpha = 1;
     }
     if (e.shielded && e.type !== 'ghost') {
-      ctx.globalAlpha = 0.5 + 0.2 * Math.sin(time * 6 + e.seed);
-      ctx.strokeStyle = '#cfd8ff';
-      ctx.lineWidth = 1.6;
-      ctx.beginPath();
-      ctx.arc(0, 0, r + 6, 0, TAU);
+      // Protected by a warden: a thin hexagon in the warden's colour (no filled bubble).
+      ctx.save();
+      ctx.rotate(time * 0.6 + e.seed);
+      ctx.globalAlpha = 0.4 + 0.15 * Math.sin(time * 5 + e.seed);
+      ctx.strokeStyle = ENEMIES.warden.color;
+      ctx.lineWidth = 1.3;
+      hexPath(ctx, r + 6);
       ctx.stroke();
-      ctx.globalAlpha = 0.08;
-      ctx.fillStyle = '#cfd8ff';
-      ctx.fill();
+      ctx.restore();
       ctx.globalAlpha = 1;
     }
     if (e.slow < 1) {

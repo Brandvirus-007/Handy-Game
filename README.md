@@ -91,7 +91,7 @@ src/
   platform/ Werbung, Käufe, Teilen, Bewertung, Play Games: Android und Browser-Demo
   game/     Headless-Simulation: World, Spur & Schleifenerkennung, Gegner, Bosse, Wellen,
             Upgrades, Funken, Meta, Modifikatoren, Erfolge
-  render/   Renderer, Glow-Sprites, Hintergrund, Effekte, WebGL-Leuchtfilter (postfx.ts)
+  render/   Renderer, Glow-Sprites, Hintergrund, Effekte, WebGL-Lichteffekte und Gebiets-Hintergründe (postfx.ts)
   audio/    Synthesizer-SFX und generative Musik
   ui/       Bildschirme, HUD, Icons, Styles
   app.ts    Zustandsautomat und Spielschleife (fester 60-Hz-Zeitschritt)

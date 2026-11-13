@@ -351,7 +351,8 @@ void main() {
     vec3 bg = mix(texture(uBgPrev, uv).rgb, texture(uBg, uv).rgb, uFade);
     vec2 css = vec2(uv.x, 1.0 - uv.y) * uRes / uDpr;
     // Light that reaches the background: a wide copy of everything that glows, plus the spark's halo.
-    vec3 L = textureLod(uBloom, uv, 2.5).rgb * 2.2;
+    // Capped, so big explosions do not make the whole background flash.
+    vec3 L = min(textureLod(uBloom, uv, 2.5).rgb * 2.2, vec3(0.7));
     if (uLight.w > 0.0) {
       float ld = length(css - uLight.xy) / uLight.z;
       L += uLightColor * uLight.w * exp(-ld * ld * 2.5);
@@ -373,7 +374,10 @@ void main() {
       }
     }
     bg = bg * (0.75 + 1.4 * L) + L * 0.035;
-    col += bg * (1.0 - sg.a);
+    // Glows are drawn additively and carry roughly as much colour as coverage; only dark coverage
+    // (bodies, smoke, overlays) hides the background. Otherwise every glow would dim what is behind it.
+    float cover = clamp(sg.a - max(sg.r, max(sg.g, sg.b)), 0.0, 1.0);
+    col += bg * (1.0 - cover);
   }
 
   col += texture(uBloom, uv).rgb * uBloomStrength;
