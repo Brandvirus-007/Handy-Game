@@ -32,7 +32,7 @@ Berührst du einen Schatten selbst, kostet das ein Herz.
   Nach dem Tod kann man einmal pro Runde per Werbung weiterspielen, danach mit Splittern oder Diamanten.
 - **Werbung & Käufe:** AdMob (Rewarded und Interstitials nur zwischen Runden, mit DSGVO-Einwilligung) und Google Play Billing.
   Im Browser wird beides als „Demo“ simuliert.
-- **Grafik:** Canvas 2D plus ein eigener WebGL2-Leuchtfilter (Bloom, Schockwellen-Verzerrung, Farbversatz bei Treffern). Ohne WebGL2 läuft das Spiel ohne Filter weiter.
+- **Grafik:** Canvas 2D plus ein eigener WebGL2-Filter: ein eigener Hintergrund pro Gebiet (Nebel, glühende Risse, Lichtnetze unter Wasser, Polarlichter, ein ferner Strudel, Kristalle), Licht von Funke und Spur, das die Umgebung erhellt, Bloom, Schockwellen-Verzerrung und Farbversatz bei Treffern. Schatten ziehen dunklen Rauch hinter sich her. Ohne WebGL2 oder auf langsamen Geräten läuft das Spiel mit der einfachen 2D-Grafik weiter.
 - **Prozeduraler Sound:** Alle Effekte und die generative Musik (ein eigenes Thema pro Gebiet, härtere Akkorde bei Bossen) entstehen live mit der Web Audio API. Optional lassen sich echte Musikdateien einbinden, siehe [`docs/MUSIC.md`](docs/MUSIC.md).
 - **Google Play Games:** Bestenlisten (auch im Spiel mit Top 10 und eigenem Platz), Erfolge und Cloud-Speicherstand. Ohne Einrichtung bleibt alles aus.
 - **Mobile-Details:** Safe-Area/Notch, Auto-Pause, Bildschirm bleibt an, Zurück-Taste, automatische Grafikanpassung, offline spielbar.

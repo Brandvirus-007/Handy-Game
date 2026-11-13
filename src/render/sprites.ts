@@ -37,6 +37,26 @@ export function glowSprite(color: string, hot = false): HTMLCanvasElement {
   return c;
 }
 
+let shade: HTMLCanvasElement | null = null;
+
+/** Soft dark smoke: drawn normally (not additive) it swallows the light behind it. */
+export function drawShade(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number, alpha: number): void {
+  if (alpha <= 0.003 || radius <= 0) return;
+  if (!shade) {
+    shade = makeCanvas(SIZE, SIZE);
+    const g = shade.getContext('2d')!;
+    const grad = g.createRadialGradient(SIZE / 2, SIZE / 2, 0, SIZE / 2, SIZE / 2, SIZE / 2);
+    grad.addColorStop(0, 'rgba(3,1,9,0.92)');
+    grad.addColorStop(0.45, 'rgba(3,1,9,0.6)');
+    grad.addColorStop(0.75, 'rgba(3,1,9,0.18)');
+    grad.addColorStop(1, 'rgba(3,1,9,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, SIZE, SIZE);
+  }
+  ctx.globalAlpha = alpha > 1 ? 1 : alpha;
+  ctx.drawImage(shade, x - radius, y - radius, radius * 2, radius * 2);
+}
+
 /** Draws a glow sprite centred at (x, y) with the given radius (current transform units). */
 export function drawGlow(ctx: CanvasRenderingContext2D, color: string, x: number, y: number, radius: number, alpha = 1, hot = false): void {
   if (alpha <= 0.003 || radius <= 0) return;

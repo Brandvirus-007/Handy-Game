@@ -22,7 +22,7 @@ import type { AchievementId } from './game/achievements';
 import type { BossType, CharacterId, GameEvent, MetaId, ModifierId, UpgradeId } from './game/types';
 import { Renderer, type ArenaRect } from './render/renderer';
 import { Fx } from './render/fx';
-import { PostFx } from './render/postfx';
+import { PostFx, type SceneParams } from './render/postfx';
 import { AudioEngine } from './audio/audio';
 import { Haptics } from './haptics';
 import { Input } from './input';
@@ -1447,6 +1447,7 @@ export class App {
   private updatePostFx(): void {
     const on = !!this.post && this.post.ok && this.save.data.settings.glow && !this.lowQuality;
     this.postActive = on;
+    this.renderer.gpuBackground = on;
     this.post?.setVisible(on);
     document.body.classList.toggle('postfx', on);
   }
@@ -1462,7 +1463,21 @@ export class App {
           return { x: r.ox + wv.x * r.scale, y: r.oy + wv.y * r.scale, radius: wv.maxR * ease * r.scale, strength: wv.strength * (1 - k) * 20 };
         })
       : [];
-    this.post!.render({ bloom: 1.25, aberration: this.fx.aberration, tint, waves }, r.dpr);
+    // Region background with the spark's light (the menu demo shows no arena floor).
+    const sh = this.fx.shakeOffset();
+    const ax = r.ox + sh.x;
+    const ay = r.oy + sh.y;
+    const hex = getCharacter(this.state === 'menu' ? this.save.data.selected : (this.setup?.character ?? this.save.data.selected)).color;
+    const rgb: [number, number, number] = [parseInt(hex.slice(1, 3), 16) / 255, parseInt(hex.slice(3, 5), 16) / 255, parseInt(hex.slice(5, 7), 16) / 255];
+    const scene: SceneParams = {
+      region: r.biomeIndex,
+      time: this.time,
+      parX: w ? (w.px / w.w) * 2 - 1 : 0,
+      parY: w ? (w.py / w.h) * 2 - 1 : 0,
+      arena: w && this.state !== 'menu' ? { x: ax, y: ay, scale: r.scale, w: r.worldW, h: r.worldH } : null,
+      light: w && w.alive ? { x: ax + w.px * r.scale, y: ay + w.py * r.scale, radius: 120 * r.scale, strength: 0.5, color: rgb } : null,
+    };
+    this.post!.render({ bloom: 1.25, aberration: this.fx.aberration, tint, waves, scene }, r.dpr);
   }
 
   /** Small embers behind the moving spark (game and menu demo). */

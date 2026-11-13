@@ -14,7 +14,8 @@ const emblem = readFileSync('public/icons/icon.svg', 'utf8').replace(/<rect[^>]*
 
 const server = spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], { stdio: 'pipe', detached: true });
 await new Promise((r) => server.stdout.on('data', (d) => String(d).includes(String(PORT)) && r()));
-const browser = await chromium.launch();
+// Software WebGL so the screenshots show the region backgrounds and the glow filter.
+const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 
 try {
   // ── Feature graphic ──
@@ -64,6 +65,9 @@ try {
         stats: { bestWave: 17, runs: 23, kills: 2210, loops: 1630, bossKills: 4, playTime: 9800, shardsTotal: 5100, bestLoop: 9, bestCombo: 11 },
         // Notes for this version count as seen – no "What's new" dialog over the screenshots.
         seenVersion: version,
+        // Fixed quality: software rendering is slow and would otherwise switch the filter off.
+        // Relative steering: the screenshot bot moves the spark like a finger on a trackpad.
+        settings: { quality: 'high', control: 'relative' },
       }));
     }, APP_VERSION);
     await page.goto(`http://localhost:${PORT}/`);
@@ -84,7 +88,8 @@ try {
             for (const e of w.enemies) { const d = (e.x - w.px) ** 2 + (e.y - w.py) ** 2 - (e.boss ? 4e4 : 0); if (d < bd) { bd = d; b = e; } }
             cx = b.x; cy = b.y;
           }
-          ang += 0.07;
+          // Tied to game time, so the circle has the same size however fast the browser renders.
+          ang = w.time * 4.2;
           const k = app.renderer.scale / app.save.data.settings.sensitivity;
           app.pendingDx += (cx + Math.cos(ang) * 78 - w.px) * 0.3 * k;
           app.pendingDy += (cy + Math.sin(ang) * 78 - w.py) * 0.3 * k;
@@ -118,7 +123,13 @@ try {
       });
     });
     for (let i = 0; i < 60; i++) {
-      const ready = await page.evaluate(() => window.app.world.trail.points.length > 55 && window.app.fx.flashes.length === 0);
+      const ready = await page.evaluate(() => {
+        const pts = window.app.world.trail.points;
+        let len = 0;
+        for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+        // Just before the loop closes: a long arc around the group, no flash or score text yet.
+        return len > 320 && window.app.fx.flashes.length === 0 && window.app.fx.texts.length === 0;
+      });
       if (ready) break;
       await sleep(80);
     }

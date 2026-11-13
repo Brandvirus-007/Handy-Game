@@ -7,7 +7,7 @@ import type { TrailDef } from '../game/trails';
 import type { Enemy } from '../game/types';
 import { Background } from './background';
 import { Fx } from './fx';
-import { drawGlow, makeCanvas } from './sprites';
+import { drawGlow, drawShade, makeCanvas } from './sprites';
 import { hsl, lighten, rgba } from './color';
 
 export interface ArenaRect {
@@ -49,6 +49,11 @@ export class Renderer {
   worldH = 760;
   private bg = new Background();
   private biome = 0;
+  /**
+   * True while the WebGL filter draws the region background: the 2D frame then stays transparent
+   * behind the arena and skips its own nebula and floor dots.
+   */
+  gpuBackground = false;
 
   get biomeIndex(): number {
     return this.biome;
@@ -62,7 +67,8 @@ export class Renderer {
   private vignette: HTMLCanvasElement | null = null;
 
   constructor(readonly canvas: HTMLCanvasElement) {
-    const ctx = canvas.getContext('2d', { alpha: false });
+    // Transparent canvas: with the WebGL filter on, the background shows through from below.
+    const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) throw new Error('Canvas 2D not supported');
     this.ctx = ctx;
   }
@@ -126,12 +132,15 @@ export class Renderer {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = COLORS.bg0;
-    ctx.fillRect(0, 0, this.cssW, this.cssH);
-
-    const ppx = world ? (world.px / world.w) * 2 - 1 : 0;
-    const ppy = world ? (world.py / world.h) * 2 - 1 : 0;
-    this.bg.draw(ctx, time, ppx, ppy, world ? 1 : 0.6);
+    if (this.gpuBackground) {
+      ctx.clearRect(0, 0, this.cssW, this.cssH);
+    } else {
+      ctx.fillStyle = COLORS.bg0;
+      ctx.fillRect(0, 0, this.cssW, this.cssH);
+      const ppx = world ? (world.px / world.w) * 2 - 1 : 0;
+      const ppy = world ? (world.py / world.h) * 2 - 1 : 0;
+      this.bg.draw(ctx, time, ppx, ppy, world ? 1 : 0.6);
+    }
 
     const sh = fx.shakeOffset();
     const s = this.scale;
@@ -197,7 +206,7 @@ export class Renderer {
 
   private drawArena(time: number, w: World): void {
     const { ctx } = this;
-    if (this.grid) {
+    if (this.grid && !this.gpuBackground) {
       ctx.globalAlpha = 1;
       ctx.drawImage(this.grid, 0, 0, this.worldW, this.worldH);
     }
@@ -743,13 +752,32 @@ export class Renderer {
 
   private drawEnemies(w: World, time: number): void {
     const { ctx } = this;
+    // Shadows swallow light: a dark, smoky halo with wisps drifting off behind them.
+    ctx.globalCompositeOperation = 'source-over';
+    for (const e of w.enemies) {
+      const spawn = Math.min(1, e.t / 0.3);
+      const seen = e.type === 'ghost' ? (e.state === 0 ? 1 : 0.25) : 1;
+      const k = spawn * seen;
+      drawShade(ctx, e.x, e.y, e.r * (e.boss ? 1.7 : 2.3), (e.boss ? 0.7 : 0.8) * k);
+      if (e.r < 5) continue;
+      const sp = Math.hypot(e.vx, e.vy);
+      const dx = sp > 4 ? -e.vx / sp : 0;
+      const dy = sp > 4 ? -e.vy / sp : -1;
+      for (let i = 0; i < 3; i++) {
+        const ph = (time * 0.6 + i / 3 + e.seed * 0.137) % 1;
+        const dist = e.r * (0.5 + 1.7 * ph);
+        const wob = Math.sin(time * 2.6 + i * 2.1 + e.seed) * e.r * 0.4 * ph;
+        drawShade(ctx, e.x + dx * dist - dy * wob, e.y + dy * dist + dx * wob, e.r * (1.05 - 0.55 * ph), 0.5 * (1 - ph) * k);
+      }
+    }
+    // A thin rim of colour keeps the kinds apart.
     ctx.globalCompositeOperation = 'lighter';
     for (const e of w.enemies) {
       const color = enemyColor(e);
       const spawn = Math.min(1, e.t / 0.3);
       const charge = e.type === 'spitter' && e.state === 1 ? 1 - e.timer / SPITTER_CHARGE : 0;
-      drawGlow(ctx, color, e.x, e.y, e.r * (e.boss ? 2.4 : 2.9) * (1 + charge * 0.6), (0.45 + charge * 0.4) * spawn);
-      if (e.elite) drawGlow(ctx, COLORS.shard, e.x, e.y, e.r * 3.4, 0.25 * spawn);
+      drawGlow(ctx, color, e.x, e.y, e.r * (e.boss ? 2.2 : 2.0) * (1 + charge * 0.6), (0.26 + charge * 0.45) * spawn);
+      if (e.elite) drawGlow(ctx, COLORS.shard, e.x, e.y, e.r * 3.0, 0.25 * spawn);
     }
     ctx.globalCompositeOperation = 'source-over';
 
