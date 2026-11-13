@@ -152,7 +152,6 @@ EN: First release. Draw loops of light, catch the shadows and last as many waves
 • Neues Gebiet: die Kristallgrotte ab Welle 51
 • Wochen-Event mit Bronze, Silber und Gold
 • Google Play Games: Bestenlisten und Erfolge
-• Bei Diamant-Preisen steht jetzt auch der Euro-Wert
 ```
 
 **English:**
@@ -162,7 +161,6 @@ EN: First release. Draw loops of light, catch the shadows and last as many waves
 • New region: the Crystal Grotto from wave 51
 • Weekly event with bronze, silver and gold
 • Google Play Games: leaderboards and achievements
-• Diamond prices now also show their money value
 ```
 
 ## Versionshinweise 2.4.0

@@ -3627,3 +3627,17 @@ button.level-chip:active b {
   font-size: 20px;
   font-variant-numeric: tabular-nums;
 }
+
+/* WebGL light filter: the GL canvas shows the frame, the 2D canvas below keeps receiving touches. */
+#game-fx {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: none;
+  pointer-events: none;
+}
+
+body.postfx #game {
+  opacity: 0;
+}

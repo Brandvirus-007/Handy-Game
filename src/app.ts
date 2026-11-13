@@ -19,6 +19,7 @@ import type { AchievementId } from './game/achievements';
 import type { BossType, CharacterId, GameEvent, MetaId, ModifierId, UpgradeId } from './game/types';
 import { Renderer, type ArenaRect } from './render/renderer';
 import { Fx } from './render/fx';
+import { PostFx } from './render/postfx';
 import { AudioEngine } from './audio/audio';
 import { Haptics } from './haptics';
 import { Input } from './input';
@@ -180,6 +181,9 @@ export class App {
   /** Live demo behind the main menu: a bot catching shadows. */
   /** Google Play Games (leaderboards, achievements) – a no-op until configured. */
   games!: GameServices;
+  /** WebGL light filter over the 2D frame (null when WebGL2 is not available). */
+  private post: PostFx | null = null;
+  private postActive = false;
   private demo: World | null = null;
   private demoVisible = false;
   private demoAcc = 0;
@@ -189,6 +193,8 @@ export class App {
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
+    this.post = PostFx.create(canvas);
+    if (this.post) this.post.onLost = () => this.updatePostFx();
     this.ui = new UI(this);
     this.input = new Input(canvas, {
       drag: (dx, dy) => {
@@ -309,6 +315,8 @@ export class App {
     const h = window.innerHeight;
     const dpr = Math.min(window.devicePixelRatio || 1, this.lowQuality ? 1.25 : 2);
     this.renderer.resize(w, h, dpr);
+    this.post?.resize();
+    this.updatePostFx();
     const s = this.readSafe();
     this.arena = {
       x: s.l + 8,
@@ -351,6 +359,7 @@ export class App {
     this.fx.settings.reducedMotion = st.reducedMotion;
     this.fx.settings.density = this.lowQuality ? 0.55 : 1;
     document.body.classList.toggle('reduced', st.reducedMotion);
+    this.updatePostFx();
     const lang = st.lang === 'auto' ? detectLang() : st.lang;
     if (lang !== this.lang) {
       this.lang = lang;
@@ -1276,8 +1285,36 @@ export class App {
       dim: this.dim,
       hint: this.tutorial?.hint() ?? null,
     });
+    if (this.postActive) this.renderPost(showWorld ?? (demoVisible ? this.demo : null));
     if (showWorld && this.state !== 'gameover') this.ui.hud.update(showWorld);
   };
+
+  /** True when the device can run the light filter at all. */
+  get glowSupported(): boolean {
+    return !!this.post && this.post.ok;
+  }
+
+  /** The light filter runs when WebGL works, the player wants it and the device is fast enough. */
+  private updatePostFx(): void {
+    const on = !!this.post && this.post.ok && this.save.data.settings.glow && !this.lowQuality;
+    this.postActive = on;
+    this.post?.setVisible(on);
+    document.body.classList.toggle('postfx', on);
+  }
+
+  private renderPost(w: World | null): void {
+    const r = this.renderer;
+    const edge = BIOMES[r.biomeIndex]?.edge ?? '#7d6bff';
+    const tint: [number, number, number] = [parseInt(edge.slice(1, 3), 16) / 255, parseInt(edge.slice(3, 5), 16) / 255, parseInt(edge.slice(5, 7), 16) / 255];
+    const waves = w
+      ? this.fx.waves.map((wv) => {
+          const k = wv.age / wv.life;
+          const ease = 1 - (1 - k) * (1 - k);
+          return { x: r.ox + wv.x * r.scale, y: r.oy + wv.y * r.scale, radius: wv.maxR * ease * r.scale, strength: wv.strength * (1 - k) * 20 };
+        })
+      : [];
+    this.post!.render({ bloom: 1.25, aberration: this.fx.aberration, tint, waves }, r.dpr);
+  }
 
   /** Small embers behind the moving spark (game and menu demo). */
   private emitTrailSparks(): void {

@@ -632,6 +632,7 @@ const de = {
   'challenge.you': 'Du',
   'challenge.friend': 'Freund',
   'challenge.placeholder': 'Code eingeben',
+  'settings.glow': 'Leuchtfilter',
 } as const;
 
 export type I18nKey = keyof typeof de;
@@ -1268,6 +1269,7 @@ const en: Record<I18nKey, string> = {
   'challenge.you': 'You',
   'challenge.friend': 'Friend',
   'challenge.placeholder': 'Enter code',
+  'settings.glow': 'Glow filter',
 
 };
 

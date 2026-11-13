@@ -16,6 +16,7 @@ import {
   MILESTONES,
   MISSION_BONUS,
   PRODUCTS,
+  SHOW_MONEY_VALUES,
   getProduct,
   REVIVE_COUNTDOWN,
   diamondsForCoins,
@@ -256,6 +257,7 @@ export class UI {
 
   /** A diamond cost with its real-money value (not used for rewards). */
   private gemCost(amount: number, stacked = false): string {
+    if (!SHOW_MONEY_VALUES) return this.price('diamonds', amount);
     return `<span class="gem-cost ${stacked ? 'stacked' : ''}">${this.price('diamonds', amount)}<span class="eur">≈ ${esc(this.app.diamondValue(amount))}</span></span>`;
   }
 
@@ -1060,6 +1062,7 @@ export class UI {
         <div class="panel"><h3>${t('settings.display')}</h3>
           ${toggle('shake', 'settings.shake', st.shake)}
           ${toggle('reducedMotion', 'settings.reducedMotion', st.reducedMotion)}
+          ${this.app.glowSupported ? toggle('glow', 'settings.glow', st.glow) : ''}
           ${seg('quality', 'settings.quality', st.quality, [['auto', t('settings.quality.auto')], ['high', t('settings.quality.high')], ['low', t('settings.quality.low')]])}
           ${seg('lang', 'settings.lang', st.lang, [['auto', t('settings.lang.auto')], ['de', 'DE'], ['en', 'EN']])}
         </div>

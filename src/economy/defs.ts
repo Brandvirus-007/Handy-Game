@@ -82,6 +82,13 @@ export const PRODUCTS: ProductDef[] = [
 
 export const getProduct = (id: ProductId): ProductDef => PRODUCTS.find((p) => p.id === id)!;
 
+/**
+ * Show the real-money value next to diamond prices ("💎 15 ≈ 0,19 €").
+ * Recommended by the EU consumer authorities' 2025 key principles on in-game currencies (soft law,
+ * not a statutory duty). Switched off on request; set to true to show the values again everywhere.
+ */
+export const SHOW_MONEY_VALUES = false;
+
 /** Diamonds → shards exchange offers. */
 export const EXCHANGE = [
   { diamonds: 20, coins: 1000 },

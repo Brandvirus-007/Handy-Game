@@ -50,6 +50,10 @@ export class Renderer {
   private bg = new Background();
   private biome = 0;
 
+  get biomeIndex(): number {
+    return this.biome;
+  }
+
   setBiome(index: number): void {
     this.biome = index;
     this.bg.setBiome(index);

@@ -23,6 +23,8 @@ export interface Settings {
   quality: Quality;
   lang: LangSetting;
   reducedMotion: boolean;
+  /** WebGL light filter (bloom, distortion). */
+  glow: boolean;
 }
 
 export interface LifetimeStats {
@@ -106,6 +108,7 @@ export const defaultSettings = (): Settings => ({
   quality: 'auto',
   lang: 'auto',
   reducedMotion: false,
+  glow: true,
 });
 
 export const defaultSave = (): SaveData => ({
@@ -201,6 +204,7 @@ export function sanitize(raw: unknown): SaveData {
     quality: oneOf(st.quality, ['auto', 'high', 'low'] as const, ds.quality),
     lang: oneOf(st.lang, ['auto', 'de', 'en'] as const, ds.lang),
     reducedMotion: bool(st.reducedMotion, ds.reducedMotion),
+    glow: bool(st.glow, ds.glow),
   };
 
   const daily = obj(r.daily);

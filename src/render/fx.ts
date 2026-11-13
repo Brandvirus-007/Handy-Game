@@ -85,6 +85,10 @@ export class Fx {
   screenFlashColor = '#ffffff';
   /** Menu backdrop: no texts, flashes or white sparks – the UI on top must stay readable. */
   calm = false;
+  /** Distortion rings for the WebGL light filter (world coordinates). */
+  waves: { x: number; y: number; age: number; life: number; maxR: number; strength: number }[] = [];
+  /** Colour split after hits (0..1), read by the light filter. */
+  aberration = 0;
   private lastScoreText = -1;
   damagePulse = 0;
   private time = 0;
@@ -241,6 +245,7 @@ export class Fx {
         if (strong) {
           // Shockwave rolling outward from the middle of the loop.
           const rad = Math.sqrt(e.area / Math.PI);
+          if (e.kills >= 3) this.distort(e.cx, e.cy, 0.45 + 0.05 * Math.min(6, e.kills), 0.45, rad * 1.8);
           this.ring(e.cx, e.cy, lighten(color, 0.5), rad * 0.3, rad * 1.5, 0.5, 2.5);
           this.ring(e.cx, e.cy, color, rad * 0.2, rad * 1.9, 0.7, 2);
         }
@@ -298,6 +303,7 @@ export class Fx {
         this.shake(0.1);
         break;
       case 'playerHit':
+        if (!this.calm && !this.settings.reducedMotion) this.aberration = 1;
         this.burst(e.x, e.y, COLORS.danger, 30, 260, 0.7, 6);
         this.ring(e.x, e.y, COLORS.danger, 10, 110, 0.5, 4);
         this.flash(COLORS.danger, 0.32);
@@ -321,6 +327,7 @@ export class Fx {
         this.stop(0.25);
         break;
       case 'revive':
+        this.distort(e.x, e.y, 1.2, 0.8, 320);
         this.ring(e.x, e.y, '#ffffff', 10, 260, 0.9, 6);
         this.burst(e.x, e.y, '#ffffff', 40, 300, 0.9, 6);
         this.flash('#ffffff', 0.28);
@@ -342,6 +349,7 @@ export class Fx {
         this.burst(e.x, e.y, COLORS.heart, 14, 120, 0.6, 5);
         break;
       case 'pulse':
+        this.distort(e.x, e.y, 1, 0.55, e.radius * 1.4);
         this.ring(e.x, e.y, '#ffffff', 8, e.radius, 0.45, 6);
         this.ring(e.x, e.y, this.playerColor, 4, e.radius * 1.12, 0.65, 3);
         this.burst(e.x, e.y, this.playerColor, 46, 420, 0.6, 6, Kind.Streak);
@@ -366,6 +374,7 @@ export class Fx {
         this.ring(e.x, e.y, COLORS.projectile, 10, 50, 0.3, 2);
         break;
       case 'explosion':
+        if (e.r > 20) this.distort(e.x, e.y, 0.4, 0.35, e.r * 2.2);
         this.ring(e.x, e.y, '#ffd0a0', 4, e.r, 0.35, e.r > 20 ? 4 : 2);
         if (e.r > 20) {
           this.burst(e.x, e.y, '#ffb36b', 14, e.r * 4, 0.45, 5);
@@ -389,6 +398,8 @@ export class Fx {
         this.stop(0.08);
         break;
       case 'bossDeath':
+        this.distort(e.x, e.y, 1.5, 1.1, 460);
+        if (!this.calm && !this.settings.reducedMotion) this.aberration = 0.7;
         for (let i = 0; i < 4; i++) this.ring(e.x, e.y, i % 2 ? '#ffffff' : this.playerColor, 10, 120 + i * 70, 0.7 + i * 0.25, 5);
         this.burst(e.x, e.y, '#ffffff', 60, 420, 1.2, 7);
         this.burst(e.x, e.y, COLORS.shard, 40, 300, 1.4, 6);
@@ -422,8 +433,20 @@ export class Fx {
     }
   }
 
+  /** A ring that bends the picture as it travels outwards (only visible with the light filter). */
+  distort(x: number, y: number, strength: number, life: number, maxR: number): void {
+    if (this.calm || this.settings.reducedMotion) return;
+    if (this.waves.length >= 6) this.waves.shift();
+    this.waves.push({ x, y, age: 0, life, maxR, strength });
+  }
+
   update(dt: number): void {
     this.time += dt;
+    for (let i = this.waves.length - 1; i >= 0; i--) {
+      this.waves[i].age += dt;
+      if (this.waves[i].age >= this.waves[i].life) this.waves.splice(i, 1);
+    }
+    this.aberration = Math.max(0, this.aberration - dt * 2.4);
     for (let i = this.active.length - 1; i >= 0; i--) {
       const p = this.active[i];
       p.life -= dt;
@@ -478,6 +501,8 @@ export class Fx {
     this.hitstop = 0;
     this.screenFlash = 0;
     this.damagePulse = 0;
+    this.waves.length = 0;
+    this.aberration = 0;
   }
 
   /** Loop fill flashes – drawn below enemies so the caught shadows stay readable. */
