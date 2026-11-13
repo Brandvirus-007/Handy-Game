@@ -732,8 +732,9 @@ export class App {
       this.busy = true;
       const result = await this.watchAd('revive');
       this.busy = false;
-      // Without an ad the player must not be stuck with diamonds only: unlock the shard option.
-      if (result === 'unavailable') this.runAds.revive = true;
+      // One try per run: an ad that was cut short or could not load is used up as well,
+      // and the shard option appears (the player is never stuck with diamonds only).
+      if (result !== 'earned') this.runAds.revive = true;
       // The dialog may have been closed meanwhile (give up / countdown) – never revive a finished run.
       if (result !== 'earned' || this.state !== 'continue') return false;
       this.runAds.revive = true;

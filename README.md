@@ -29,7 +29,7 @@ Berührst du einen Schatten selbst, kostet das ein Herz.
 - **Funken-Meisterschaft** (10 Stufen pro Funke, +1 % Punkte und Splitter pro Stufe) und **Freunde herausfordern** per Code (gleicher Lauf, gleicher Funke, ohne Booster).
 - **Bewertung im Spiel:** Nach einem neuen Rekord fragt die App über Googles In-App-Review nach einer Bewertung (höchstens dreimal, mit 30 Tagen Abstand).
 - **Wirtschaft:** Splitter (im Spiel verdient) und Diamanten (Etappen, Erfolge, Stufen, Missionen, Gratis-Werbung oder Kauf).
-  Nach dem Tod kann man einmal pro Runde per Werbung weiterspielen, danach mit Splittern oder Diamanten.
+  Nach dem Tod kann man einmal pro Runde per Werbung weiterspielen (auch eine abgebrochene Werbung zählt), danach mit Splittern oder Diamanten.
 - **Werbung & Käufe:** AdMob (Rewarded und Interstitials nur zwischen Runden, mit DSGVO-Einwilligung) und Google Play Billing.
   Im Browser wird beides als „Demo“ simuliert.
 - **Grafik:** Canvas 2D plus ein eigener WebGL2-Filter: ein eigener Hintergrund pro Gebiet (Nebel, glühende Risse, Lichtnetze unter Wasser, Polarlichter, ein ferner Strudel, Kristalle), Licht von Funke und Spur, das die Umgebung erhellt, Bloom, Schockwellen-Verzerrung und Farbversatz bei Treffern. Schatten ziehen dunklen Rauch hinter sich her. Ohne WebGL2 oder auf langsamen Geräten läuft das Spiel mit der einfachen 2D-Grafik weiter.
