@@ -9,6 +9,20 @@ interface PlayGamesPlugin {
   unlockAchievement(o: { achievementId: string }): Promise<void>;
   showLeaderboards(): Promise<void>;
   showAchievements(): Promise<void>;
+  loadSave(): Promise<{ data: string }>;
+  saveSave(o: { data: string; description: string }): Promise<void>;
+  topScores(o: { leaderboardId: string; max: number }): Promise<{ scores: ScoreRow[]; me?: ScoreRow }>;
+}
+
+export interface ScoreRow {
+  rank: number;
+  name: string;
+  score: number;
+}
+
+export interface TopScores {
+  scores: ScoreRow[];
+  me?: ScoreRow;
 }
 
 /**
@@ -56,6 +70,44 @@ export class GameServices {
     const id = ACHIEVEMENT_IDS[ach];
     if (!this.plugin || !this.signedIn || !id) return;
     void this.plugin.unlockAchievement({ achievementId: id }).catch(() => undefined);
+  }
+
+  /** Leaderboards that are set up, in display order (empty in the browser or without IDs). */
+  boards(): LeaderboardKey[] {
+    if (!this.configured) return [];
+    return (Object.keys(LEADERBOARD_IDS) as LeaderboardKey[]).filter((k) => !!LEADERBOARD_IDS[k]);
+  }
+
+  /** Cloud save text: '' when there is none yet, null when it could not be read. */
+  async loadSave(): Promise<string | null> {
+    if (!this.plugin || !this.signedIn) return null;
+    try {
+      return (await this.plugin.loadSave()).data ?? '';
+    } catch {
+      return null;
+    }
+  }
+
+  async saveSave(data: string, description: string): Promise<boolean> {
+    if (!this.plugin || !this.signedIn) return false;
+    try {
+      await this.plugin.saveSave({ data, description });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async topScores(key: LeaderboardKey, max = 10): Promise<TopScores | null> {
+    const id = LEADERBOARD_IDS[key];
+    if (!this.plugin || !this.configured || !id) return null;
+    if (!this.signedIn && !(await this.signIn())) return null;
+    try {
+      const r = await this.plugin.topScores({ leaderboardId: id, max });
+      return { scores: r.scores ?? [], me: r.me };
+    } catch {
+      return null;
+    }
   }
 
   async showLeaderboards(): Promise<boolean> {

@@ -3900,3 +3900,116 @@ body.postfx #game {
     font-size: 9.5px;
   }
 }
+
+/* ───────────── Cloud save & leaderboards ───────────── */
+
+.cloud-choice h3 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+}
+
+.save-compare {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.save-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.save-col:first-child {
+  border-color: rgba(125, 249, 255, 0.45);
+}
+
+.save-col .k {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--gap);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.save-col b {
+  font-size: 17px;
+  color: var(--text);
+}
+
+.cloud-row .btn.small {
+  flex: none;
+}
+
+.ranks-tabs button {
+  font-size: 13px;
+  padding: 8px 2px;
+  justify-content: center;
+}
+
+.rank-list ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.rank-list li {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: var(--gap);
+  min-height: 42px;
+  padding: 0 8px;
+  border-radius: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rank-list li + li {
+  border-top: 1px solid var(--line);
+}
+
+.rank-list li.me {
+  background: rgba(125, 249, 255, 0.12);
+  border-top-color: transparent;
+}
+
+.rank-list li.gap {
+  display: block;
+  min-height: 0;
+  padding: 4px 0;
+  text-align: center;
+  color: var(--muted);
+}
+
+.rank-list .rk {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.rank-list .nm {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rank-list .sc {
+  font-weight: 700;
+  text-align: right;
+}
+
+.rank-msg {
+  margin: 8px 0;
+  text-align: center;
+}

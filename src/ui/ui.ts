@@ -1,4 +1,4 @@
-import { t, fmt, fmtShort, type I18nKey } from '../core/i18n';
+import { t, fmt, fmtShort, getLang, type I18nKey } from '../core/i18n';
 import { CHARACTERS, getCharacter } from '../game/characters';
 import { TRAILS, type TrailId } from '../game/trails';
 import { MODES, getMode, type GameMode } from '../game/modes';
@@ -36,6 +36,10 @@ import { levelStars, levelUnlocked, nextLevel, totalStars, worldStars } from '..
 import { achievementDiamonds, availableBoosters, boosterCost, canClaimMissionBonus, missionsClaimable } from '../economy/profile';
 import { privacyHtml } from './privacy';
 import { icon } from './icons';
+import type { CloudSave } from '../economy/cloud';
+import type { SaveData } from '../core/storage';
+import type { LeaderboardKey } from '../platform/games-ids';
+import type { TopScores } from '../platform/games';
 import { Hud } from './hud';
 
 const esc = (s: string): string => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
@@ -158,11 +162,16 @@ export class UI {
   closeTopDialog(): boolean {
     const dialogs = document.querySelectorAll<HTMLElement>('.dialog-wrap');
     const top = dialogs[dialogs.length - 1];
-    if (!top || top.querySelector('.login')) return false;
+    if (!top || top.querySelector('.login, .cloud-choice')) return false;
     const cancel = top.querySelector<HTMLElement>('[data-act=no], [data-act=close]');
     if (cancel) cancel.click();
     else top.remove();
     return true;
+  }
+
+  /** Removes every open dialog (used when the whole save is swapped and their content is stale). */
+  closeDialogs(): void {
+    document.querySelectorAll('.dialog-wrap').forEach((w) => w.remove());
   }
 
   dialog(message: string, confirmLabel: string, onConfirm: () => void, danger = true): void {
@@ -1129,6 +1138,93 @@ export class UI {
 
   // ───────────────────────── Settings ─────────────────────────
 
+  // ───────────────────────── Cloud save & leaderboards ─────────────────────────
+
+  /** The cloud holds more progress than this device: the player picks which save to keep. */
+  showCloudChoice(local: SaveData, cloud: CloudSave, done: (useCloud: boolean) => void): void {
+    const col = (label: string, s: SaveData, at = 0) => `<div class="save-col">
+      <span class="k"><span>${esc(label)}</span>${at ? `<span>${new Date(at).toLocaleDateString(getLang() === 'de' ? 'de-DE' : 'en-US')}</span>` : ''}</span>
+      <b>${t('cloud.level', { n: s.level })}</b>
+      <span>${t('cloud.runs', { n: fmt(s.stats.runs) })} · ${t('cloud.best', { n: fmt(s.best) })}</span></div>`;
+    const wrap = document.createElement('div');
+    wrap.className = 'dialog-wrap';
+    wrap.innerHTML = `<div class="dialog cloud-choice">
+      <h3>${icon('cloud', 20)}${t('cloud.title')}</h3>
+      <p>${t('cloud.found')}</p>
+      <div class="save-compare">${col(t('cloud.cloud'), cloud.save, cloud.at)}${col(t('cloud.device'), local)}</div>
+      <p class="hint">${t('cloud.overwrite')}</p>
+      <div class="grid2">
+        <button class="btn ghost" data-act="local">${t('cloud.keep')}</button>
+        <button class="btn primary" data-act="cloud">${t('cloud.useCloud')}</button></div></div>`;
+    wrap.addEventListener('click', (e) => {
+      const act = (e.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset.act;
+      if (act !== 'local' && act !== 'cloud') return;
+      this.app.audio.uiClick();
+      wrap.remove();
+      done(act === 'cloud');
+    });
+    document.body.appendChild(wrap);
+  }
+
+  /** Leaderboards inside the game: top 10 plus the player's own place. */
+  showRanks(back: () => void, key?: LeaderboardKey): void {
+    const boards = this.app.games.boards();
+    const active = key && boards.includes(key) ? key : boards[0];
+    const label = (k: LeaderboardKey) => t(`ranks.${k}` as I18nKey);
+    const tabs = boards
+      .map((k) => `<button class="${k === active ? 'on' : ''}" data-act="tab" data-key="${k}">${esc(label(k))}</button>`)
+      .join('');
+    const html = `${this.backBar(t('ranks.title'))}
+      <div class="screen-inner top">
+        <div class="mode-seg ranks-tabs" style="grid-template-columns:repeat(${Math.max(1, boards.length)},1fr)">${tabs}</div>
+        <div class="panel rank-list" id="rank-list"><p class="hint rank-msg">${t('ranks.loading')}</p></div>
+        <button class="btn" data-act="all">${icon('trophy', 20)}${t('ranks.all')}</button>
+      </div>`;
+    const el = this.open('ranks', html, {
+      onAction: (act, btn) => {
+        if (act === 'back') {
+          this.app.audio.uiBack();
+          back();
+        } else if (act === 'tab') {
+          this.app.audio.uiClick();
+          this.showRanks(back, btn.dataset.key as LeaderboardKey);
+        } else if (act === 'all') {
+          this.app.audio.uiClick();
+          void this.app.games.showLeaderboards().then((ok) => {
+            if (!ok) this.toast(t('games.title'), t('games.failed'), 'trophy');
+          });
+        }
+      },
+    });
+    if (!active) return;
+    void this.app.games.topScores(active).then((r) => {
+      const list = el.querySelector('#rank-list');
+      if (list && el.isConnected) list.innerHTML = this.rankRows(r);
+    });
+  }
+
+  private cloudHint(): string {
+    const g = this.app.games;
+    if (!g.signedIn) return t('cloud.signin');
+    const at = this.app.cloudSavedAt;
+    if (!at) return t('cloud.auto');
+    const time = new Date(at).toLocaleTimeString(getLang() === 'de' ? 'de-DE' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+    return `${t('cloud.auto')} ${t('cloud.last', { time })}`;
+  }
+
+  private rankRows(r: TopScores | null): string {
+    if (!r) return `<p class="hint rank-msg">${t('games.failed')}</p>`;
+    if (!r.scores.length) return `<p class="hint rank-msg">${t('ranks.empty')}</p>`;
+    const row = (x: { rank: number; name: string; score: number }, me: boolean) =>
+      `<li class="${me ? 'me' : ''}"><span class="rk">${x.rank > 0 ? fmt(x.rank) : '–'}</span>
+        <span class="nm">${esc(me ? t('ranks.you') : x.name)}</span><span class="sc">${fmt(x.score)}</span></li>`;
+    const me = r.me;
+    const isMe = (x: { rank: number; score: number }) => !!me && x.rank === me.rank && x.score === me.score;
+    const top = r.scores.map((x) => row(x, isMe(x))).join('');
+    const own = me && !r.scores.some(isMe) ? `<li class="gap" aria-hidden="true">···</li>${row(me, true)}` : '';
+    return `<ol>${top}${own}</ol>`;
+  }
+
   showSettings(from: 'menu' | 'pause'): void {
     const st = this.app.save.data.settings;
     const slider = (key: string, label: I18nKey, v: number, min: number, max: number, step: number) =>
@@ -1170,7 +1266,14 @@ export class UI {
           this.app.games.configured
             ? `<div class="panel"><h3>${t('games.title')}</h3><div class="grid2">
           <button class="btn" data-act="leaderboards">${icon('trophy', 20)}${t('games.leaderboards')}</button>
-          <button class="btn" data-act="gameach">${icon('star', 20)}${t('games.achievements')}</button></div></div>`
+          <button class="btn" data-act="gameach">${icon('star', 20)}${t('games.achievements')}</button></div>
+          ${
+            from === 'menu'
+              ? `<div class="row cloud-row"><label>${t('cloud.row')}</label>
+            <button class="btn small" data-act="cloudsave">${icon('cloud', 16)}${t('cloud.saveNow')}</button></div>
+          <p class="hint" id="cloud-hint">${this.cloudHint()}</p>`
+              : ''
+          }</div>`
             : ''
         }
         ${
@@ -1209,12 +1312,26 @@ export class UI {
         } else if (act === 'tutorial') {
           this.app.audio.uiSelect();
           this.app.startTutorial();
+        } else if (act === 'leaderboards' && this.app.games.boards().length) {
+          this.app.audio.uiClick();
+          this.showRanks(() => this.showSettings(from));
+          this.app.onSignedIn();
         } else if (act === 'leaderboards' || act === 'gameach') {
           this.app.audio.uiClick();
           const open = act === 'leaderboards' ? this.app.games.showLeaderboards() : this.app.games.showAchievements();
           void open.then((ok) => {
-            if (ok) this.app.syncGames();
+            if (ok) this.app.onSignedIn();
             else this.toast(t('games.title'), t('games.failed'), 'trophy');
+          });
+        } else if (act === 'cloudsave') {
+          this.app.audio.uiClick();
+          btn.setAttribute('disabled', '');
+          void this.app.cloudSaveNow().then((res) => {
+            btn.removeAttribute('disabled');
+            const hint = el.querySelector('#cloud-hint');
+            if (hint) hint.textContent = this.cloudHint();
+            if (res === 'saved') this.toast(t('cloud.title'), t('cloud.saved'), 'cloud');
+            else if (res === 'failed') this.toast(t('cloud.title'), t('games.failed'), 'cloud');
           });
         } else if (act === 'consent') {
           void this.app.platform.showPrivacyOptions();

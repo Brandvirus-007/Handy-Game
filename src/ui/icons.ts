@@ -46,6 +46,7 @@ const P: Record<string, string> = {
   lock: '<rect x="6" y="11" width="12" height="9" rx="2"/><path d="M9 11V8a3 3 0 0 1 6 0v3"/>',
   refresh: '<path d="M19 12a7 7 0 1 1-2-5M19 4v4h-4"/>',
   check: '<path d="M5 12l5 5 9-10"/>',
+  cloud: '<path d="M7 18a4 4 0 0 1-.6-8A6 6 0 0 1 17.8 9 4.5 4.5 0 0 1 17.5 18z"/>',
   star: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
   download: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
   // upgrades

@@ -300,6 +300,8 @@ function browserStorage(): KV | null {
 
 export class SaveStore {
   data: SaveData;
+  /** Called after every successful write (the app uses it to schedule the cloud backup). */
+  onSave: (() => void) | null = null;
   private kv: KV | null;
 
   constructor(kv: KV | null = browserStorage()) {
@@ -325,9 +327,16 @@ export class SaveStore {
     if (!this.kv) return;
     try {
       this.kv.setItem(SAVE_KEY, JSON.stringify(this.data));
+      this.onSave?.();
     } catch {
       /* quota / private mode – the game keeps running in memory */
     }
+  }
+
+  /** Replaces the whole save (cloud import). */
+  replace(data: SaveData): void {
+    this.data = sanitize(data);
+    this.save();
   }
 
   reset(): void {

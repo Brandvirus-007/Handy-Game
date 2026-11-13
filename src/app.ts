@@ -15,6 +15,7 @@ import { addMastery, sparkMastery, MASTERY_MAX } from './economy/mastery';
 import { decodeChallenge, encodeChallenge } from './economy/challenge';
 import { getLevel, starsFor, WORLDS, LEVEL_COUNT } from './game/campaign';
 import { levelUnlocked, recordLevel } from './economy/campaign';
+import { cloudLabel, compareProgress, mergeForImport, packCloud, unpackCloud, type CloudSave } from './economy/cloud';
 import { getUpgrade } from './game/upgrades';
 import { dailySetup, type DailySetup } from './game/modifiers';
 import type { AchievementId } from './game/achievements';
@@ -257,7 +258,8 @@ export class App {
     void this.platform.getProducts().then((p) => (this.products = p));
     void this.platform.recoverPurchases((p) => void this.credit(p));
     void this.restoreEntitlements(true);
-    void this.games.init().then(() => this.syncGames());
+    this.save.onSave = () => this.scheduleCloudSave();
+    void this.games.init().then(() => this.onSignedIn());
     this.afterUpdate();
   }
 
@@ -281,6 +283,7 @@ export class App {
     if (!active) {
       if (this.state === 'playing') this.pause();
       this.save.save();
+      if (this.cloudTimer) void this.uploadCloud();
     } else {
       if (this.state === 'playing') this.platform.keepAwake(true);
       // Android keeps apps alive for days: a new day must still bring new missions and the login bonus.
@@ -607,6 +610,7 @@ export class App {
     this.audio.setRegion(-1);
     this.platform.keepAwake(false);
     this.startDemo();
+    if (this.pendingCloud) window.setTimeout(() => this.offerCloud(), 500);
   }
 
   quitToMenu(): void {
@@ -1255,6 +1259,98 @@ export class App {
   resetSave(): void {
     this.save.reset();
     this.applySettings();
+    // A fresh save must not overwrite the cloud copy unasked: check again, which offers the cloud copy.
+    this.cloudReady = false;
+    this.cloudChecked = false;
+    void this.cloudCheck();
+  }
+
+  // ───────────────────────── Cloud save ─────────────────────────
+
+  /** Uploads are allowed only after the cloud copy was checked (and the player chose, if needed). */
+  private cloudReady = false;
+  private cloudChecked = false;
+  private cloudTimer = 0;
+  private pendingCloud: CloudSave | null = null;
+  /** Time of the last successful upload (0 = not yet in this session). */
+  cloudSavedAt = 0;
+
+  /** Called once Play Games reports a signed-in player (at launch or after signing in from the settings). */
+  onSignedIn(): void {
+    if (!this.games.signedIn) return;
+    this.syncGames();
+    if (!this.cloudChecked) void this.cloudCheck();
+  }
+
+  private async cloudCheck(): Promise<void> {
+    if (!this.games.signedIn || this.cloudChecked) return;
+    this.cloudChecked = true;
+    const text = await this.games.loadSave();
+    if (text === null) {
+      // Could not read the cloud copy: try again next time, never overwrite it blindly.
+      this.cloudChecked = false;
+      return;
+    }
+    const cloud = text ? unpackCloud(text) : null;
+    if (cloud && compareProgress(cloud.save, this.save.data) > 0) {
+      this.pendingCloud = cloud;
+      if (this.state === 'menu') this.offerCloud();
+      return;
+    }
+    this.cloudReady = true;
+    await this.uploadCloud();
+  }
+
+  /** Asks whether to load the cloud copy (only in the menu, never during a run). */
+  private offerCloud(): void {
+    const cloud = this.pendingCloud;
+    if (!cloud || this.state !== 'menu') return;
+    this.pendingCloud = null;
+    if (compareProgress(cloud.save, this.save.data) <= 0) {
+      this.cloudReady = true;
+      void this.uploadCloud();
+      return;
+    }
+    this.ui.showCloudChoice(this.save.data, cloud, (useCloud) => {
+      if (useCloud) {
+        this.ui.closeDialogs();
+        this.save.replace(mergeForImport(this.save.data, cloud.save));
+        this.applySettings(false);
+        this.refreshDay();
+        this.ui.toast(t('cloud.title'), t('cloud.loaded'), 'cloud');
+        if (this.state === 'menu') this.ui.showMenu();
+      }
+      this.cloudReady = true;
+      void this.uploadCloud();
+    });
+  }
+
+  /** Every local save schedules one upload a little later, so a burst of changes becomes one write. */
+  private scheduleCloudSave(): void {
+    if (!this.cloudReady || this.cloudTimer) return;
+    this.cloudTimer = window.setTimeout(() => void this.uploadCloud(), 20_000);
+  }
+
+  async uploadCloud(): Promise<boolean> {
+    window.clearTimeout(this.cloudTimer);
+    this.cloudTimer = 0;
+    if (!this.cloudReady || !this.games.signedIn) return false;
+    const s = this.save.data;
+    const ok = await this.games.saveSave(packCloud(s, Date.now()), cloudLabel(s));
+    if (ok) this.cloudSavedAt = Date.now();
+    return ok;
+  }
+
+  /** "Save now" in the settings (menu only): signs in first if needed. 'ask' = the cloud choice is open. */
+  async cloudSaveNow(): Promise<'saved' | 'failed' | 'ask'> {
+    if (!this.games.signedIn && !(await this.games.signIn())) return 'failed';
+    this.syncGames();
+    if (!this.cloudReady) {
+      await this.cloudCheck();
+      if (!this.cloudReady) return this.cloudChecked ? 'ask' : 'failed';
+      return this.cloudSavedAt > 0 ? 'saved' : 'failed';
+    }
+    return (await this.uploadCloud()) ? 'saved' : 'failed';
   }
 
   install(): void {
