@@ -604,6 +604,7 @@ export class App {
     this.fx.clear();
     this.audio.duck(false);
     this.audio.setIntensity(0);
+    this.audio.setRegion(-1);
     this.platform.keepAwake(false);
     this.startDemo();
   }
@@ -1583,6 +1584,7 @@ export class App {
           const campaignLevel = this.setup?.campaign;
           const biome = campaignLevel !== undefined ? WORLDS[getLevel(campaignLevel).world].biome : biomeForWave(e.wave);
           this.renderer.setBiome(biome);
+          this.audio.setRegion(biome);
           const newRegion = campaignLevel === undefined && e.wave > 1 && (e.wave - 1) % 10 === 0;
           if (e.boss) {
             const type = e.boss === 'twins' ? 'twin' : e.boss;

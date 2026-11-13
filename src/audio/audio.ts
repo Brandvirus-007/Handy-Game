@@ -29,6 +29,11 @@ export class AudioEngine {
   private musicVol = 0.6;
   private sfxVol = 0.85;
   private hidden = false;
+  /** Recorded tracks from music/tracks.json (key → file). Empty = generated music only. */
+  private tracks: Record<string, string> = {};
+  private track: { key: string; el: HTMLAudioElement; gain: GainNode } | null = null;
+  private region = -1;
+  private bossMusic = false;
 
   get ready(): boolean {
     return this.ctx !== null && this.ctx.state === 'running';
@@ -93,7 +98,9 @@ export class AudioEngine {
     for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
 
     this.music = new Music(ctx, this.musicBus, this.reverbSend, this.noise);
+    this.music.setTheme(this.region);
     this.music.start();
+    void this.loadTracks();
 
     // iOS: play a silent buffer inside the gesture to fully unlock output.
     const silent = ctx.createBufferSource();
@@ -119,6 +126,60 @@ export class AudioEngine {
 
   setIntensity(level: number): void {
     this.music?.setIntensity(level);
+    this.bossMusic = level >= 3;
+    this.updateTrack();
+  }
+
+  /** Region theme (0–5) during runs, -1 for the menu. */
+  setRegion(region: number): void {
+    this.region = region;
+    this.music?.setTheme(region);
+    this.updateTrack();
+  }
+
+  /** Optional recorded music: music/tracks.json maps "menu", "boss" and "region0"…"region5" to files. */
+  private async loadTracks(): Promise<void> {
+    try {
+      const res = await fetch('music/tracks.json', { cache: 'no-cache' });
+      if (!res.ok) return;
+      const list = (await res.json()) as Record<string, unknown>;
+      for (const [k, v] of Object.entries(list)) if (typeof v === 'string' && /^[\w.-]+$/.test(v)) this.tracks[k] = `music/${v}`;
+      this.updateTrack();
+    } catch {
+      /* no recorded music – the generator plays */
+    }
+  }
+
+  private updateTrack(): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.music) return;
+    const key = this.bossMusic && this.tracks.boss ? 'boss' : this.region < 0 ? 'menu' : `region${this.region}`;
+    const url = this.tracks[key];
+    if (this.track?.key === key && url) return;
+    const fade = 1.2;
+    const t = ctx.currentTime;
+    // Fade out whatever recorded track is playing.
+    if (this.track) {
+      const old = this.track;
+      old.gain.gain.setTargetAtTime(0.0001, t, fade / 4);
+      window.setTimeout(() => old.el.pause(), fade * 1000 + 200);
+      this.track = null;
+    }
+    if (!url) {
+      this.music.muted = false;
+      return;
+    }
+    const el = new Audio(url);
+    el.loop = true;
+    el.preload = 'auto';
+    const gain = ctx.createGain();
+    gain.gain.value = 0.0001;
+    ctx.createMediaElementSource(el).connect(gain);
+    gain.connect(this.musicBus);
+    gain.gain.setTargetAtTime(1, t, fade / 4);
+    this.track = { key, el, gain };
+    this.music.muted = true;
+    if (!this.hidden) void el.play().catch(() => (this.music!.muted = false));
   }
 
   setVisible(visible: boolean): void {
@@ -127,6 +188,10 @@ export class AudioEngine {
     try {
       if (visible) void this.ctx.resume();
       else void this.ctx.suspend();
+      if (this.track) {
+        if (visible) void this.track.el.play().catch(() => undefined);
+        else this.track.el.pause();
+      }
     } catch {
       /* ignore */
     }
