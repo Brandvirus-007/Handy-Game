@@ -34,7 +34,8 @@ export const PASS_PREMIUM: PassReward[] = Array.from({ length: PASS_TIERS }, (_,
   return tier % 2 === 0 ? { diamonds: 20 } : { coins: 250 };
 });
 
-const dayNumber = (dateKey: string): number => {
+/** Days since the start of season 1 (also used for weekly events). */
+export const dayNumber = (dateKey: string): number => {
   const [y, m, d] = dateKey.split('-').map(Number);
   return Math.floor((Date.UTC(y, m - 1, d) - SEASON_START) / DAY);
 };

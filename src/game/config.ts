@@ -96,14 +96,17 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
   hydra: { r: 32, hp: 6, speed: 26, score: 800, shards: 15, cost: 0, unlock: 99, weight: 0, color: '#3dff8f', mass: 1, group: [1, 1] },
   head: { r: 17, hp: 3, speed: 58, score: 600, shards: 12, cost: 0, unlock: 99, weight: 0, color: '#3dff8f', mass: 1, group: [1, 1] },
   eye: { r: 30, hp: 8, speed: 12, score: 2400, shards: 50, cost: 0, unlock: 99, weight: 0, color: '#ffcf3d', mass: 1, group: [1, 1] },
+  bouncer: { r: 10, hp: 1, speed: 150, score: 35, shards: 2, cost: 3, unlock: 19, weight: 1.5, color: '#4dffd2', mass: 0.1, group: [1, 2] },
+  ghost: { r: 12, hp: 1, speed: 44, score: 40, shards: 2.5, cost: 3.5, unlock: 22, weight: 1.4, color: '#b8c4ff', mass: 0.1, group: [1, 2] },
+  vortex: { r: 30, hp: 8, speed: 18, score: 2600, shards: 55, cost: 0, unlock: 99, weight: 0, color: '#5ab0ff', mass: 1, group: [1, 1] },
 };
 
 /** Second twin gets its own colour so the pair reads as two individuals. */
 export const TWIN_COLORS = ['#4dd8ff', '#ff6bd6'] as const;
 
-export const SPAWNABLE: EnemyType[] = ['mote', 'dart', 'cutter', 'splitter', 'brute', 'spitter', 'gnat', 'warden', 'blinker', 'bomber'];
+export const SPAWNABLE: EnemyType[] = ['mote', 'dart', 'cutter', 'splitter', 'brute', 'spitter', 'gnat', 'warden', 'blinker', 'bomber', 'bouncer', 'ghost'];
 
-export const BOSS_TYPES: EnemyType[] = ['maw', 'weaver', 'twin', 'hydra', 'head', 'eye'];
+export const BOSS_TYPES: EnemyType[] = ['maw', 'weaver', 'twin', 'hydra', 'head', 'eye', 'vortex'];
 
 export const WARDEN_AURA = 78;
 export const BOMB = { fuse: 0.75, radius: 64 };
@@ -115,6 +118,7 @@ export const BIOMES = [
   { id: 'deep', edge: '#3de0d0', blobs: ['rgba(20,120,150,0.28)', 'rgba(20,70,140,0.24)', 'rgba(30,160,140,0.14)', 'rgba(20,50,110,0.22)', 'rgba(40,120,160,0.12)'], top: '#04121c' },
   { id: 'aurora', edge: '#6dff9d', blobs: ['rgba(40,170,100,0.24)', 'rgba(170,60,170,0.20)', 'rgba(60,200,150,0.14)', 'rgba(90,50,170,0.22)', 'rgba(40,140,90,0.14)'], top: '#07160f' },
   { id: 'void', edge: '#e6e6f0', blobs: ['rgba(120,120,140,0.16)', 'rgba(80,80,110,0.16)', 'rgba(160,160,180,0.08)', 'rgba(60,60,80,0.18)', 'rgba(100,100,120,0.10)'], top: '#0a0a0e' },
+  { id: 'crystal', edge: '#ff7ad9', blobs: ['rgba(200,60,160,0.22)', 'rgba(40,170,180,0.20)', 'rgba(150,90,220,0.16)', 'rgba(220,120,200,0.12)', 'rgba(50,120,160,0.18)'], top: '#14081a' },
 ] as const;
 
 export const biomeForWave = (wave: number): number => Math.floor(Math.max(0, wave - 1) / 10) % BIOMES.length;

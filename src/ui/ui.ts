@@ -28,6 +28,7 @@ import {
 import { anyMetaBuyable, levelPath, nextUnlockLevel, type Unlock } from '../economy/unlocks';
 import { PASS_FREE, PASS_PREMIUM, PASS_TIERS, PASS_XP_PER_TIER, canClaim, hasPremium, passClaimable, passTier, premiumTotals, seasonDaysLeft, type PassReward, type PassTrack } from '../economy/pass';
 import { localDateKey } from '../core/rng';
+import { WEEKLY_REWARDS, weekOf, weeklyDaysLeft, weeklyTheme } from '../economy/weekly';
 import { achievementDiamonds, availableBoosters, boosterCost, canClaimMissionBonus, missionsClaimable } from '../economy/profile';
 import { privacyHtml } from './privacy';
 import { icon } from './icons';
@@ -252,6 +253,11 @@ export class UI {
     return `<span class="price ${currency === 'diamonds' ? 'gem' : ''}">${icon(currency === 'coins' ? 'shard' : 'gem', 14)}${fmt(amount)}</span>`;
   }
 
+  /** A diamond cost with its real-money value (not used for rewards). */
+  private gemCost(amount: number, stacked = false): string {
+    return `<span class="gem-cost ${stacked ? 'stacked' : ''}">${this.price('diamonds', amount)}<span class="eur">≈ ${esc(this.app.diamondValue(amount))}</span></span>`;
+  }
+
   private rewardChips(r: Reward): string {
     return `${r.coins ? this.price('coins', r.coins) : ''}${r.diamonds ? this.price('diamonds', r.diamonds) : ''}`;
   }
@@ -272,6 +278,7 @@ export class UI {
     const s = this.app.save.data;
     const daily = this.app.dailyInfo();
     const dailyPlayed = s.daily.date === daily.date;
+    const weeklyPlayed = s.weekly.week === weekOf(localDateKey()) && s.weekly.best > 0;
     const canAffordAny = anyMetaBuyable(s);
     const missions = missionsClaimable(s);
     const freeAds = this.app.freeDiamondsLeft() > 0;
@@ -289,7 +296,7 @@ export class UI {
         ${this.passBar()}
         <div class="grid3">
           <button class="btn" data-act="missions">${icon('target', 24)}${t('menu.missions')}${missions ? `<span class="count">${missions}</span>` : ''}</button>
-          <button class="btn" data-act="daily">${icon('calendar', 24)}${t('menu.daily')}${dailyPlayed ? '' : '<span class="badge"></span>'}</button>
+          <button class="btn" data-act="daily">${icon('calendar', 24)}${t('menu.events')}${dailyPlayed && weeklyPlayed ? '' : '<span class="badge"></span>'}</button>
           <button class="btn shop-btn" data-act="shop">${icon('shop', 24)}${t('menu.shop')}${freeAds ? '<span class="badge"></span>' : ''}</button>
           <button class="btn" data-act="workshop">${icon('wrench', 24)}${t('menu.workshop')}${canAffordAny ? '<span class="badge"></span>' : ''}</button>
           <button class="btn" data-act="sparks">${icon('spark', 24)}${t('menu.sparks')}</button>
@@ -307,7 +314,7 @@ export class UI {
         if (this.walletAction(act)) return;
         this.app.audio.uiClick();
         if (act === 'play') this.app.startRun(false);
-        else if (act === 'daily') this.showDaily();
+        else if (act === 'daily') this.showEvents();
         else if (act === 'workshop') this.showWorkshop();
         else if (act === 'sparks') this.showSparks();
         else if (act === 'achievements') this.showAchievements();
@@ -491,14 +498,14 @@ export class UI {
 
   // ───────────────────────── Preparation (boosters) ─────────────────────────
 
-  showPrerun(daily: boolean): void {
+  showPrerun(daily: boolean, weekly = false): void {
     const s = this.app.save.data;
     const available = availableBoosters(s).map((b) => b.id);
     let selected = s.boosters.filter((b) => available.includes(b));
     const charId = daily ? this.app.dailyInfo().character : s.selected;
     let mode: GameMode = !daily && getMode(s.mode).unlockLevel <= s.level ? s.mode : 'normal';
     const modePicker = () => {
-      if (daily) return '';
+      if (daily || weekly) return '';
       const buttons = MODES.map((m) => {
         const locked = m.unlockLevel > s.level;
         return `<button class="${m.id === mode ? 'on' : ''}" data-act="mode" data-id="${m.id}" ${locked ? 'disabled' : ''}>
@@ -519,10 +526,13 @@ export class UI {
           <span class="ico-wrap">${icon(`booster.${b.id}`, 24)}</span>
           <span class="body"><span class="name">${t(`booster.${b.id}.name` as I18nKey)}</span>
           <span class="desc">${unlocked ? t(`booster.${b.id}.desc` as I18nKey) : t('prerun.locked', { n: b.requiresWave })}</span></span>
-          ${this.price(b.currency, b.price)}<span class="check">${icon('check', 18)}</span>
+          ${b.currency === 'diamonds' ? this.gemCost(b.price, true) : this.price(b.currency, b.price)}<span class="check">${icon('check', 18)}</span>
         </button>`;
       }).join('');
-      const costText = cost.coins || cost.diamonds ? `${t('prerun.cost')} ${this.rewardChips(cost)}` : '';
+      const costText =
+        cost.coins || cost.diamonds
+          ? `${t('prerun.cost')} ${cost.coins ? this.price('coins', cost.coins) : ''}${cost.diamonds ? this.gemCost(cost.diamonds) : ''}`
+          : '';
       return `${this.backBar(t('prerun.title'), this.wallet())}
         <div class="screen-inner">
           <button class="char-chip" data-act="${daily ? 'none' : 'sparks'}">${orb(charId)}<span>${t(`char.${charId}.name` as I18nKey)}</span>
@@ -540,7 +550,7 @@ export class UI {
         if (act === 'back') this.back();
         else if (act === 'sparks') {
           this.app.audio.uiClick();
-          this.showSparks(() => this.showPrerun(daily));
+          this.showSparks(() => this.showPrerun(daily, weekly));
         } else if (act === 'toggle') {
           const id = btn.dataset.id as BoosterId;
           selected = selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id];
@@ -552,7 +562,7 @@ export class UI {
           el.innerHTML = render();
         } else if (act === 'start') {
           this.app.audio.uiSelect();
-          if (!this.app.launchRun(daily, selected, mode)) el.innerHTML = render();
+          if (!this.app.launchRun(daily, selected, mode, weekly)) el.innerHTML = render();
         }
       },
     });
@@ -560,40 +570,56 @@ export class UI {
 
   // ───────────────────────── Daily ─────────────────────────
 
-  showDaily(): void {
+  /** Events: today's challenge and this week's event. */
+  showEvents(): void {
     const s = this.app.save.data;
+    const today = localDateKey();
+    // Daily challenge
     const d = this.app.dailyInfo();
     const c = getCharacter(d.character);
-    const locked = !s.chars.includes(c.id);
-    const best = s.daily.date === d.date ? fmt(s.daily.best) : t('daily.none');
-    const mods = d.modifiers
-      .map(
-        (m) => `<div class="item"><div class="ico-wrap">${icon('star', 22)}</div><div class="body">
-        <div class="name">${t(`mod.${m}.name` as I18nKey)}</div><div class="desc">${t(`mod.${m}.desc` as I18nKey)}</div></div></div>`,
-      )
+    const dailyBest = s.daily.date === d.date ? fmt(s.daily.best) : t('daily.none');
+    const modChips = (mods: string[]) =>
+      `<ul class="perk-chips neutral">${mods.map((m) => `<li>${icon('star', 13)}<span>${esc(t(`mod.${m}.name` as I18nKey))}</span></li>`).join('')}</ul>`;
+    // Weekly event
+    const week = weekOf(today);
+    const theme = weeklyTheme(week);
+    const weekBest = s.weekly.week === week ? s.weekly.best : 0;
+    const reached = s.weekly.week === week ? s.weekly.reached : 0;
+    const medals = ['bronze', 'silver', 'gold'];
+    const goals = theme.goals
+      .map((g, i) => `<div class="goal ${i < reached ? 'done' : ''}">
+        <span class="medal ${medals[i]}">${icon(i < reached ? 'check' : 'trophy', 16)}</span>
+        <span class="goal-score">${t('weekly.goal', { n: fmt(g) })}</span>${this.rewardChips(WEEKLY_REWARDS[i])}</div>`)
       .join('');
-    const html = `${this.backBar(t('daily.title'))}
-      <div class="screen-inner">
-        <div class="panel" style="text-align:center">
-          <div class="daily-date">${esc(new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }))}</div>
-          <p class="hint" style="margin:8px 0 0">${t('daily.desc')}</p>
+    const html = `${this.backBar(t('events.title'))}
+      <div class="screen-inner top">
+        <div class="panel event-card">
+          <div class="ev-head"><span class="ev-title">${t('daily.title')}</span><span class="ev-when">${t('events.today')}</span></div>
+          <p class="hint">${t('daily.desc')}</p>
+          <div class="ev-spark">${orb(c.id)}<span>${t(`char.${c.id}.name` as I18nKey)}</span></div>
+          ${modChips(d.modifiers)}
+          <div class="ev-foot"><span>${t('daily.best')}: <b>${dailyBest}</b></span>
+            <button class="btn small primary" data-act="daily">${icon('play', 16)}${t('daily.start')}</button></div>
         </div>
-        <div class="panel">
-          <h3>${t('daily.spark')}</h3>
-          <div class="item">${orb(c.id)}<div class="body"><div class="name">${t(`char.${c.id}.name` as I18nKey)}</div>
-            <div class="desc">${t(`char.${c.id}.desc` as I18nKey)}</div></div></div>
-          ${locked ? `<p class="hint" style="margin:10px 0 0">${t('daily.lockedSpark')}</p>` : ''}
+        <div class="panel event-card weekly">
+          <div class="ev-head"><span class="ev-title">${t(`weekly.${theme.id}.name` as I18nKey)}</span>
+            <span class="ev-when">${t('pass.daysLeft', { n: weeklyDaysLeft(today) })}</span></div>
+          <p class="hint">${t(`weekly.${theme.id}.desc` as I18nKey)} ${t('weekly.free')}</p>
+          ${modChips(theme.modifiers)}
+          <div class="goals">${goals}</div>
+          <div class="ev-foot"><span>${t('weekly.best')}: <b>${fmt(weekBest)}</b></span>
+            <button class="btn small primary" data-act="weekly">${icon('play', 16)}${t('daily.start')}</button></div>
         </div>
-        <div class="panel"><h3>${t('daily.mods')}</h3><div class="list">${mods}</div></div>
-        <div class="records"><span>${t('daily.best')}: <b>${best}</b></span></div>
-        <button class="btn primary" data-act="start">${icon('play', 22)}${t('daily.start')}</button>
       </div>`;
-    this.open('daily', html, {
+    this.open('events', html, {
       onAction: (act) => {
         if (act === 'back') this.back();
-        else if (act === 'start') {
+        else if (act === 'daily') {
           this.app.audio.uiSelect();
           this.app.startRun(true);
+        } else if (act === 'weekly') {
+          this.app.audio.uiSelect();
+          this.app.startRun(false, true);
         }
       },
     });
@@ -627,7 +653,7 @@ export class UI {
       .join('');
     const exchange = EXCHANGE.map(
       (x, i) => `<button class="btn small" data-act="exchange" data-i="${i}" ${s.diamonds >= x.diamonds ? '' : 'disabled'}>
-        ${this.price('diamonds', x.diamonds)} → ${this.price('coins', x.coins)}</button>`,
+        ${this.gemCost(x.diamonds)} → ${this.price('coins', x.coins)}</button>`,
     ).join('');
     const html = `${this.backBar(t('shop.title'), this.wallet())}
       <div class="screen-inner top">
@@ -719,7 +745,7 @@ export class UI {
         : owned
           ? `<span class="tstate">${t('common.select')}</span>`
           : tr.price > 0
-            ? `<span class="tstate">${this.price('diamonds', tr.price)}</span>`
+            ? `<span class="tstate">${this.gemCost(tr.price, true)}</span>`
             : `<span class="tstate locked">${icon('lock', 12)}${t('pass.title')}</span>`;
       const disabled = !owned && tr.price <= 0;
       return `<button class="trail-tile ${on ? 'on' : ''}" data-act="trail" data-id="${tr.id}" ${disabled ? 'disabled' : ''}>
@@ -840,7 +866,7 @@ export class UI {
         // Shards are always the main price; diamonds only offer to skip the saving up.
         btn = `<div class="buy-col">
           <button class="btn small ${afford ? '' : 'short'}" data-act="buy" data-id="${m.id}" ${afford ? '' : 'disabled'}>${this.price('coins', cost)}</button>
-          ${afford ? '' : `<button class="btn small gem-btn mini" data-act="instant" data-id="${m.id}" ${s.diamonds >= gems ? '' : 'disabled'}><small>${t('workshop.instant')}</small>${this.price('diamonds', gems)}</button>`}
+          ${afford ? '' : `<button class="btn small gem-btn mini" data-act="instant" data-id="${m.id}" ${s.diamonds >= gems ? '' : 'disabled'}><small>${t('workshop.instant')}</small>${this.gemCost(gems, true)}</button>`}
         </div>`;
       }
       return `<div class="item ${hidden ? 'locked' : ''}">
@@ -893,7 +919,7 @@ export class UI {
       else if (c.unlockLevel > s.level) btn = `<button class="btn small lvl-lock" disabled>${icon('lock', 15)}${t('common.levelReq', { n: c.unlockLevel })}</button>`;
       else {
         const coinBtn = c.price > 0 ? `<button class="btn small" data-act="buy" data-cur="coins" data-id="${c.id}" ${s.bank >= c.price ? '' : 'disabled'}>${icon('lock', 15)}${this.price('coins', c.price)}</button>` : '';
-        const gemBtn = `<button class="btn small gem-btn" data-act="buy" data-cur="diamonds" data-id="${c.id}" ${s.diamonds >= c.diamondPrice ? '' : 'disabled'}>${this.price('diamonds', c.diamondPrice)}</button>`;
+        const gemBtn = `<button class="btn small gem-btn" data-act="buy" data-cur="diamonds" data-id="${c.id}" ${s.diamonds >= c.diamondPrice ? '' : 'disabled'}>${this.gemCost(c.diamondPrice)}</button>`;
         btn = `<div class="buy-row">${coinBtn}${coinBtn ? `<span class="or">${t('common.or')}</span>` : ''}${gemBtn}</div>`;
       }
       const tag = c.exclusive
@@ -1012,6 +1038,13 @@ export class UI {
           ${seg('lang', 'settings.lang', st.lang, [['auto', t('settings.lang.auto')], ['de', 'DE'], ['en', 'EN']])}
         </div>
         ${
+          this.app.games.configured
+            ? `<div class="panel"><h3>${t('games.title')}</h3><div class="grid2">
+          <button class="btn" data-act="leaderboards">${icon('trophy', 20)}${t('games.leaderboards')}</button>
+          <button class="btn" data-act="gameach">${icon('star', 20)}${t('games.achievements')}</button></div></div>`
+            : ''
+        }
+        ${
           from === 'menu'
             ? `<div class="panel"><h3>${t('settings.data')}</h3><div class="list">
           <button class="btn" data-act="tutorial">${t('settings.tutorial')}</button>
@@ -1047,6 +1080,13 @@ export class UI {
         } else if (act === 'tutorial') {
           this.app.audio.uiSelect();
           this.app.startTutorial();
+        } else if (act === 'leaderboards' || act === 'gameach') {
+          this.app.audio.uiClick();
+          const open = act === 'leaderboards' ? this.app.games.showLeaderboards() : this.app.games.showAchievements();
+          void open.then((ok) => {
+            if (ok) this.app.syncGames();
+            else this.toast(t('games.title'), t('games.failed'), 'trophy');
+          });
         } else if (act === 'consent') {
           void this.app.platform.showPrivacyOptions();
         } else if (act === 'policy') {
@@ -1181,7 +1221,7 @@ export class UI {
     } else if (offer.coins > 0) {
       opts.push(`<button class="btn" data-act="coins" ${s.bank >= offer.coins ? '' : 'disabled'}>${t('revive.pay')} ${this.price('coins', offer.coins)}</button>`);
     }
-    opts.push(`<button class="btn gem-btn" data-act="diamonds" ${s.diamonds >= offer.diamonds ? '' : 'disabled'}>${t('revive.pay')} ${this.price('diamonds', offer.diamonds)}</button>`);
+    opts.push(`<button class="btn gem-btn" data-act="diamonds" ${s.diamonds >= offer.diamonds ? '' : 'disabled'}>${t('revive.pay')} ${this.gemCost(offer.diamonds)}</button>`);
     const html = `<div class="screen-inner">
         <div class="continue-ring"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="54" class="track"/><circle cx="60" cy="60" r="54" class="fill"/></svg><span>${Math.ceil(timeLeft)}</span></div>
         <div class="upgrade-head"><h2>${t('revive.title')}</h2><p class="hint" style="margin:6px 0 0">${t('revive.sub')}</p></div>
@@ -1292,6 +1332,8 @@ export class UI {
       const label = first === last ? t('over.levelUp', { n: last }) : t('over.levelUps', { a: first, b: last });
       rewards.push(`<div class="reward-row hl">${icon('star', 18)}<span>${label}</span>${this.rewardChips(sum)}</div>`);
     }
+    for (const g of r.weeklyGoals)
+      rewards.push(`<div class="reward-row hl">${icon('trophy', 18)}<span>${t('over.weekly', { medal: t(`weekly.medal${g}` as I18nKey) })}</span>${this.rewardChips(WEEKLY_REWARDS[g])}</div>`);
     if (r.pass.gained > 0) rewards.push(`<div class="reward-row hl">${icon('crown', 18)}<span>${t('over.pass', { n: r.pass.tier })}</span></div>`);
     for (const u of r.unlocked) rewards.push(`<div class="reward-row unlock">${this.unlockIcon(u, 18)}<span>${t('over.unlocked', { name: this.unlockName(u) })}</span></div>`);
     for (const m of r.milestones) rewards.push(`<div class="reward-row hl">${icon('gem', 18)}<span>${t('over.milestone', { n: m.wave })}</span>${this.price('diamonds', m.diamonds)}</div>`);
@@ -1300,7 +1342,7 @@ export class UI {
       ? `<div class="chips">${r.newAchievements.map((a) => `<span class="chip">${icon('trophy', 16)}${t(`ach.${a}.name` as I18nKey)}</span>`).join('')}</div>`
       : '';
     const html = `<div class="screen-inner">
-        <div class="over-title"><h2>${t(r.timeUp ? 'over.timeUp' : 'over.title')}</h2><p>${r.mode !== 'normal' && !r.daily ? t(`mode.${r.mode}.name` as I18nKey) + ' · ' : ''}${t('over.subtitle')}</p></div>
+        <div class="over-title"><h2>${t(r.timeUp ? 'over.timeUp' : 'over.title')}</h2><p>${r.weekly ? t('events.weekly') + ' · ' : r.mode !== 'normal' && !r.daily ? t(`mode.${r.mode}.name` as I18nKey) + ' · ' : ''}${t('over.subtitle')}</p></div>
         <div class="big-score"><div class="l">${t('over.score')}</div><div class="v" id="final-score">0</div>
           ${r.newBest ? `<div class="new-best">${t(r.daily ? 'over.newDaily' : 'over.newBest')}</div>` : ''}</div>
         <div class="stats">

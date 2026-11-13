@@ -1,7 +1,7 @@
 import { TAU, clamp, easeOutBack, lerp } from '../core/math';
 import { BIOMES, COLORS, ENEMIES, TWIN_COLORS, WARDEN_AURA } from '../game/config';
-import { BLINK_WARN, DART_AIM, SPITTER_CHARGE } from '../game/enemies';
-import { HYDRA_TELEGRAPH, MAW_TELEGRAPH, WEAVER_AIM, eyeRays, twinBeam } from '../game/bosses';
+import { BLINK_WARN, DART_AIM, GHOST_FADE, SPITTER_CHARGE } from '../game/enemies';
+import { HYDRA_TELEGRAPH, MAW_TELEGRAPH, VORTEX_PULL_RANGE, WEAVER_AIM, eyeRays, twinBeam } from '../game/bosses';
 import type { World } from '../game/world';
 import type { TrailDef } from '../game/trails';
 import type { Enemy } from '../game/types';
@@ -1050,6 +1050,84 @@ export class Renderer {
         ctx.globalAlpha = 1;
         break;
       }
+      case 'bouncer': {
+        // Speed streaks behind the ball show where it is heading.
+        const back = e.angle + Math.PI;
+        ctx.globalAlpha = 0.5;
+        ctx.lineWidth = 2;
+        for (let i = -1; i <= 1; i++) {
+          const a = back + i * 0.35;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * r * 1.1, Math.sin(a) * r * 1.1);
+          ctx.lineTo(Math.cos(a) * r * (2 - Math.abs(i) * 0.4), Math.sin(a) * r * (2 - Math.abs(i) * 0.4));
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, TAU);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.55, 0, TAU);
+        ctx.globalAlpha = 0.5;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        eyes(ctx, e.angle, r * 0.28, r * 0.17, r * 0.08, true);
+        break;
+      }
+      case 'ghost': {
+        // Fades out and in; while invisible only a faint outline is left.
+        const fade =
+          e.state === 0 ? 1 : e.state === 1 ? 0.15 + 0.85 * (e.timer / GHOST_FADE) : e.state === 2 ? 0.15 : 0.15 + 0.85 * (1 - e.timer / GHOST_FADE);
+        ctx.globalAlpha = fade;
+        ctx.beginPath();
+        ctx.arc(0, -r * 0.15, r, Math.PI, 0);
+        const waves = 4;
+        for (let i = 0; i <= waves * 2; i++) {
+          const x = r - (i / (waves * 2)) * r * 2;
+          const y = r * 0.85 + (i % 2 ? -r * 0.22 : 0) + Math.sin(e.t * 6 + i) * r * 0.06;
+          ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        eyes(ctx, look, r * 0.3, r * 0.18, r * 0.08);
+        ctx.globalAlpha = 1;
+        break;
+      }
+      case 'vortex': {
+        const arms = e.phase > 0 ? 3 : 2;
+        // Faint ring: how far the pull reaches.
+        ctx.globalAlpha = 0.07;
+        ctx.setLineDash([6, 10]);
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, VORTEX_PULL_RANGE, 0, TAU);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        // Swirling arms around a dark core.
+        ctx.globalAlpha = 0.85;
+        ctx.lineWidth = 3;
+        for (let k = 0; k < arms; k++) {
+          ctx.beginPath();
+          for (let i = 0; i <= 24; i++) {
+            const tt = i / 24;
+            const a = e.angle + (k * TAU) / arms + tt * 2.4;
+            const rr = r * (0.35 + tt * 1.05);
+            ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+          }
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.6, 0, TAU);
+        ctx.fill();
+        ctx.stroke();
+        eyes(ctx, look, r * 0.24, r * 0.15, r * 0.07, true);
+        break;
+      }
       case 'bomber': {
         ctx.beginPath();
         ctx.arc(0, 0, r, 0, TAU);
@@ -1135,7 +1213,7 @@ export class Renderer {
       ctx.setLineDash([]);
       ctx.globalAlpha = 1;
     }
-    if (e.shielded) {
+    if (e.shielded && e.type !== 'ghost') {
       ctx.globalAlpha = 0.5 + 0.2 * Math.sin(time * 6 + e.seed);
       ctx.strokeStyle = '#cfd8ff';
       ctx.lineWidth = 1.6;

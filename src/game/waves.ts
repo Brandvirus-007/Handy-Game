@@ -23,7 +23,7 @@ export interface WavePlan {
   speedMul: number;
 }
 
-const BOSS_ORDER: BossType[] = ['maw', 'weaver', 'twins', 'hydra', 'eye'];
+const BOSS_ORDER: BossType[] = ['maw', 'weaver', 'twins', 'hydra', 'eye', 'vortex'];
 
 export const waveBudget = (n: number): number => 5 + 2.6 * n + 0.22 * n * n;
 

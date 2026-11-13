@@ -79,6 +79,8 @@ export interface SaveData {
   /** Trail designs owned and the one in use. */
   trails: TrailId[];
   trail: TrailId;
+  /** Weekly event: week number, best event score and how many goals were reached. */
+  weekly: { week: number; best: number; reached: number };
   /** Last picked mode and best scores of the extra modes. */
   mode: GameMode;
   modeBest: { blitz: number; bosses: number };
@@ -131,6 +133,7 @@ export const defaultSave = (): SaveData => ({
   pass: { season: 0, points: 0, free: [], premium: [], premiumSeason: 0 },
   mode: 'normal',
   modeBest: { blitz: 0, bosses: 0 },
+  weekly: { week: 0, best: 0, reached: 0 },
 });
 
 const num = (v: unknown, def: number, min = -Infinity, max = Infinity): number =>
@@ -245,6 +248,7 @@ export function sanitize(raw: unknown): SaveData {
     seenVersion: str(r.seenVersion, ''),
     trails: [...new Set(trails)],
     mode: oneOf(r.mode, ['normal', 'blitz', 'bosses'] as const, 'normal'),
+    weekly: { week: int(obj(r.weekly).week, 0), best: int(obj(r.weekly).best, 0), reached: int(obj(r.weekly).reached, 0, 0, 3) },
     modeBest: { blitz: int(obj(r.modeBest).blitz, 0), bosses: int(obj(r.modeBest).bosses, 0) },
     pass: {
       season: int(pass.season, 0),

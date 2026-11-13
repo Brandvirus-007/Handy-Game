@@ -19,10 +19,10 @@ Berührst du einen Schatten selbst, kostet das ein Herz.
 - **Kernmechanik „Schleife“** mit Multi-Kill- und Kombo-Multiplikatoren. Ein *magnetischer Schleifenschluss*
   verzeiht auf dem Touchscreen ein paar Pixel Ungenauigkeit.
 - **Steuerung:** Der Funke schwebt in einstellbarem Abstand über dem Finger (am Rand wird der Abstand kleiner, damit jede Stelle erreichbar bleibt). Alternativ gibt es eine Trackpad-Steuerung, bei der der Finger irgendwo liegen kann.
-- **10 Gegnertypen** (u. a. Wächter mit Schildaura, teleportierende Blinker, explodierende Bomber) und **5 Bosse**:
-  Schlund, Weberin, Zwillinge, Hydra und Auge. Alle fünf Wellen kommt ein Boss, mit jedem Durchgang stärker.
-- **31 Upgrades** mit Synergien (davon 4 legendäre Fusionen), **10 Funken** (zwei Premium, einer exklusiv im Shop, der Sonnenkern ab Stufe 50) und **5 Gebiete** mit eigener Farbwelt.
-- **Fortschritt:** Lichtstufen mit Stufenpfad (Funken, Upgrades und Werkstatt-Ränge werden bis Stufe 50 freigeschaltet), Etappen, 3 Tagesmissionen, 7-Tage-Bonus, Werkstatt mit 10 Verbesserungen, Booster, 31 Erfolge, tägliche Herausforderung.
+- **12 Gegnertypen** (u. a. Wächter mit Schildaura, teleportierende Blinker, explodierende Bomber, Prellbälle und Geister) und **6 Bosse**:
+  Schlund, Weberin, Zwillinge, Hydra, Auge und Wirbel. Alle fünf Wellen kommt ein Boss, mit jedem Durchgang stärker.
+- **31 Upgrades** mit Synergien (davon 4 legendäre Fusionen), **10 Funken** (zwei Premium, einer exklusiv im Shop, der Sonnenkern ab Stufe 50) und **6 Gebiete** mit eigener Farbwelt.
+- **Fortschritt:** Lichtstufen mit Stufenpfad (Funken, Upgrades und Werkstatt-Ränge werden bis Stufe 50 freigeschaltet), Etappen, 3 Tagesmissionen, 7-Tage-Bonus, Werkstatt mit 10 Verbesserungen, Booster, 32 Erfolge, tägliche Herausforderung, Wochen-Event mit Bronze/Silber/Gold.
 - **Lichtpass:** 28-Tage-Saisons mit 30 Stufen, Gratis- und Premium-Belohnungen (`light_pass`, 4,99 €), dazu 7 Spur-Designs.
 - **Modi:** Normal, Blitz (3 Minuten auf Punkte, ab Stufe 5) und Bossjagd (jede Welle ein Boss, ab Stufe 12).
 - **Wirtschaft:** Splitter (im Spiel verdient) und Diamanten (Etappen, Erfolge, Stufen, Missionen, Gratis-Werbung oder Kauf).
@@ -40,6 +40,7 @@ Berührst du einen Schatten selbst, kostet das ein Herz.
 | [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md) | Ursprünglicher Spielentwurf |
 | [`docs/PLAY_STORE_PLAN.md`](docs/PLAY_STORE_PLAN.md) | Recherche + Plan für die Play-Version (Wirtschaft, Werbung, Käufe) |
 | [`docs/PLAY_CONSOLE_CHECKLIST.md`](docs/PLAY_CONSOLE_CHECKLIST.md) | Schritt für Schritt zur Veröffentlichung |
+| [`docs/PLAY_GAMES_SETUP.md`](docs/PLAY_GAMES_SETUP.md) | Google Play Games: Bestenlisten und Erfolge einrichten |
 | [`docs/store/LISTING.md`](docs/store/LISTING.md) | Store-Texte DE/EN, Feature-Grafik, Screenshots |
 | [`android/README.md`](android/README.md) | App bauen, signieren, AdMob-IDs, Paketname |
 

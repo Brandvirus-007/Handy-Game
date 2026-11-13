@@ -9,7 +9,7 @@ import { rollOffer, UPGRADE_VALUES, getUpgrade, type OfferOptions, type UpgradeL
 import { META_VALUES } from './meta';
 import { getCharacter } from './characters';
 import { computeStats } from './stats';
-import { updateEnemy, splitterBurst, isHarmless } from './enemies';
+import { updateEnemy, splitterBurst, isHarmless, isPhased } from './enemies';
 import { updateBoss, hazardBeams } from './bosses';
 import type { MetaLevels } from './meta';
 import { HEADSTART_WAVE, type BoosterId } from '../economy/defs';
@@ -200,6 +200,16 @@ export class World {
     this.tx += dx;
     this.ty += dy;
     this.clampTarget();
+  }
+
+  /** Moves the spark (and its steering target) – used by the Vortex boss's pull. */
+  nudgePlayer(dx: number, dy: number): void {
+    if (!this.alive) return;
+    const r = TUNING.player.radius;
+    this.px = clamp(this.px + dx, r, this.w - r);
+    this.py = clamp(this.py + dy, r, this.h - r);
+    this.tx = clamp(this.tx + dx, r, this.w - r);
+    this.ty = clamp(this.ty + dy, r, this.h - r);
   }
 
   /** Absolute steering (direct touch mode): the spark heads for this point at its normal speed. */
@@ -918,8 +928,9 @@ export class World {
     const x = this.w / 2;
     const y = this.py > this.h / 2 ? this.h * 0.27 : this.h * 0.73;
     const type: EnemyType = boss === 'twins' ? 'twin' : boss;
-    const bx = boss === 'eye' ? this.w / 2 : x;
-    const by = boss === 'eye' ? this.h / 2 : y;
+    const centred = boss === 'eye' || boss === 'vortex';
+    const bx = centred ? this.w / 2 : x;
+    const by = centred ? this.h / 2 : y;
     this.markers.push({ x: bx, y: by, t: warn, total: warn, type, elite: false, flock: -1 });
     this.emit({ type: 'spawnWarn', x: bx, y: by, enemy: type });
   }
@@ -953,8 +964,8 @@ export class World {
       a.angle = Math.PI;
       b.seed = 1; // colour index
       this.enemies.push(a, b);
-    } else if (boss === 'eye') {
-      this.enemies.push(this.createEnemy('eye', this.w / 2, this.h / 2, false, 0, tier));
+    } else if (boss === 'eye' || boss === 'vortex') {
+      this.enemies.push(this.createEnemy(boss, this.w / 2, this.h / 2, false, 0, tier));
     } else {
       this.enemies.push(this.createEnemy(boss, x, y, false, 0, tier));
     }
@@ -1138,8 +1149,8 @@ export class World {
   private updateShields(): void {
     const wardens = this.enemies.filter((e) => e.type === 'warden' && !e.dead && e.t > 0.3);
     for (const e of this.enemies) {
-      e.shielded = false;
-      if (e.dead || e.boss || e.type === 'warden' || wardens.length === 0) continue;
+      e.shielded = isPhased(e);
+      if (e.shielded || e.dead || e.boss || e.type === 'warden' || wardens.length === 0) continue;
       for (const w of wardens) {
         if (dist2(e.x, e.y, w.x, w.y) < WARDEN_AURA * WARDEN_AURA) {
           e.shielded = true;

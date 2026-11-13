@@ -200,7 +200,10 @@ export class NativePlatform implements Platform {
         productIdentifiers: PRODUCTS.map((p) => p.id),
         productType: this.iap.PURCHASE_TYPE.INAPP,
       });
-      return PRODUCTS.map((p) => ({ id: p.id, price: products.find((x) => x.identifier === p.id)?.priceString ?? p.fallbackPrice }));
+      return PRODUCTS.map((p) => {
+        const x = products.find((q) => q.identifier === p.id);
+        return x ? { id: p.id, price: x.priceString, amount: x.price, currency: x.currencyCode } : { id: p.id, price: p.fallbackPrice };
+      });
     } catch {
       return fallback;
     }

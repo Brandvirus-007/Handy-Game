@@ -90,7 +90,8 @@ describe('game modes', () => {
   it('boss hunt makes every wave a boss wave', () => {
     for (let n = 1; n <= 12; n++) expect(isBossWave(n, ['bossonly'])).toBe(true);
     expect(bossForWave(1, ['bossonly']).tier).toBe(0);
-    expect(bossForWave(6, ['bossonly']).tier).toBe(1);
+    expect(bossForWave(6, ['bossonly']).tier).toBe(0);
+    expect(bossForWave(7, ['bossonly']).tier).toBe(1);
     expect(isBossWave(1, [])).toBe(false);
   });
 

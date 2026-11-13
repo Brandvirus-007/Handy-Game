@@ -3352,3 +3352,149 @@ button.level-chip:active b {
   font-size: 13.5px;
   line-height: 1.4;
 }
+
+/* Diamond costs always show their money value. */
+.gem-cost {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.gem-cost .eur {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.gem-cost.stacked {
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  line-height: 1.1;
+}
+
+.gem-cost.stacked .eur {
+  font-size: 10.5px;
+}
+
+.btn.gem-btn.mini {
+  min-height: 40px;
+}
+
+/* Events */
+.event-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.event-card.weekly {
+  border-color: rgba(255, 209, 102, 0.35);
+}
+
+.event-card .ev-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.event-card .ev-title {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.event-card .ev-when {
+  flex: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.event-card .hint {
+  margin: 0;
+  text-align: left;
+}
+
+.event-card .ev-spark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+}
+
+.event-card .ev-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.event-card .ev-foot b {
+  color: var(--text);
+}
+
+.perk-chips.neutral li {
+  background: rgba(176, 108, 255, 0.1);
+  border-color: rgba(176, 108, 255, 0.3);
+  color: var(--text);
+}
+
+.perk-chips.neutral li .ico {
+  color: #c9a2ff;
+}
+
+.event-card .goals {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.event-card .goal {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(22, 17, 48, 0.6);
+  font-size: 14px;
+}
+
+.event-card .goal .goal-score {
+  flex: 1;
+  font-weight: 650;
+}
+
+.event-card .goal.done {
+  border-color: rgba(125, 249, 255, 0.35);
+}
+
+.event-card .medal {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.event-card .medal.bronze {
+  background: rgba(205, 127, 50, 0.2);
+  color: #e0a46a;
+}
+
+.event-card .medal.silver {
+  background: rgba(200, 210, 230, 0.16);
+  color: #dfe6f5;
+}
+
+.event-card .medal.gold {
+  background: rgba(255, 209, 102, 0.2);
+  color: var(--gold);
+}

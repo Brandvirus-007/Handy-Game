@@ -22,6 +22,8 @@ export function updateBoss(w: World, e: Enemy, dt: number): void {
       return updateHead(w, e, dt);
     case 'eye':
       return updateEye(w, e, dt);
+    case 'vortex':
+      return updateVortex(w, e, dt);
     default:
       return;
   }
@@ -277,6 +279,55 @@ function updateEye(w: World, e: Enemy, dt: number): void {
         const a = w.rng.range(0, TAU);
         w.queueMarker('mote', clamp(e.x + Math.cos(a) * 90, 20, w.w - 20), clamp(e.y + Math.sin(a) * 90, 20, w.h - 20), false, 0);
       }
+    }
+  }
+}
+
+/* ───────────── Der Wirbel ───────────── */
+/** Distance within which the vortex pulls the spark towards itself. */
+export const VORTEX_PULL_RANGE = 300;
+
+function updateVortex(w: World, e: Enemy, dt: number): void {
+  const enraged = e.phase > 0;
+  // Slow drift on an ellipse around the middle of the arena (`bx` holds the drift angle).
+  e.bx += dt * 0.35;
+  const cx = w.w / 2 + Math.cos(e.bx) * w.w * 0.18;
+  const cy = w.h / 2 + Math.sin(e.bx) * w.h * 0.12;
+  e.vx = (cx - e.x) * 0.8;
+  e.vy = (cy - e.y) * 0.8;
+  e.angle += dt * (enraged ? 2.1 : 1.5) * tierSpeed(e);
+
+  // Pull: gentle near the edge of its range, stronger close by.
+  const dx = e.x - w.px;
+  const dy = e.y - w.py;
+  const d = len(dx, dy) || 1;
+  if (d < VORTEX_PULL_RANGE && d > e.r + 10) {
+    const strength = (enraged ? 70 : 48) * tierSpeed(e) * (1 - d / VORTEX_PULL_RANGE);
+    w.nudgePlayer((dx / d) * strength * dt, (dy / d) * strength * dt);
+  }
+
+  // Spiral bursts with calm pauses in between (`ay` is the shot timer).
+  e.timer -= dt;
+  if (e.state === 0) {
+    if (e.timer <= 0) {
+      e.state = 1;
+      e.timer = enraged ? 3 : 2.4;
+      e.ay = 0;
+      w.emit({ type: 'bossAttack', x: e.x, y: e.y });
+    }
+  } else {
+    e.ay -= dt;
+    if (e.ay <= 0) {
+      e.ay = 0.2;
+      const arms = enraged ? 3 : 2;
+      for (let k = 0; k < arms; k++) {
+        const a = e.angle + (k * TAU) / arms;
+        w.shoot(e.x + Math.cos(a) * e.r, e.y + Math.sin(a) * e.r, a, 85 * tierSpeed(e), 5);
+      }
+    }
+    if (e.timer <= 0) {
+      e.state = 0;
+      e.timer = (enraged ? 2 : 2.8) / tierSpeed(e);
     }
   }
 }

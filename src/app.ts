@@ -10,6 +10,7 @@ import { getMode, type GameMode } from './game/modes';
 import { META_VALUES, metaCost, metaLevelReq, getMeta } from './game/meta';
 import { anyMetaBuyable, unlocksBetween, type Unlock } from './economy/unlocks';
 import { addPassXp, claimAllPass, claimPass, ensureSeason, passTier, type PassTrack } from './economy/pass';
+import { ensureWeek, recordWeekly, weekOf, weeklyTheme } from './economy/weekly';
 import { getUpgrade } from './game/upgrades';
 import { dailySetup, type DailySetup } from './game/modifiers';
 import type { AchievementId } from './game/achievements';
@@ -23,6 +24,7 @@ import { UI } from './ui/ui';
 import { Tutorial } from './tutorial';
 import { createPlatform, type Platform } from './platform';
 import { WebPlatform } from './platform/web';
+import { GameServices } from './platform/games';
 import type { CompletedPurchase, RewardResult, StoreProduct } from './platform/types';
 import {
   EXCHANGE,
@@ -82,6 +84,9 @@ export interface RunResult {
   mode: GameMode;
   /** Blitz run that ended because the time ran out. */
   timeUp: boolean;
+  weekly: boolean;
+  /** Weekly goals reached in this run (0 = bronze … 2 = gold). */
+  weeklyGoals: number[];
   milestones: { wave: number; diamonds: number }[];
   missionsDone: number;
   canDouble: boolean;
@@ -97,6 +102,8 @@ type State = 'menu' | 'playing' | 'paused' | 'upgrade' | 'dying' | 'continue' | 
 
 interface RunSetup {
   daily: boolean;
+  /** Weekly event run. */
+  weekly: boolean;
   mode: GameMode;
   tutorial: boolean;
   character: CharacterId;
@@ -161,6 +168,8 @@ export class App {
   private busy = false;
   private pricesLoading = false;
   /** Live demo behind the main menu: a bot catching shadows. */
+  /** Google Play Games (leaderboards, achievements) – a no-op until configured. */
+  games!: GameServices;
   private demo: World | null = null;
   private demoVisible = false;
   private demoAcc = 0;
@@ -184,6 +193,7 @@ export class App {
       gesture: () => this.audio.unlock(),
     });
     this.haptics.sink = (p) => this.platform.vibrate(p);
+    this.games = new GameServices(this.platform.native);
   }
 
   async boot(): Promise<void> {
@@ -214,6 +224,7 @@ export class App {
 
     ensureMissions(this.save.data, localDateKey());
     ensureSeason(this.save.data, localDateKey());
+    ensureWeek(this.save.data, localDateKey());
     this.save.save();
     this.startDemo();
     this.ui.showMenu();
@@ -224,6 +235,7 @@ export class App {
     void this.platform.getProducts().then((p) => (this.products = p));
     void this.platform.recoverPurchases((p) => void this.credit(p));
     void this.restoreEntitlements(true);
+    void this.games.init().then(() => this.syncGames());
     this.afterUpdate();
   }
 
@@ -258,6 +270,7 @@ export class App {
   refreshDay(): void {
     ensureMissions(this.save.data, localDateKey());
     ensureSeason(this.save.data, localDateKey());
+    ensureWeek(this.save.data, localDateKey());
     this.save.save();
     if (this.state === 'menu') this.offerDailyLogin();
   }
@@ -350,19 +363,19 @@ export class App {
   // ───────────────────────── Run lifecycle ─────────────────────────
 
   /** "Play": first time → tutorial, otherwise the booster/preparation screen. */
-  startRun(daily: boolean): void {
-    if (!this.save.data.tutorialDone && !daily) {
+  startRun(daily: boolean, weekly = false): void {
+    if (!this.save.data.tutorialDone && !daily && !weekly) {
       this.startTutorial();
       return;
     }
     this.toMenuState();
-    this.ui.showPrerun(daily);
+    this.ui.showPrerun(daily, weekly);
   }
 
   /** Called by the preparation screen. Pays for the boosters and starts the run. */
-  launchRun(daily: boolean, boosters: BoosterId[], mode: GameMode = 'normal'): boolean {
+  launchRun(daily: boolean, boosters: BoosterId[], mode: GameMode = 'normal', weekly = false): boolean {
     const s = this.save.data;
-    const m = getMode(daily ? 'normal' : mode);
+    const m = getMode(daily || weekly ? 'normal' : mode);
     if (m.unlockLevel > s.level) {
       this.audio.denied();
       return false;
@@ -376,13 +389,15 @@ export class App {
     s.boosters = chosen;
     this.save.save();
     const d = daily ? this.dailyInfo() : null;
-    if (!daily) s.mode = m.id;
+    if (!daily && !weekly) s.mode = m.id;
+    const theme = weekly ? weeklyTheme(weekOf(localDateKey())) : null;
     this.begin({
       daily,
+      weekly,
       mode: m.id,
       tutorial: false,
       character: d ? d.character : s.selected,
-      modifiers: d ? d.modifiers : [...m.modifiers],
+      modifiers: d ? d.modifiers : theme ? [...theme.modifiers] : [...m.modifiers],
       seed: d ? d.seed : randomSeed(),
       boosters: chosen,
     });
@@ -390,7 +405,7 @@ export class App {
   }
 
   startTutorial(): void {
-    this.begin({ daily: false, mode: 'normal', tutorial: true, character: this.save.data.selected, modifiers: [], seed: 1, boosters: [] });
+    this.begin({ daily: false, weekly: false, mode: 'normal', tutorial: true, character: this.save.data.selected, modifiers: [], seed: 1, boosters: [] });
     this.tutorial = new Tutorial(this, this.world!);
   }
 
@@ -677,7 +692,12 @@ export class App {
     s.ads.runsSinceInterstitial++;
 
     let newBest = false;
-    if (setup.daily) {
+    let weeklyGoals: number[] = [];
+    if (setup.weekly) {
+      const before = s.weekly.best;
+      weeklyGoals = recordWeekly(s, r.score, localDateKey());
+      newBest = r.score > before && r.score > 0;
+    } else if (setup.daily) {
       const date = this.dailyInfo().date;
       if (s.daily.date !== date) {
         s.daily = { date, best: r.score };
@@ -731,6 +751,12 @@ export class App {
     if (st.shardsTotal >= 1000) this.unlock('shards1000');
     this.save.save();
 
+    // Leaderboards: each mode reports into its own board.
+    if (setup.weekly) this.games.submit('weekly', r.score);
+    else if (!setup.daily && setup.mode === 'normal') {
+      this.games.submit('score', r.score);
+      this.games.submit('wave', r.wavesCleared);
+    } else if (!setup.daily && setup.mode !== 'normal') this.games.submit(setup.mode, r.score);
     const canAfford = anyMetaBuyable(s);
     this.ui.hud.show(false);
     this.audio.duck(true);
@@ -755,6 +781,8 @@ export class App {
       pass: { tier: passTier(s.pass.points), gained: passGained },
       mode: setup.mode,
       timeUp: w.timeUp,
+      weekly: setup.weekly,
+      weeklyGoals,
       milestones: [...this.runMilestones],
       missionsDone: done.length,
       canDouble: r.shards > 0,
@@ -1011,6 +1039,23 @@ export class App {
     return this.products.find((p) => p.id === id)?.price ?? getProduct(id).fallbackPrice;
   }
 
+  /**
+   * Real-money value of a diamond amount, based on the smallest diamond pack (store price when known).
+   * Shown next to every diamond price so players always see what something costs.
+   */
+  diamondValue(diamonds: number): string {
+    const pack = getProduct('diamonds_80');
+    const store = this.products.find((p) => p.id === pack.id);
+    const packPrice = store?.amount ?? 0.99;
+    const currency = store?.currency ?? 'EUR';
+    const value = (packPrice / (pack.reward.diamonds ?? 80)) * diamonds;
+    try {
+      return new Intl.NumberFormat(this.lang === 'de' ? 'de-DE' : 'en-US', { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+    } catch {
+      return `${value.toFixed(2)} ${currency}`;
+    }
+  }
+
   async buyProduct(id: ProductId): Promise<void> {
     if (this.busy) return;
     this.busy = true;
@@ -1089,10 +1134,23 @@ export class App {
     if (this.ui.screenName === 'menu') this.ui.showMenu();
   }
 
+  /** Pushes records and unlocked achievements to Play Games (after sign-in; both calls are idempotent). */
+  syncGames(): void {
+    if (!this.games.signedIn) return;
+    const s = this.save.data;
+    this.games.submit('score', s.best);
+    this.games.submit('wave', s.bestWave);
+    this.games.submit('blitz', s.modeBest.blitz);
+    this.games.submit('bosses', s.modeBest.bosses);
+    if (s.weekly.week === weekOf(localDateKey())) this.games.submit('weekly', s.weekly.best);
+    for (const id of Object.keys(s.ach) as AchievementId[]) this.games.unlock(id);
+  }
+
   private unlock(id: AchievementId): void {
     const s = this.save.data;
     if (s.ach[id]) return;
     s.ach[id] = Date.now();
+    this.games.unlock(id);
     const d = achievementDiamonds(id);
     s.diamonds += d;
     this.newAch.push(id);
@@ -1350,7 +1408,7 @@ export class App {
           this.haptics.buzz(12);
           break;
         case 'spawnWarn':
-          this.audio.spawnWarn(e.enemy === 'maw' || e.enemy === 'weaver' || e.enemy === 'twin' || e.enemy === 'hydra' || e.enemy === 'eye');
+          this.audio.spawnWarn(e.enemy === 'maw' || e.enemy === 'weaver' || e.enemy === 'twin' || e.enemy === 'hydra' || e.enemy === 'eye' || e.enemy === 'vortex');
           break;
         case 'shoot':
           this.audio.shoot();
@@ -1421,6 +1479,7 @@ export class App {
             twins: 'boss_twins',
             hydra: 'boss_hydra',
             eye: 'boss_eye',
+            vortex: 'boss_vortex',
           };
           this.unlock(ach[e.boss]);
           break;

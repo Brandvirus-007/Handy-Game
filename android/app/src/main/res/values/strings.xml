@@ -6,4 +6,7 @@
     <string name="custom_url_scheme">app.lumenloop.game</string>
     <!-- Replace with your AdMob app ID (ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY) before publishing. -->
     <string name="admob_app_id">ca-app-pub-3940256099942544~3347511713</string>
+    <!-- Google Play Games: the numeric project ID from Play Console (Play Games Services → Configuration).
+         "0" keeps Play Games switched off. See docs/PLAY_GAMES_SETUP.md. -->
+    <string name="games_app_id" translatable="false">0</string>
 </resources>

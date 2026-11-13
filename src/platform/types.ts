@@ -9,6 +9,9 @@ export interface StoreProduct {
   id: ProductId;
   /** Localised price from the store (or a fallback label in the web demo). */
   price: string;
+  /** Numeric price and ISO currency from the store (missing in the web demo). */
+  amount?: number;
+  currency?: string;
 }
 
 /** A purchase the store reports as paid. The app credits it, then calls `finish`. */

@@ -18,9 +18,12 @@ export type EnemyType =
   | 'twin'
   | 'hydra'
   | 'head'
-  | 'eye';
+  | 'eye'
+  | 'bouncer'
+  | 'ghost'
+  | 'vortex';
 
-export type BossType = 'maw' | 'weaver' | 'twins' | 'hydra' | 'eye';
+export type BossType = 'maw' | 'weaver' | 'twins' | 'hydra' | 'eye' | 'vortex';
 
 export type CharacterId = 'spark' | 'comet' | 'ember' | 'prism' | 'nova' | 'phantom' | 'glacier' | 'volt' | 'solar' | 'aurora';
 

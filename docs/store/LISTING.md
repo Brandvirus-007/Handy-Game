@@ -28,7 +28,7 @@ SO SPIELT ES SICH
 Es gibt keinen Joystick und keine Knöpfe, du zeichnest einfach. Große Schleifen fangen viele Schatten, bringen dich aber auch nah an sie heran. Der Funke schwebt knapp über deinem Finger, damit du ihn immer siehst.
 
 GEGNER
-10 Arten von Schatten und 5 Bosse. Scheren zerschneiden deine Spur, Wächter schützen andere Schatten, Bomber explodieren. Die Hydra teilt sich in drei Köpfe, das Auge dreht einen Laserstrahl im Kreis.
+12 Arten von Schatten und 6 Bosse. Scheren zerschneiden deine Spur, Wächter schützen andere Schatten, Geister werden unsichtbar. Die Hydra teilt sich in drei Köpfe, das Auge dreht einen Laserstrahl im Kreis, der Wirbel zieht dich an.
 
 UPGRADES
 31 Upgrades, zum Beispiel Schockwelle, Kettenblitz, Echo, Frost und Zeitlupe. Manche passen gut zusammen, und aus bestimmten Paaren werden Fusionen.
@@ -40,10 +40,10 @@ MODI
 Normal mit Bossen alle 5 Wellen, Blitz mit 3 Minuten auf Zeit und Bossjagd, bei der jede Welle ein Boss ist.
 
 FORTSCHRITT
-Eine tägliche Herausforderung, drei Tagesmissionen, ein Bonus für jeden Tag, an dem du spielst, Stufen bis 50 mit neuen Freischaltungen, eine Werkstatt für dauerhafte Verbesserungen, ein Lichtpass mit 30 Stufen pro Saison, Spur-Designs und 31 Erfolge.
+Eine tägliche Herausforderung, drei Tagesmissionen, ein Bonus für jeden Tag, an dem du spielst, Stufen bis 50 mit neuen Freischaltungen, eine Werkstatt für dauerhafte Verbesserungen, ein Lichtpass mit 30 Stufen pro Saison, Spur-Designs, ein Wochen-Event mit Bronze, Silber und Gold und 32 Erfolge. Mit Google Play Games gibt es Bestenlisten.
 
 SONST NOCH
-5 Gebiete mit eigenen Farben. Musik und Sounds erzeugt das Spiel selbst. Vibration, Spielen ohne Internet, und wenn du die App wechselst, pausiert das Spiel.
+6 Gebiete mit eigenen Farben. Musik und Sounds erzeugt das Spiel selbst. Vibration, Spielen ohne Internet, und wenn du die App wechselst, pausiert das Spiel.
 
 Das Spiel ist kostenlos. Es enthält Werbung und freiwillige In-App-Käufe.
 ```
@@ -71,7 +71,7 @@ HOW IT PLAYS
 There is no joystick and there are no buttons. You just draw. Big loops catch lots of shadows, but they also bring you close to them. The spark hovers just above your finger, so you can always see it.
 
 ENEMIES
-10 kinds of shadows and 5 bosses. Scissors cut your trail, wardens protect other shadows, bombers explode. The Hydra splits into three heads, and the Eye sweeps a laser beam around the arena.
+12 kinds of shadows and 6 bosses. Scissors cut your trail, wardens protect other shadows, ghosts turn invisible. The Hydra splits into three heads, the Eye sweeps a laser beam around the arena, and the Vortex pulls you in.
 
 UPGRADES
 31 upgrades, such as shockwave, chain lightning, echo, frost and slow motion. Some work well together, and certain pairs turn into fusions.
@@ -83,10 +83,10 @@ MODES
 Normal with a boss every 5 waves, Blitz with 3 minutes on the clock, and Boss Hunt, where every wave is a boss.
 
 PROGRESS
-A daily challenge, three daily missions, a bonus for every day you play, levels up to 50 with new unlocks, a workshop for permanent upgrades, a Light Pass with 30 tiers per season, trail designs and 31 achievements.
+A daily challenge, three daily missions, a bonus for every day you play, levels up to 50 with new unlocks, a workshop for permanent upgrades, a Light Pass with 30 tiers per season, trail designs, a weekly event with bronze, silver and gold, and 32 achievements. With Google Play Games there are leaderboards.
 
 ALSO
-5 regions with their own colours. The game makes its own music and sounds. Vibration, offline play, and the game pauses when you switch apps.
+6 regions with their own colours. The game makes its own music and sounds. Vibration, offline play, and the game pauses when you switch apps.
 
 The game is free. It contains ads and optional in-app purchases.
 ```
@@ -141,4 +141,26 @@ EN: First release. Draw loops of light, catch the shadows and last as many waves
 • New modes: Blitz (3 minutes against the clock) and Boss Hunt
 • New controls: the spark hovers above your finger
 • Bug fixes
+```
+
+## Versionshinweise 2.3.0
+
+**Deutsch:**
+```
+• Neuer Boss: Der Wirbel zieht dich an und schießt Spiralarme
+• Neue Gegner: Prellball und Geist
+• Neues Gebiet: die Kristallgrotte ab Welle 51
+• Wochen-Event mit Bronze, Silber und Gold
+• Google Play Games: Bestenlisten und Erfolge
+• Bei Diamant-Preisen steht jetzt auch der Euro-Wert
+```
+
+**English:**
+```
+• New boss: the Vortex pulls you in and fires spiral arms
+• New enemies: Bouncer and Ghost
+• New region: the Crystal Grotto from wave 51
+• Weekly event with bronze, silver and gold
+• Google Play Games: leaderboards and achievements
+• Diamond prices now also show their money value
 ```

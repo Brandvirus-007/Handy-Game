@@ -183,13 +183,52 @@ export function updateEnemy(w: World, e: Enemy, dt: number): void {
       break;
     }
 
+    case 'bouncer': {
+      // Flies straight and bounces off the walls; now and then it re-aims at the player.
+      if (e.state === 0) {
+        e.state = 1;
+        e.angle = Math.atan2(py - e.y, px - e.x) + w.rng.range(-0.5, 0.5);
+        e.timer = w.rng.range(2.5, 3.5);
+      }
+      e.timer -= dt;
+      if (e.timer <= 0) {
+        e.angle = Math.atan2(py - e.y, px - e.x) + w.rng.range(-0.35, 0.35);
+        e.timer = w.rng.range(2.5, 3.5);
+      }
+      const m = e.r + 2;
+      let vx = Math.cos(e.angle);
+      let vy = Math.sin(e.angle);
+      if ((e.x < m && vx < 0) || (e.x > w.w - m && vx > 0)) vx = -vx;
+      if ((e.y < m && vy < 0) || (e.y > w.h - m && vy > 0)) vy = -vy;
+      e.angle = Math.atan2(vy, vx);
+      e.vx = vx * e.speed;
+      e.vy = vy * e.speed;
+      break;
+    }
+
+    case 'ghost': {
+      // Cycle: visible (state 0) → fading (1) → invisible and untouchable (2) → fading in (3).
+      seek(e, px, py, e.speed * (e.state === 2 ? 1.25 : 1), 0.45, 1.6);
+      e.timer -= dt;
+      if (e.timer <= 0) {
+        e.state = (e.state + 1) % 4;
+        e.timer = e.state === 0 ? w.rng.range(2.2, 2.8) : e.state === 2 ? w.rng.range(1.4, 1.9) : GHOST_FADE;
+      }
+      break;
+    }
+
     default:
       break;
   }
 }
 
+export const GHOST_FADE = 0.45;
+
+/** Ghosts in their invisible phase cannot be caught or damaged (only Pierce loops reach them). */
+export const isPhased = (e: Enemy): boolean => e.type === 'ghost' && e.state === 2;
+
 /** Enemies that may not deal contact damage right now. */
-export const isHarmless = (e: Enemy): boolean => e.type === 'blinker' && e.state === 2;
+export const isHarmless = (e: Enemy): boolean => (e.type === 'blinker' && e.state === 2) || isPhased(e);
 
 /** Spawn burst of minis when a splitter dies. */
 export function splitterBurst(w: World, e: Enemy): void {
