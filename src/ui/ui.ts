@@ -1,5 +1,7 @@
 import { t, fmt, fmtShort, type I18nKey } from '../core/i18n';
 import { CHARACTERS, getCharacter } from '../game/characters';
+import { TRAILS, type TrailId } from '../game/trails';
+import { MODES, getMode, type GameMode } from '../game/modes';
 import { META, META_VALUES, metaCost, metaLevelReq } from '../game/meta';
 import { ACHIEVEMENTS } from '../game/achievements';
 import { getUpgrade, UPGRADE_VALUES } from '../game/upgrades';
@@ -24,6 +26,8 @@ import {
   type Reward,
 } from '../economy/defs';
 import { anyMetaBuyable, levelPath, nextUnlockLevel, type Unlock } from '../economy/unlocks';
+import { PASS_FREE, PASS_PREMIUM, PASS_TIERS, PASS_XP_PER_TIER, canClaim, hasPremium, passClaimable, passTier, premiumTotals, seasonDaysLeft, type PassReward, type PassTrack } from '../economy/pass';
+import { localDateKey } from '../core/rng';
 import { achievementDiamonds, availableBoosters, boosterCost, canClaimMissionBonus, missionsClaimable } from '../economy/profile';
 import { privacyHtml } from './privacy';
 import { icon } from './icons';
@@ -233,6 +237,7 @@ export class UI {
     else if (name === 'sparks') this.showSparks();
     else if (name === 'workshop') this.showWorkshop();
     else if (name === 'missions') this.showMissions();
+    else if (name === 'pass') this.showPass();
   }
 
   private wallet(): string {
@@ -281,6 +286,7 @@ export class UI {
         <div class="logo"><h1><span>LUMEN</span><span>LOOP</span></h1><p>${t('app.tagline')}</p></div>
         <button class="char-chip" data-act="sparks">${orb(s.selected)}<span>${t(`char.${s.selected}.name` as I18nKey)}</span></button>
         <button class="btn primary" data-act="play">${icon('play', 22)}${t('menu.play')}</button>
+        ${this.passBar()}
         <div class="grid3">
           <button class="btn" data-act="missions">${icon('target', 24)}${t('menu.missions')}${missions ? `<span class="count">${missions}</span>` : ''}</button>
           <button class="btn" data-act="daily">${icon('calendar', 24)}${t('menu.daily')}${dailyPlayed ? '' : '<span class="badge"></span>'}</button>
@@ -308,6 +314,7 @@ export class UI {
         else if (act === 'missions') this.showMissions();
         else if (act === 'settings') this.showSettings('menu');
         else if (act === 'levels') this.showLevels();
+        else if (act === 'pass') this.showPass();
         else if (act === 'install') this.app.install();
       },
     });
@@ -322,17 +329,108 @@ export class UI {
     this.showMenu();
   }
 
+  // ───────────────────────── Light pass ─────────────────────────
+
+  /** Wide entry under the play button: current tier, progress and a badge when rewards wait. */
+  private passBar(): string {
+    const s = this.app.save.data;
+    const tier = passTier(s.pass.points);
+    const into = tier >= PASS_TIERS ? 1 : (s.pass.points % PASS_XP_PER_TIER) / PASS_XP_PER_TIER;
+    const ready = passClaimable(s);
+    return `<button class="pass-bar" data-act="pass">
+      <span class="pass-ico">${icon('crown', 20)}</span>
+      <span class="pass-body"><span class="pass-name">${t('pass.title')}</span>
+        <span class="pass-track"><i style="width:${Math.round(into * 100)}%"></i></span></span>
+      <span class="pass-tier">${t('pass.tier', { n: tier, max: PASS_TIERS })}</span>
+      ${ready ? `<span class="count">${ready}</span>` : ''}
+    </button>`;
+  }
+
+  private passRewardHtml(r: PassReward): string {
+    if (r.trail) return `<span class="pr-trail">${icon('trail', 15)}${esc(t(`trail.${r.trail}` as I18nKey))}</span>`;
+    if (r.diamonds) return this.price('diamonds', r.diamonds);
+    return this.price('coins', r.coins ?? 0);
+  }
+
+  showPass(): void {
+    const s = this.app.save.data;
+    const tier = passTier(s.pass.points);
+    const premium = hasPremium(s);
+    const into = tier >= PASS_TIERS ? PASS_XP_PER_TIER : s.pass.points % PASS_XP_PER_TIER;
+    const ready = passClaimable(s);
+    const cell = (n: number, track: PassTrack) => {
+      const r = (track === 'free' ? PASS_FREE : PASS_PREMIUM)[n - 1];
+      const claimed = (track === 'free' ? s.pass.free : s.pass.premium).includes(n);
+      const can = canClaim(s, n, track);
+      const lockedPremium = track === 'premium' && !premium;
+      const cls = claimed ? 'claimed' : can ? 'ready' : 'locked';
+      const mark = claimed ? icon('check', 15) : lockedPremium ? icon('lock', 13) : '';
+      return `<button class="pass-cell ${track} ${cls}" data-act="claim" data-tier="${n}" data-track="${track}" ${can ? '' : 'disabled'}>
+        ${this.passRewardHtml(r)}<span class="mark">${mark}</span></button>`;
+    };
+    const rows = Array.from({ length: PASS_TIERS }, (_, i) => i + 1)
+      .map((n) => `<div class="pass-row ${n <= tier ? 'reached' : ''} ${n === tier + 1 ? 'next' : ''}">
+        <span class="pass-num">${n}</span>${cell(n, 'free')}${cell(n, 'premium')}</div>`)
+      .join('');
+    const totals = premiumTotals();
+    const buy = premium
+      ? ''
+      : `<div class="panel pass-premium">
+          <div class="pp-head">${icon('crown', 22)}<span>${t('pass.premiumCard')}</span></div>
+          <ul class="perks">
+            <li>${icon('gem', 16)}<span>${esc(t('perk.diamonds', { n: fmt(totals.diamonds) }))}</span></li>
+            <li>${icon('shard', 16)}<span>${esc(t('perk.coins', { n: fmt(totals.coins) }))}</span></li>
+            <li>${icon('trail', 16)}<span>${esc(t('pass.trails', { names: totals.trails.map((id) => t(`trail.${id}` as I18nKey)).join(', ') }))}</span></li>
+            <li>${icon('check', 16)}<span>${esc(t('pass.retro'))}</span></li>
+          </ul>
+          <button class="btn buy" data-act="buypass">${icon('crown', 18)}${esc(this.app.priceOf('light_pass'))}</button>
+        </div>`;
+    const html = `${this.backBar(t('pass.title'), this.wallet())}
+      <div class="screen-inner top">
+        <div class="panel pass-head">
+          <div class="ph-top"><span class="ph-season">${t('pass.season', { n: s.pass.season })}</span>
+            <span class="ph-days">${t('pass.daysLeft', { n: seasonDaysLeft(localDateKey()) })}</span></div>
+          <div class="ph-tier">${t('pass.tier', { n: tier, max: PASS_TIERS })}${premium ? `<span class="premium-tag">${t('pass.premiumTag')}</span>` : ''}</div>
+          <span class="xpbar"><i style="width:${Math.round((into / PASS_XP_PER_TIER) * 100)}%"></i></span>
+          <div class="desc">${tier >= PASS_TIERS ? t('pass.done') : t('pass.xp', { n: fmt(into), max: fmt(PASS_XP_PER_TIER) })}</div>
+          ${ready ? `<button class="btn primary small" data-act="claimall">${icon('gift', 18)}${t('pass.claimAll', { n: ready })}</button>` : ''}
+        </div>
+        ${buy}
+        <p class="hint" style="margin:0">${t('pass.desc')}</p>
+        <div class="pass-cols"><span></span><span>${t('pass.free')}</span><span>${t('pass.premium')}</span></div>
+        <div class="pass-list">${rows}</div>
+      </div>`;
+    this.open('pass', html, {
+      onAction: (act, btn) => {
+        if (this.walletAction(act)) return;
+        if (act === 'back') this.back();
+        else if (act === 'claim') {
+          if (this.app.claimPassTier(Number(btn.dataset.tier), btn.dataset.track as PassTrack)) this.showPass();
+        } else if (act === 'claimall') {
+          if (this.app.claimAllPassRewards()) this.showPass();
+        } else if (act === 'buypass') {
+          this.app.audio.uiClick();
+          void this.app.buyProduct('light_pass').then(() => {
+            if (this.screenName === 'pass') this.showPass();
+          });
+        }
+      },
+    });
+  }
+
   // ───────────────────────── Level path ─────────────────────────
 
   unlockName(u: Unlock): string {
     if (u.kind === 'char') return t(`char.${u.id}.name` as I18nKey);
     if (u.kind === 'upgrade') return t('unlock.upgrade', { name: t(`upgrade.${u.id}.name` as I18nKey) });
+    if (u.kind === 'mode') return t('unlock.mode', { name: t(`mode.${u.id}.name` as I18nKey) });
     const name = t(`meta.${u.id}.name` as I18nKey);
     return u.rank <= 1 ? t('unlock.workshop', { name }) : t('unlock.metaRank', { name, n: u.rank });
   }
 
   unlockIcon(u: Unlock, size: number): string {
     if (u.kind === 'char') return `<i class="mini-orb" style="--c:${getCharacter(u.id).color}"></i>`;
+    if (u.kind === 'mode') return icon(u.id === 'blitz' ? 'bolt' : 'target', size);
     return icon(u.kind === 'meta' ? `meta.${u.id}` : u.id, size);
   }
 
@@ -398,6 +496,18 @@ export class UI {
     const available = availableBoosters(s).map((b) => b.id);
     let selected = s.boosters.filter((b) => available.includes(b));
     const charId = daily ? this.app.dailyInfo().character : s.selected;
+    let mode: GameMode = !daily && getMode(s.mode).unlockLevel <= s.level ? s.mode : 'normal';
+    const modePicker = () => {
+      if (daily) return '';
+      const buttons = MODES.map((m) => {
+        const locked = m.unlockLevel > s.level;
+        return `<button class="${m.id === mode ? 'on' : ''}" data-act="mode" data-id="${m.id}" ${locked ? 'disabled' : ''}>
+          <span>${t(`mode.${m.id}.name` as I18nKey)}</span>${locked ? `<small>${icon('lock', 11)}${t('common.levelReq', { n: m.unlockLevel })}</small>` : ''}</button>`;
+      }).join('');
+      const best = mode === 'normal' ? s.best : s.modeBest[mode];
+      return `<div class="panel"><h3>${t('mode.title')}</h3><div class="mode-seg">${buttons}</div>
+        <p class="mode-info">${t(`mode.${mode}.desc` as I18nKey)} ${best > 0 ? t('mode.best', { n: fmt(best) }) : ''}</p></div>`;
+    };
 
     const render = () => {
       const cost = boosterCost(selected);
@@ -417,6 +527,7 @@ export class UI {
         <div class="screen-inner">
           <button class="char-chip" data-act="${daily ? 'none' : 'sparks'}">${orb(charId)}<span>${t(`char.${charId}.name` as I18nKey)}</span>
             ${daily ? '' : `<small>${t('prerun.changeSpark')}</small>`}</button>
+          ${modePicker()}
           <div class="panel"><h3>${t('prerun.boosters')}</h3><div class="boosters">${items}</div></div>
           <div class="records">${costText}</div>
           <button class="btn primary" data-act="start" ${affordable ? '' : 'disabled'}>${icon('play', 22)}${t('prerun.start')}</button>
@@ -435,9 +546,13 @@ export class UI {
           selected = selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id];
           this.app.audio.uiClick();
           el.innerHTML = render();
+        } else if (act === 'mode') {
+          mode = btn.dataset.id as GameMode;
+          this.app.audio.uiClick();
+          el.innerHTML = render();
         } else if (act === 'start') {
           this.app.audio.uiSelect();
-          if (!this.app.launchRun(daily, selected)) el.innerHTML = render();
+          if (!this.app.launchRun(daily, selected, mode)) el.innerHTML = render();
         }
       },
     });
@@ -526,6 +641,13 @@ export class UI {
         ${s.chars.includes('aurora') ? '' : this.exclusiveOffer()}
         <div class="panel"><h3>${t('shop.offers')}</h3><div class="list">
           ${offer('starter_pack', t('shop.starterDesc'))}
+          ${
+            hasPremium(s)
+              ? ''
+              : `<div class="offer pass-offer"><div class="ico-wrap">${icon('crown', 28)}</div>
+              <div class="body"><div class="name">${t('pass.premiumCard')}</div><div class="desc">${t('shop.passDesc')}</div></div>
+              <button class="btn small buy" data-act="openpass">${t('shop.view')}</button></div>`
+          }
           ${offer('no_ads', t('shop.noAdsDesc'))}
         </div></div>
         <div class="panel"><h3>${t('shop.diamonds')}</h3><div class="packs">${packs}</div></div>
@@ -539,6 +661,9 @@ export class UI {
         else if (act === 'buy') {
           this.app.audio.uiClick();
           void this.app.buyProduct(btn.dataset.id as ProductId).then(() => this.refresh());
+        } else if (act === 'openpass') {
+          this.app.audio.uiClick();
+          this.showPass();
         } else if (act === 'freead') {
           void this.app.freeDiamonds().then(() => this.refresh());
         } else if (act === 'exchange') {
@@ -578,6 +703,30 @@ export class UI {
     if (c.trailMul < 1) out.push({ ico: 'trail', text: t('perk.trailMinus', { n: pct(c.trailMul) }), minus: true });
     if (c.lifeMul < 1) out.push({ ico: 'afterglow', text: t('perk.trailLifeMinus', { n: pct(c.lifeMul) }), minus: true });
     return out;
+  }
+
+  /** Trail designs: selected, owned, for sale or from the light pass. */
+  private trailPicker(): string {
+    const s = this.app.save.data;
+    const c = getCharacter(s.selected);
+    const tiles = TRAILS.map((tr) => {
+      const owned = s.trails.includes(tr.id);
+      const on = s.trail === tr.id;
+      const glow = tr.glow ?? c.trail;
+      const core = tr.core ?? c.color;
+      const state = on
+        ? `<span class="tstate on">${icon('check', 13)}${t('trails.active')}</span>`
+        : owned
+          ? `<span class="tstate">${t('common.select')}</span>`
+          : tr.price > 0
+            ? `<span class="tstate">${this.price('diamonds', tr.price)}</span>`
+            : `<span class="tstate locked">${icon('lock', 12)}${t('pass.title')}</span>`;
+      const disabled = !owned && tr.price <= 0;
+      return `<button class="trail-tile ${on ? 'on' : ''}" data-act="trail" data-id="${tr.id}" ${disabled ? 'disabled' : ''}>
+        <span class="swatch ${tr.style}" style="--g:${glow};--c:${core};--a:${tr.alt ?? glow}"></span>
+        <span class="tname">${t(`trail.${tr.id}` as I18nKey)}</span>${state}</button>`;
+    }).join('');
+    return `<div class="panel"><h3>${t('trails.title')}</h3><div class="trail-grid">${tiles}</div></div>`;
   }
 
   /** Ability chips on a spark card; a spark without any gets one neutral line. */
@@ -763,7 +912,7 @@ export class UI {
           ${btn}</div></div>`;
     }).join('');
     const html = `${this.backBar(t('sparks.title'), this.wallet())}
-      <div class="screen-inner top"><p class="hint" style="margin:0">${t('sparks.desc')}</p><div class="list">${cards}</div></div>`;
+      <div class="screen-inner top">${this.trailPicker()}<p class="hint" style="margin:0">${t('sparks.desc')}</p><div class="list">${cards}</div></div>`;
     this.open('sparks', html, {
       onAction: (act, el) => {
         if (this.walletAction(act)) return;
@@ -778,6 +927,8 @@ export class UI {
           else this.showSparks();
         } else if (act === 'buy') {
           if (this.app.buyChar(id, el.dataset.cur as Currency)) this.showSparks(returnTo);
+        } else if (act === 'trail') {
+          if (this.app.pickTrail(el.dataset.id as TrailId)) this.showSparks(returnTo);
         } else if (act === 'iap') {
           this.app.audio.uiClick();
           void this.app.buyProduct(el.dataset.id as ProductId).then(() => {
@@ -1141,6 +1292,7 @@ export class UI {
       const label = first === last ? t('over.levelUp', { n: last }) : t('over.levelUps', { a: first, b: last });
       rewards.push(`<div class="reward-row hl">${icon('star', 18)}<span>${label}</span>${this.rewardChips(sum)}</div>`);
     }
+    if (r.pass.gained > 0) rewards.push(`<div class="reward-row hl">${icon('crown', 18)}<span>${t('over.pass', { n: r.pass.tier })}</span></div>`);
     for (const u of r.unlocked) rewards.push(`<div class="reward-row unlock">${this.unlockIcon(u, 18)}<span>${t('over.unlocked', { name: this.unlockName(u) })}</span></div>`);
     for (const m of r.milestones) rewards.push(`<div class="reward-row hl">${icon('gem', 18)}<span>${t('over.milestone', { n: m.wave })}</span>${this.price('diamonds', m.diamonds)}</div>`);
     if (r.missionsDone) rewards.push(`<div class="reward-row">${icon('target', 18)}<span>${t('over.missionsDone', { n: r.missionsDone })}</span></div>`);
@@ -1148,7 +1300,7 @@ export class UI {
       ? `<div class="chips">${r.newAchievements.map((a) => `<span class="chip">${icon('trophy', 16)}${t(`ach.${a}.name` as I18nKey)}</span>`).join('')}</div>`
       : '';
     const html = `<div class="screen-inner">
-        <div class="over-title"><h2>${t('over.title')}</h2><p>${t('over.subtitle')}</p></div>
+        <div class="over-title"><h2>${t(r.timeUp ? 'over.timeUp' : 'over.title')}</h2><p>${r.mode !== 'normal' && !r.daily ? t(`mode.${r.mode}.name` as I18nKey) + ' · ' : ''}${t('over.subtitle')}</p></div>
         <div class="big-score"><div class="l">${t('over.score')}</div><div class="v" id="final-score">0</div>
           ${r.newBest ? `<div class="new-best">${t(r.daily ? 'over.newDaily' : 'over.newBest')}</div>` : ''}</div>
         <div class="stats">

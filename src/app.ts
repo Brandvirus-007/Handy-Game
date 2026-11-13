@@ -5,8 +5,11 @@ import { detectLang, setLang, t, type I18nKey } from './core/i18n';
 import { BIOMES, TUNING, biomeForWave } from './game/config';
 import { World } from './game/world';
 import { getCharacter, CHARACTERS } from './game/characters';
+import { getTrail, type TrailId } from './game/trails';
+import { getMode, type GameMode } from './game/modes';
 import { META_VALUES, metaCost, metaLevelReq, getMeta } from './game/meta';
 import { anyMetaBuyable, unlocksBetween, type Unlock } from './economy/unlocks';
+import { addPassXp, claimAllPass, claimPass, ensureSeason, passTier, type PassTrack } from './economy/pass';
 import { getUpgrade } from './game/upgrades';
 import { dailySetup, type DailySetup } from './game/modifiers';
 import type { AchievementId } from './game/achievements';
@@ -74,6 +77,11 @@ export interface RunResult {
   levelUps: LevelUp[];
   /** Content unlocked by this run's level-ups. */
   unlocked: Unlock[];
+  /** Light pass tier after the run and tiers gained in it. */
+  pass: { tier: number; gained: number };
+  mode: GameMode;
+  /** Blitz run that ended because the time ran out. */
+  timeUp: boolean;
   milestones: { wave: number; diamonds: number }[];
   missionsDone: number;
   canDouble: boolean;
@@ -89,6 +97,7 @@ type State = 'menu' | 'playing' | 'paused' | 'upgrade' | 'dying' | 'continue' | 
 
 interface RunSetup {
   daily: boolean;
+  mode: GameMode;
   tutorial: boolean;
   character: CharacterId;
   modifiers: ModifierId[];
@@ -204,6 +213,7 @@ export class App {
     this.showIosHint = !__SINGLE_FILE__ && !this.platform.native && /iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone;
 
     ensureMissions(this.save.data, localDateKey());
+    ensureSeason(this.save.data, localDateKey());
     this.save.save();
     this.startDemo();
     this.ui.showMenu();
@@ -247,6 +257,7 @@ export class App {
   /** Rolls over daily content (missions, login bonus) when the calendar day changed. */
   refreshDay(): void {
     ensureMissions(this.save.data, localDateKey());
+    ensureSeason(this.save.data, localDateKey());
     this.save.save();
     if (this.state === 'menu') this.offerDailyLogin();
   }
@@ -349,8 +360,13 @@ export class App {
   }
 
   /** Called by the preparation screen. Pays for the boosters and starts the run. */
-  launchRun(daily: boolean, boosters: BoosterId[]): boolean {
+  launchRun(daily: boolean, boosters: BoosterId[], mode: GameMode = 'normal'): boolean {
     const s = this.save.data;
+    const m = getMode(daily ? 'normal' : mode);
+    if (m.unlockLevel > s.level) {
+      this.audio.denied();
+      return false;
+    }
     const allowed = availableBoosters(s).map((b) => b.id);
     const chosen = boosters.filter((b) => allowed.includes(b));
     if (!payBoosters(s, chosen)) {
@@ -360,11 +376,13 @@ export class App {
     s.boosters = chosen;
     this.save.save();
     const d = daily ? this.dailyInfo() : null;
+    if (!daily) s.mode = m.id;
     this.begin({
       daily,
+      mode: m.id,
       tutorial: false,
       character: d ? d.character : s.selected,
-      modifiers: d ? d.modifiers : [],
+      modifiers: d ? d.modifiers : [...m.modifiers],
       seed: d ? d.seed : randomSeed(),
       boosters: chosen,
     });
@@ -372,7 +390,7 @@ export class App {
   }
 
   startTutorial(): void {
-    this.begin({ daily: false, tutorial: true, character: this.save.data.selected, modifiers: [], seed: 1, boosters: [] });
+    this.begin({ daily: false, mode: 'normal', tutorial: true, character: this.save.data.selected, modifiers: [], seed: 1, boosters: [] });
     this.tutorial = new Tutorial(this, this.world!);
   }
 
@@ -403,6 +421,7 @@ export class App {
       tutorial: setup.tutorial,
       boosters: setup.boosters,
       level: this.save.data.level,
+      timeLimit: getMode(setup.mode).timeLimit || undefined,
     });
     this.world = world;
     this.renderer.layout(world.w, world.h, this.arena);
@@ -668,6 +687,15 @@ export class App {
         newBest = true;
       }
       this.unlock('daily');
+    } else if (setup.mode !== 'normal') {
+      // Extra modes keep their own records.
+      const key = setup.mode;
+      if (r.score > s.modeBest[key]) {
+        s.modeBest[key] = r.score;
+        newBest = r.score > 0;
+      }
+      if (key === 'blitz' && r.score >= 10000) this.unlock('blitz');
+      if (key === 'bosses' && r.bossesKilled.length >= 5) this.unlock('hunter');
     } else {
       if (r.score > s.best) {
         s.best = r.score;
@@ -681,6 +709,7 @@ export class App {
     const levelBefore = s.level;
     const levelUps = addXp(s, xp);
     const unlocked = unlocksBetween(levelBefore, s.level);
+    const passGained = addPassXp(s, xp, localDateKey());
     // Level-ups are listed on the result screen – no extra toasts on top of it.
     if (s.level >= 10) this.unlock('level10');
     if (s.level >= 25) this.unlock('level25');
@@ -723,6 +752,9 @@ export class App {
       xp,
       levelUps,
       unlocked,
+      pass: { tier: passTier(s.pass.points), gained: passGained },
+      mode: setup.mode,
+      timeUp: w.timeUp,
       milestones: [...this.runMilestones],
       missionsDone: done.length,
       canDouble: r.shards > 0,
@@ -844,6 +876,49 @@ export class App {
   private checkAllChars(): void {
     const s = this.save.data;
     if (CHARACTERS.every((ch) => ch.exclusive || s.chars.includes(ch.id))) this.unlock('all_chars');
+  }
+
+  /** Claims one light pass reward. */
+  claimPassTier(tier: number, track: PassTrack): boolean {
+    const r = claimPass(this.save.data, tier, track);
+    if (!r) {
+      this.audio.denied();
+      return false;
+    }
+    this.save.save();
+    this.audio.purchase();
+    this.haptics.buzz(20);
+    return true;
+  }
+
+  /** Claims every light pass reward that is ready. */
+  claimAllPassRewards(): boolean {
+    const sum = claimAllPass(this.save.data);
+    if (!sum.coins && !sum.diamonds && sum.trails.length === 0) return false;
+    this.save.save();
+    this.audio.purchase();
+    this.haptics.buzz([20, 30, 40]);
+    return true;
+  }
+
+  /** Selects an owned trail design or buys it with diamonds. */
+  pickTrail(id: TrailId): boolean {
+    const s = this.save.data;
+    const def = getTrail(id);
+    if (!s.trails.includes(id)) {
+      if (def.price <= 0 || !spend(s, 'diamonds', def.price)) {
+        this.audio.denied();
+        return false;
+      }
+      s.trails.push(id);
+      this.audio.purchase();
+      this.haptics.buzz(25);
+    } else {
+      this.audio.uiSelect();
+    }
+    s.trail = id;
+    this.save.save();
+    return true;
   }
 
   selectChar(id: CharacterId): void {
@@ -1069,6 +1144,7 @@ export class App {
       color: c.color,
       trailColor: c.trail,
       look: c.look,
+      trail: getTrail(this.save.data.trail),
       dim: this.dim,
       hint: this.tutorial?.hint() ?? null,
     });
@@ -1191,6 +1267,12 @@ export class App {
     this.tutorial?.update(rdt);
 
     if (this.state === 'playing' && w.awaitingUpgrade) this.openUpgrade();
+    if (this.state === 'playing' && w.over && w.timeUp) {
+      // Blitz: time is up – straight to the results, no continue offer.
+      this.input.enabled = false;
+      this.endRun();
+      return;
+    }
     if (this.state === 'playing' && w.over) {
       this.state = 'dying';
       this.dyingTimer = 1.2;

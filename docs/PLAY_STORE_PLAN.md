@@ -59,6 +59,7 @@ das Angebot am attraktivsten.
 | `starter_pack` | Einmalig | 300 Diamanten + 3.000 Splitter + Funke **Nova** | 2,99 € |
 | `no_ads` | Einmalig | Keine Interstitials + 100 Diamanten Bonus | 3,99 € |
 | `spark_aurora` | Einmalig | Funke **Polarlicht** (nur für Echtgeld) + 500 Diamanten + 5.000 Splitter | 9,99 € |
+| `light_pass` | Verbrauchbar | Premium-Stufen des **Lichtpasses** für die laufende 28-Tage-Saison (390 Diamanten, 4.750 Splitter, 2 Spur-Designs) | 4,99 € |
 
 Preise werden in der Play Console festgelegt; die App zeigt den **lokalisierten Preis aus Google Play** an.
 

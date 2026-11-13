@@ -61,7 +61,8 @@ export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
 
 export type MetaId = 'heart' | 'trail' | 'shards' | 'reroll' | 'precharge' | 'magnet' | 'combo' | 'score' | 'wisdom' | 'luck';
 
-export type ModifierId = 'glass' | 'haste' | 'swarmy' | 'longtrail' | 'bossrush' | 'nopulse';
+/** `bossonly` is used by the boss hunt mode and never rolled for the daily challenge. */
+export type ModifierId = 'glass' | 'haste' | 'swarmy' | 'longtrail' | 'bossrush' | 'nopulse' | 'bossonly';
 
 export interface Enemy {
   id: number;
@@ -283,4 +284,5 @@ export type GameEvent =
   | { type: 'bombArmed'; x: number; y: number }
   | { type: 'heal'; x: number; y: number }
   | { type: 'gravity'; x: number; y: number; r: number }
-  | { type: 'orbitHit'; x: number; y: number };
+  | { type: 'orbitHit'; x: number; y: number }
+  | { type: 'timeUp' };

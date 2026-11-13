@@ -27,13 +27,15 @@ const BOSS_ORDER: BossType[] = ['maw', 'weaver', 'twins', 'hydra', 'eye'];
 
 export const waveBudget = (n: number): number => 5 + 2.6 * n + 0.22 * n * n;
 
+const bossEvery = (mods: readonly ModifierId[]): number => (mods.includes('bossonly') ? 1 : mods.includes('bossrush') ? 3 : TUNING.wave.bossEvery);
+
 export function isBossWave(n: number, mods: readonly ModifierId[]): boolean {
-  const every = mods.includes('bossrush') ? 3 : TUNING.wave.bossEvery;
+  const every = bossEvery(mods);
   return n > 0 && n % every === 0;
 }
 
 export function bossForWave(n: number, mods: readonly ModifierId[]): { boss: BossType; tier: number } {
-  const every = mods.includes('bossrush') ? 3 : TUNING.wave.bossEvery;
+  const every = bossEvery(mods);
   const index = Math.floor(n / every) - 1;
   return { boss: BOSS_ORDER[index % BOSS_ORDER.length], tier: Math.floor(index / BOSS_ORDER.length) };
 }

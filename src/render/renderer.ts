@@ -3,6 +3,7 @@ import { BIOMES, COLORS, ENEMIES, TWIN_COLORS, WARDEN_AURA } from '../game/confi
 import { BLINK_WARN, DART_AIM, SPITTER_CHARGE } from '../game/enemies';
 import { HYDRA_TELEGRAPH, MAW_TELEGRAPH, WEAVER_AIM, eyeRays, twinBeam } from '../game/bosses';
 import type { World } from '../game/world';
+import type { TrailDef } from '../game/trails';
 import type { Enemy } from '../game/types';
 import { Background } from './background';
 import { Fx } from './fx';
@@ -24,6 +25,8 @@ export interface FrameParams {
   trailColor: string;
   /** Spark look: plain colours, rainbow (Prism), solar corona or aurora ribbons. */
   look: 'plain' | 'rainbow' | 'solar' | 'aurora';
+  /** Cosmetic trail design (overrides the trail colours, not the spark itself). */
+  trail?: TrailDef;
   /** 0..1 darkening overlay (menus, upgrade screen). */
   dim: number;
   /** Tutorial target circle. */
@@ -557,7 +560,11 @@ export class Renderer {
     const n = pts.length;
     const life = w.trail.life;
     const ember = w.stats.ember > 0;
-    const glowColor = ember && w.opts.character !== 'ember' ? '#ff6a2a' : p.trailColor;
+    const design = p.trail && p.trail.id !== 'default' ? p.trail : null;
+    const glowColor = design?.glow ?? (ember && w.opts.character !== 'ember' ? '#ff6a2a' : p.trailColor);
+    const coreColor = design?.core ?? p.color;
+    // A chosen design decides the colours; otherwise the spark's own look does.
+    const look = design ? (design.style === 'rainbow' ? 'rainbow' : 'plain') : p.look;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.globalCompositeOperation = 'lighter';
@@ -575,20 +582,24 @@ export class Renderer {
         for (let k = s + 1; k <= e; k++) ctx.lineTo(pts[k].x, pts[k].y);
         if (e === n - 1) ctx.lineTo(w.px, w.py);
         const hue =
-          p.look === 'rainbow'
+          look === 'rainbow'
             ? (p.time * 120 + s * 6) % 360
-            : p.look === 'aurora'
+            : look === 'aurora'
               ? 150 + 125 * (0.5 + 0.5 * Math.sin(p.time * 1.6 - s * 0.045))
               : 0;
-        const tinted = p.look === 'rainbow' || p.look === 'aurora';
+        const tinted = look === 'rainbow' || look === 'aurora';
+        const segGlow = design?.style === 'alternate' && design.alt && Math.floor(s / 18) % 2 ? design.alt : glowColor;
+        const flicker = design?.style === 'flicker' ? 0.75 + 0.25 * Math.sin(p.time * 22 + s * 0.7) : 1;
         if (pass === 0) {
           ctx.globalAlpha = 1;
-          ctx.lineWidth = (ember ? 12 : p.look === 'aurora' ? 13 : 9) * (0.45 + 0.55 * pos);
-          ctx.strokeStyle = tinted ? hsl(hue, 100, 60, a * (p.look === 'aurora' ? 0.36 : 0.3)) : rgba(glowColor, a * (ember ? 0.42 : 0.32));
+          ctx.lineWidth = (ember ? 12 : look === 'aurora' ? 13 : 9) * (0.45 + 0.55 * pos);
+          ctx.strokeStyle = tinted
+            ? hsl(hue, 100, 60, a * (look === 'aurora' ? 0.36 : 0.3))
+            : rgba(segGlow, a * (ember || design ? 0.42 : 0.32) * flicker);
         } else {
           ctx.globalAlpha = 1;
           ctx.lineWidth = 2.6 * (0.35 + 0.65 * pos);
-          ctx.strokeStyle = tinted ? hsl(hue, 100, 82, a) : rgba(p.color, a);
+          ctx.strokeStyle = tinted ? hsl(hue, 100, 82, a) : rgba(coreColor, a);
         }
         ctx.stroke();
       }

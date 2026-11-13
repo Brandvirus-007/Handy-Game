@@ -1,6 +1,8 @@
 import { META } from '../game/meta';
 import { CHARACTERS } from '../game/characters';
 import { ACHIEVEMENTS } from '../game/achievements';
+import { TRAILS, type TrailId } from '../game/trails';
+import type { GameMode } from '../game/modes';
 import type { CharacterId, MetaId } from '../game/types';
 import type { BoosterId, MissionType, Reward } from '../economy/defs';
 
@@ -74,6 +76,14 @@ export interface SaveData {
   tutorialDone: boolean;
   /** App version whose "What's new" notes were already shown. */
   seenVersion: string;
+  /** Trail designs owned and the one in use. */
+  trails: TrailId[];
+  trail: TrailId;
+  /** Last picked mode and best scores of the extra modes. */
+  mode: GameMode;
+  modeBest: { blitz: number; bosses: number };
+  /** Light pass of the current season: points, claimed tiers per track and the season premium was bought for. */
+  pass: { season: number; points: number; free: number[]; premium: number[]; premiumSeason: number };
 }
 
 export const SAVE_VERSION = 2;
@@ -116,6 +126,11 @@ export const defaultSave = (): SaveData => ({
   settings: defaultSettings(),
   tutorialDone: false,
   seenVersion: '',
+  trails: ['default'],
+  trail: 'default',
+  pass: { season: 0, points: 0, free: [], premium: [], premiumSeason: 0 },
+  mode: 'normal',
+  modeBest: { blitz: 0, bosses: 0 },
 });
 
 const num = (v: unknown, def: number, min = -Infinity, max = Infinity): number =>
@@ -149,6 +164,12 @@ export function sanitize(raw: unknown): SaveData {
   const chars = Array.isArray(r.chars) ? (r.chars.filter((c) => (charIds as string[]).includes(c as string)) as CharacterId[]) : [];
   if (!chars.includes('spark')) chars.unshift('spark');
   const selected = oneOf(r.selected, charIds, 'spark');
+
+  const pass = obj(r.pass);
+  const tiers = (v: unknown): number[] =>
+    Array.isArray(v) ? [...new Set(v.filter((x): x is number => typeof x === 'number' && Number.isInteger(x) && x >= 1 && x <= 100))] : [];
+  const trailIds = TRAILS.map((tr) => tr.id) as string[];
+  const trails: TrailId[] = ['default', ...(Array.isArray(r.trails) ? (r.trails.filter((x) => trailIds.includes(x as string) && x !== 'default') as TrailId[]) : [])];
 
   const ach: Record<string, number> = {};
   const ra = obj(r.ach);
@@ -222,6 +243,17 @@ export function sanitize(raw: unknown): SaveData {
     settings,
     tutorialDone: bool(r.tutorialDone, false),
     seenVersion: str(r.seenVersion, ''),
+    trails: [...new Set(trails)],
+    mode: oneOf(r.mode, ['normal', 'blitz', 'bosses'] as const, 'normal'),
+    modeBest: { blitz: int(obj(r.modeBest).blitz, 0), bosses: int(obj(r.modeBest).bosses, 0) },
+    pass: {
+      season: int(pass.season, 0),
+      points: int(pass.points, 0),
+      free: tiers(pass.free),
+      premium: tiers(pass.premium),
+      premiumSeason: int(pass.premiumSeason, 0),
+    },
+    trail: trails.includes(r.trail as TrailId) ? (r.trail as TrailId) : 'default',
   };
 }
 

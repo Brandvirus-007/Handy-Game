@@ -36,8 +36,11 @@ UPGRADES
 FUNKEN
 10 Funken, die sich unterschiedlich spielen. Der Komet ist klein und schwer zu treffen, die Glut hat eine brennende Spur, das Phantom ignoriert den ersten Treffer jeder Welle, den Sonnenkern gibt es ab Stufe 50.
 
+MODI
+Normal mit Bossen alle 5 Wellen, Blitz mit 3 Minuten auf Zeit und Bossjagd, bei der jede Welle ein Boss ist.
+
 FORTSCHRITT
-Eine tägliche Herausforderung, drei Tagesmissionen, ein Bonus für jeden Tag, an dem du spielst, Stufen bis 50 mit neuen Freischaltungen, eine Werkstatt für dauerhafte Verbesserungen und 29 Erfolge.
+Eine tägliche Herausforderung, drei Tagesmissionen, ein Bonus für jeden Tag, an dem du spielst, Stufen bis 50 mit neuen Freischaltungen, eine Werkstatt für dauerhafte Verbesserungen, ein Lichtpass mit 30 Stufen pro Saison, Spur-Designs und 31 Erfolge.
 
 SONST NOCH
 5 Gebiete mit eigenen Farben. Musik und Sounds erzeugt das Spiel selbst. Vibration, Spielen ohne Internet, und wenn du die App wechselst, pausiert das Spiel.
@@ -76,8 +79,11 @@ UPGRADES
 SPARKS
 10 sparks that each play differently. The Comet is small and hard to hit, the Ember leaves a burning trail, the Phantom ignores the first hit of every wave, and the Sun Core unlocks at level 50.
 
+MODES
+Normal with a boss every 5 waves, Blitz with 3 minutes on the clock, and Boss Hunt, where every wave is a boss.
+
 PROGRESS
-A daily challenge, three daily missions, a bonus for every day you play, levels up to 50 with new unlocks, a workshop for permanent upgrades and 29 achievements.
+A daily challenge, three daily missions, a bonus for every day you play, levels up to 50 with new unlocks, a workshop for permanent upgrades, a Light Pass with 30 tiers per season, trail designs and 31 achievements.
 
 ALSO
 5 regions with their own colours. The game makes its own music and sounds. Vibration, offline play, and the game pauses when you switch apps.
@@ -115,4 +121,24 @@ Diese Hinweise passen, wenn schon eine ältere Version im Store ist. Für die al
 ```
 DE: Erste Version. Zieh Schleifen aus Licht, fang die Schatten und halte so viele Wellen durch, wie du kannst.
 EN: First release. Draw loops of light, catch the shadows and last as many waves as you can.
+```
+
+## Versionshinweise 2.2.0
+
+**Deutsch:**
+```
+• Lichtpass: jede Saison 30 Stufen mit Belohnungen, gratis und mit Premium
+• Spur-Designs für deine Lichtspur
+• Neue Modi: Blitz (3 Minuten auf Zeit) und Bossjagd
+• Neue Steuerung: Der Funke schwebt über deinem Finger
+• Fehler behoben
+```
+
+**English:**
+```
+• Light Pass: 30 tiers of rewards every season, free and premium
+• Trail designs for your trail of light
+• New modes: Blitz (3 minutes against the clock) and Boss Hunt
+• New controls: the spark hovers above your finger
+• Bug fixes
 ```

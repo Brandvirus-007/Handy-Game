@@ -47,6 +47,8 @@ export interface RunOptions {
   boosters?: BoosterId[];
   /** Player level – gates level-locked upgrades. Omitted = everything unlocked (tests, tools). */
   level?: number;
+  /** Blitz mode: the run ends after this many seconds. */
+  timeLimit?: number;
 }
 
 export type WavePhase = 'intro' | 'active' | 'cleared' | 'upgrade' | 'idle';
@@ -81,6 +83,8 @@ export class World {
   alive = true;
   secondWindUsed = false;
   over = false;
+  /** The run ended because the blitz timer ran out (not by dying). */
+  timeUp = false;
   /** Phantom spark: hits it can still ignore this wave. */
   phaseCharges = 0;
 
@@ -313,6 +317,12 @@ export class World {
     if (this.over) return;
     this.time += dt;
     this.run.time += dt;
+    if (this.opts.timeLimit && this.run.time >= this.opts.timeLimit && this.alive) {
+      this.timeUp = true;
+      this.over = true;
+      this.emit({ type: 'timeUp' });
+      return;
+    }
 
     this.updatePlayer(dt);
     const loop = this.trail.update(this.px, this.py, this.time);

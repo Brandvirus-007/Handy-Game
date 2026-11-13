@@ -38,6 +38,7 @@ Technische Details zum Bauen und Signieren: [`android/README.md`](../android/REA
 | `starter_pack` | einmalig | 2,99 € |
 | `no_ads` | einmalig | 3,99 € |
 | `spark_aurora` | einmalig | 9,99 € (Funke Polarlicht + 500 Diamanten + 5.000 Splitter, ab Version 2.1.0) |
+| `light_pass` | verbrauchbar | 4,99 € (Premium-Stufen des Lichtpasses für die laufende Saison, ab Version 2.2.0) |
 
 > In Google Play sind alle sieben „In-App-Produkte“ (keine Abos). Ob ein Kauf verbraucht wird, entscheidet die App.
 

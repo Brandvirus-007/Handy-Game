@@ -1,4 +1,5 @@
-import { Rng, hashString } from '../core/rng';
+import { Rng, hashString, localDateKey } from '../core/rng';
+import { ensureSeason } from './pass';
 import type { SaveData, MissionState } from '../core/storage';
 import {
   getProduct,
@@ -50,10 +51,14 @@ export const addReward = (a: Reward, b: Reward): Reward => ({
  * Credits a paid store purchase exactly once (keyed by its purchase token).
  * Returns false if this token was already credited – e.g. recovered again after a crash.
  */
-export function creditPurchase(s: SaveData, productId: ProductId, token: string): boolean {
+export function creditPurchase(s: SaveData, productId: ProductId, token: string, today = localDateKey()): boolean {
   if (s.grantedTokens.includes(token)) return false;
   const def = getProduct(productId);
   grant(s, def.reward);
+  if (productId === 'light_pass') {
+    ensureSeason(s, today);
+    s.pass.premiumSeason = s.pass.season;
+  }
   if (def.unlocks && !s.chars.includes(def.unlocks)) s.chars.push(def.unlocks);
   if (productId === 'no_ads') s.owned.noAds = true;
   if (productId === 'starter_pack') s.owned.starter = true;

@@ -1,7 +1,7 @@
 {
   "name": "lumen-loop",
   "private": true,
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "LUMEN LOOP – Arcade-Roguelite für Android (Capacitor) und das Web: Zieh Kreise aus Licht.",
   "type": "module",
   "scripts": {

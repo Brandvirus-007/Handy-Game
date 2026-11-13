@@ -51,7 +51,8 @@ export type ProductId =
   | 'diamonds_6000'
   | 'starter_pack'
   | 'no_ads'
-  | 'spark_aurora';
+  | 'spark_aurora'
+  | 'light_pass';
 
 export interface ProductDef {
   id: ProductId;
@@ -75,6 +76,8 @@ export const PRODUCTS: ProductDef[] = [
   { id: 'no_ads', consumable: false, reward: { diamonds: 100 }, fallbackPrice: '3,99 €' },
   /** Store-exclusive spark – real money only, never for shards or diamonds. */
   { id: 'spark_aurora', consumable: false, reward: { diamonds: 500, coins: 5000 }, unlocks: 'aurora', fallbackPrice: '9,99 €' },
+  /** Premium track of the current light pass season (bought again each season). */
+  { id: 'light_pass', consumable: true, reward: {}, fallbackPrice: '4,99 €' },
 ];
 
 export const getProduct = (id: ProductId): ProductDef => PRODUCTS.find((p) => p.id === id)!;
@@ -206,4 +209,6 @@ export const ACHIEVEMENT_DIAMONDS: Record<string, number> = {
   legend: 25,
   level50: 100,
   galaxy: 30,
+  blitz: 20,
+  hunter: 30,
 };

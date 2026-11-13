@@ -121,7 +121,15 @@ export class Hud {
       this.shownScore = diff <= 2 ? w.run.score : this.shownScore + Math.max(1, Math.ceil(diff * 0.18));
       this.score.textContent = fmt(this.shownScore);
     }
-    if (w.wave !== v.wave) {
+    if (w.opts.timeLimit) {
+      // Blitz: the label counts down instead of showing the wave.
+      const left = Math.max(0, Math.ceil(w.opts.timeLimit - w.run.time));
+      if (left !== v.wave) {
+        this.wave.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+        this.wave.classList.toggle('urgent', left <= 15);
+        v.wave = left;
+      }
+    } else if (w.wave !== v.wave) {
       this.wave.textContent = tutorial ? t('tut.title') : t('hud.wave', { n: w.wave });
       v.wave = w.wave;
     }

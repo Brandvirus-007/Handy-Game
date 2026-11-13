@@ -2898,3 +2898,457 @@ button.level-chip:active b {
   font-size: 13.5px;
   line-height: 1.35;
 }
+
+/* Trail designs */
+.trail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.trail-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 10px 4px 8px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(22, 17, 48, 0.7);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.trail-tile.on {
+  border-color: rgba(125, 249, 255, 0.6);
+  box-shadow: 0 0 0 1px rgba(125, 249, 255, 0.2), 0 0 16px rgba(125, 249, 255, 0.12);
+}
+
+.trail-tile[disabled] {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.trail-tile .swatch {
+  width: 78%;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, transparent, var(--g) 30%, var(--c) 50%, var(--g) 70%, transparent);
+  box-shadow: 0 0 10px var(--g);
+}
+
+.trail-tile .swatch.alternate {
+  background: linear-gradient(90deg, transparent, var(--g) 20%, var(--c) 45%, var(--a) 70%, transparent);
+}
+
+.trail-tile .swatch.rainbow {
+  background: linear-gradient(90deg, transparent, #ff6b6b 15%, #ffd166 32%, #7cff9b 50%, #7df9ff 68%, #b06cff 85%, transparent);
+  box-shadow: 0 0 10px rgba(176, 108, 255, 0.6);
+}
+
+.trail-tile .swatch.flicker {
+  animation: trail-flicker 0.9s ease-in-out infinite;
+}
+
+@keyframes trail-flicker {
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.trail-tile .tname {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  letter-spacing: -0.01em;
+  font-weight: 650;
+}
+
+.trail-tile .tstate {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.trail-tile .tstate.on {
+  color: var(--accent);
+}
+
+.trail-tile .tstate .price {
+  font-size: 12px;
+  color: var(--text);
+}
+
+@media (max-width: 360px) {
+  .trail-grid {
+    gap: 6px;
+  }
+
+  .trail-tile {
+    padding: 9px 2px 7px;
+  }
+
+  .trail-tile .tname {
+    font-size: 10.5px;
+  }
+
+  .trail-tile .tstate {
+    font-size: 10.5px;
+  }
+}
+
+/* ───────────── Light pass ───────────── */
+
+.pass-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 54px;
+  padding: 8px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 209, 102, 0.35);
+  background: linear-gradient(135deg, rgba(70, 50, 20, 0.55), rgba(24, 18, 52, 0.85));
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.pass-bar .pass-ico {
+  color: var(--gold);
+  display: grid;
+  place-items: center;
+}
+
+.pass-bar .pass-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.pass-bar .pass-name {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.pass-bar .pass-track,
+.pass-head .xpbar {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.pass-bar .pass-track i,
+.pass-head .xpbar i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #ffd166, #ff9f43);
+}
+
+.pass-bar .pass-tier {
+  flex: none;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.pass-bar .count {
+  top: -6px;
+  right: -6px;
+}
+
+.pass-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pass-head .ph-top {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.pass-head .ph-tier {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.pass-head .desc {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.pass-premium {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-color: rgba(255, 209, 102, 0.45);
+  background: linear-gradient(135deg, rgba(80, 55, 20, 0.6), rgba(22, 17, 48, 0.9));
+}
+
+.pass-premium .pp-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  font-size: 18px;
+  color: #ffe7a8;
+}
+
+.pass-premium .pp-head .ico {
+  color: var(--gold);
+}
+
+.pass-premium .perks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.pass-premium .perks li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14.5px;
+}
+
+.pass-premium .perks .ico {
+  flex: none;
+  color: var(--gold);
+}
+
+.pass-premium .btn {
+  min-height: 48px;
+  border-color: rgba(255, 209, 102, 0.6);
+  background: linear-gradient(135deg, rgba(200, 140, 40, 0.9), rgba(160, 80, 30, 0.95));
+  color: #fff;
+  font-weight: 800;
+}
+
+.pass-cols,
+.pass-row {
+  display: grid;
+  grid-template-columns: 40px 1fr 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.pass-cols {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: center;
+}
+
+.pass-cols span:last-child {
+  color: var(--gold);
+}
+
+.pass-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pass-num {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 2px solid var(--line-strong);
+  background: var(--panel-solid);
+  color: var(--muted);
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.pass-row.reached .pass-num {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.pass-row.next .pass-num {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pass-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 6px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(22, 17, 48, 0.7);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.pass-cell.premium {
+  border-color: rgba(255, 209, 102, 0.25);
+  background: rgba(60, 42, 20, 0.45);
+}
+
+.pass-cell.ready {
+  border-color: var(--accent);
+  box-shadow: 0 0 14px rgba(125, 249, 255, 0.25);
+  animation: orb-pulse 2.4s ease-in-out infinite;
+}
+
+.pass-cell.premium.ready {
+  border-color: var(--gold);
+  box-shadow: 0 0 14px rgba(255, 209, 102, 0.3);
+}
+
+.pass-cell[disabled] {
+  cursor: default;
+}
+
+.pass-cell.locked {
+  opacity: 0.55;
+}
+
+.pass-cell.claimed {
+  opacity: 0.6;
+}
+
+.pass-cell .mark {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  display: grid;
+  color: var(--muted);
+}
+
+.pass-cell.claimed .mark {
+  color: var(--accent);
+}
+
+.pass-cell .pr-trail {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 700;
+  color: #ffe7a8;
+}
+
+@media (max-width: 360px) {
+  .pass-cols,
+  .pass-row {
+    grid-template-columns: 34px 1fr 1fr;
+    gap: 6px;
+  }
+
+  .pass-num {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+  }
+
+  .pass-cell {
+    font-size: 13px;
+  }
+}
+
+.pass-bar .count {
+  position: absolute;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+}
+
+.hud-wave.urgent {
+  color: var(--danger);
+}
+
+/* Mode picker on the pre-run screen */
+.mode-seg {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-radius: 14px;
+  border: 1px solid var(--line-strong);
+  overflow: hidden;
+}
+
+.mode-seg button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-height: var(--bar-h);
+  padding: 8px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.mode-seg button + button {
+  border-left: 1px solid var(--line);
+}
+
+.mode-seg button.on {
+  background: rgba(125, 249, 255, 0.16);
+  color: var(--text);
+}
+
+.mode-seg button[disabled] {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.mode-seg small {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.mode-info {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.4;
+}

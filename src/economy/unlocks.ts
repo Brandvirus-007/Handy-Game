@@ -1,6 +1,7 @@
 import { CHARACTERS } from '../game/characters';
 import { META, metaCost, metaLevelReq, type MetaDef } from '../game/meta';
 import { UPGRADES } from '../game/upgrades';
+import { MODES, type GameMode } from '../game/modes';
 import type { CharacterId, MetaId, UpgradeId } from '../game/types';
 import type { SaveData } from '../core/storage';
 
@@ -8,7 +9,8 @@ import type { SaveData } from '../core/storage';
 export type Unlock =
   | { kind: 'char'; id: CharacterId }
   | { kind: 'meta'; id: MetaId; rank: number }
-  | { kind: 'upgrade'; id: UpgradeId };
+  | { kind: 'upgrade'; id: UpgradeId }
+  | { kind: 'mode'; id: GameMode };
 
 export interface LevelStep {
   level: number;
@@ -31,6 +33,7 @@ export function levelPath(): LevelStep[] {
     });
   }
   for (const u of UPGRADES) if (u.minLevel) add(u.minLevel, { kind: 'upgrade', id: u.id });
+  for (const m of MODES) add(m.unlockLevel, { kind: 'mode', id: m.id });
   return [...map.entries()].sort((a, b) => a[0] - b[0]).map(([level, unlocks]) => ({ level, unlocks }));
 }
 

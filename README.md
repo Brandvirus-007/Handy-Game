@@ -22,7 +22,9 @@ Berührst du einen Schatten selbst, kostet das ein Herz.
 - **10 Gegnertypen** (u. a. Wächter mit Schildaura, teleportierende Blinker, explodierende Bomber) und **5 Bosse**:
   Schlund, Weberin, Zwillinge, Hydra und Auge. Alle fünf Wellen kommt ein Boss, mit jedem Durchgang stärker.
 - **31 Upgrades** mit Synergien (davon 4 legendäre Fusionen), **10 Funken** (zwei Premium, einer exklusiv im Shop, der Sonnenkern ab Stufe 50) und **5 Gebiete** mit eigener Farbwelt.
-- **Fortschritt:** Lichtstufen mit Stufenpfad (Funken, Upgrades und Werkstatt-Ränge werden bis Stufe 50 freigeschaltet), Etappen, 3 Tagesmissionen, 7-Tage-Bonus, Werkstatt mit 10 Verbesserungen, Booster, 29 Erfolge, tägliche Herausforderung.
+- **Fortschritt:** Lichtstufen mit Stufenpfad (Funken, Upgrades und Werkstatt-Ränge werden bis Stufe 50 freigeschaltet), Etappen, 3 Tagesmissionen, 7-Tage-Bonus, Werkstatt mit 10 Verbesserungen, Booster, 31 Erfolge, tägliche Herausforderung.
+- **Lichtpass:** 28-Tage-Saisons mit 30 Stufen, Gratis- und Premium-Belohnungen (`light_pass`, 4,99 €), dazu 7 Spur-Designs.
+- **Modi:** Normal, Blitz (3 Minuten auf Punkte, ab Stufe 5) und Bossjagd (jede Welle ein Boss, ab Stufe 12).
 - **Wirtschaft:** Splitter (im Spiel verdient) und Diamanten (Etappen, Erfolge, Stufen, Missionen, Gratis-Werbung oder Kauf).
   Nach dem Tod kann man einmal pro Runde per Werbung weiterspielen, danach mit Splittern oder Diamanten.
 - **Werbung & Käufe:** AdMob (Rewarded und Interstitials nur zwischen Runden, mit DSGVO-Einwilligung) und Google Play Billing.
