@@ -21,6 +21,8 @@ export interface CompletedPurchase {
   finish(): Promise<void>;
 }
 
+export type ShareResult = 'shared' | 'copied' | 'failed';
+
 export type PurchaseOutcome = 'ok' | 'cancelled' | 'pending' | 'error' | 'unavailable';
 
 export interface Platform {
@@ -52,4 +54,18 @@ export interface Platform {
   onBackButton(handler: () => void): void;
   onPauseResume(handler: (active: boolean) => void): void;
   exitApp(): void;
+  /** Shares a text (system share sheet; falls back to copying it). */
+  share(text: string): Promise<ShareResult>;
+  /** Asks Google Play for its in-app rating dialog (Google decides whether it shows). */
+  requestReview(): Promise<void>;
+}
+
+/** Copies text to the clipboard (used when sharing is not possible). */
+export async function copyText(text: string): Promise<ShareResult> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return 'copied';
+  } catch {
+    return 'failed';
+  }
 }

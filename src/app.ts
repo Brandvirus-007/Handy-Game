@@ -1,7 +1,7 @@
 import { clamp, damp } from './core/math';
 import { dailySeed, localDateKey, randomSeed } from './core/rng';
 import { SaveStore } from './core/storage';
-import { detectLang, setLang, t, type I18nKey } from './core/i18n';
+import { detectLang, fmt, setLang, t, type I18nKey } from './core/i18n';
 import { BIOMES, TUNING, biomeForWave } from './game/config';
 import { World } from './game/world';
 import { getCharacter, CHARACTERS } from './game/characters';
@@ -11,6 +11,8 @@ import { META_VALUES, metaCost, metaLevelReq, getMeta } from './game/meta';
 import { anyMetaBuyable, unlocksBetween, type Unlock } from './economy/unlocks';
 import { addPassXp, claimAllPass, claimPass, ensureSeason, passTier, type PassTrack } from './economy/pass';
 import { ensureWeek, recordWeekly, weekOf, weeklyTheme } from './economy/weekly';
+import { addMastery, sparkMastery, MASTERY_MAX } from './economy/mastery';
+import { decodeChallenge, encodeChallenge } from './economy/challenge';
 import { getUpgrade } from './game/upgrades';
 import { dailySetup, type DailySetup } from './game/modifiers';
 import type { AchievementId } from './game/achievements';
@@ -87,6 +89,12 @@ export interface RunResult {
   weekly: boolean;
   /** Weekly goals reached in this run (0 = bronze … 2 = gold). */
   weeklyGoals: number[];
+  /** Mastery of the spark played: level after the run and levels reached in it. */
+  mastery: { spark: CharacterId; level: number; gained: number[] };
+  /** Code a friend can use to play exactly this run (none for daily, weekly and tutorial runs). */
+  shareCode: string | null;
+  /** Result of a friend challenge. */
+  challenge: { target: number; won: boolean } | null;
   milestones: { wave: number; diamonds: number }[];
   missionsDone: number;
   canDouble: boolean;
@@ -104,6 +112,8 @@ interface RunSetup {
   daily: boolean;
   /** Weekly event run. */
   weekly: boolean;
+  /** Friend challenge: the score to beat (same seed, spark and mode as the friend). */
+  challenge?: { score: number };
   mode: GameMode;
   tutorial: boolean;
   character: CharacterId;
@@ -372,6 +382,40 @@ export class App {
     this.ui.showPrerun(daily, weekly);
   }
 
+  /** Starts a friend challenge from a code. Returns false when the code is not valid. */
+  startChallenge(code: string): boolean {
+    const c = decodeChallenge(code);
+    if (!c) {
+      this.audio.denied();
+      return false;
+    }
+    this.audio.uiSelect();
+    this.toMenuState();
+    // Same seed, spark and mode as the friend, and no boosters – a fair duel.
+    this.begin({
+      daily: false,
+      weekly: false,
+      challenge: { score: c.score },
+      mode: c.mode,
+      tutorial: false,
+      character: c.character,
+      modifiers: [...getMode(c.mode).modifiers],
+      seed: c.seed,
+      boosters: [],
+    });
+    return true;
+  }
+
+  /** Shares the last run as a challenge code. */
+  async shareRun(): Promise<void> {
+    const r = this.lastResult;
+    if (!r?.shareCode) return;
+    const text = t('challenge.shareText', { n: fmt(r.score), code: r.shareCode });
+    const result = await this.platform.share(text);
+    if (result === 'copied') this.ui.toast(t('challenge.title'), t('challenge.copied'), 'check');
+    else if (result === 'failed') this.ui.toast(t('challenge.title'), r.shareCode, 'check');
+  }
+
   /** Called by the preparation screen. Pays for the boosters and starts the run. */
   launchRun(daily: boolean, boosters: BoosterId[], mode: GameMode = 'normal', weekly = false): boolean {
     const s = this.save.data;
@@ -437,6 +481,7 @@ export class App {
       boosters: setup.boosters,
       level: this.save.data.level,
       timeLimit: getMode(setup.mode).timeLimit || undefined,
+      mastery: setup.tutorial ? 0 : sparkMastery(this.save.data, setup.character),
     });
     this.world = world;
     this.renderer.layout(world.w, world.h, this.arena);
@@ -707,6 +752,8 @@ export class App {
         newBest = true;
       }
       this.unlock('daily');
+    } else if (setup.challenge) {
+      // Friend challenges replay a known run – they never count as records.
     } else if (setup.mode !== 'normal') {
       // Extra modes keep their own records.
       const key = setup.mode;
@@ -730,6 +777,8 @@ export class App {
     const levelUps = addXp(s, xp);
     const unlocked = unlocksBetween(levelBefore, s.level);
     const passGained = addPassXp(s, xp, localDateKey());
+    const masteryGained = s.chars.includes(setup.character) ? addMastery(s, setup.character, xp) : [];
+    if (sparkMastery(s, setup.character) >= MASTERY_MAX) this.unlock('master');
     // Level-ups are listed on the result screen – no extra toasts on top of it.
     if (s.level >= 10) this.unlock('level10');
     if (s.level >= 25) this.unlock('level25');
@@ -752,7 +801,9 @@ export class App {
     this.save.save();
 
     // Leaderboards: each mode reports into its own board.
-    if (setup.weekly) this.games.submit('weekly', r.score);
+    if (setup.challenge) {
+      /* no leaderboard entries for replayed runs */
+    } else if (setup.weekly) this.games.submit('weekly', r.score);
     else if (!setup.daily && setup.mode === 'normal') {
       this.games.submit('score', r.score);
       this.games.submit('wave', r.wavesCleared);
@@ -783,11 +834,30 @@ export class App {
       timeUp: w.timeUp,
       weekly: setup.weekly,
       weeklyGoals,
+      mastery: { spark: setup.character, level: sparkMastery(s, setup.character), gained: masteryGained },
+      shareCode: setup.daily || setup.weekly || setup.tutorial ? null : encodeChallenge({ seed: setup.seed, character: setup.character, mode: setup.mode, score: r.score }),
+      challenge: setup.challenge ? { target: setup.challenge.score, won: r.score > setup.challenge.score } : null,
       milestones: [...this.runMilestones],
       missionsDone: done.length,
       canDouble: r.shards > 0,
     };
     this.ui.showGameOver(this.lastResult);
+    if (newBest && !setup.daily && !setup.weekly && !setup.challenge) this.maybeAskForReview();
+  }
+
+  /**
+   * After a new record – a good moment – ask Google Play for its rating dialog. Not before the 8th run,
+   * at most three times and at least 30 days apart. Google may still decide not to show it.
+   */
+  private maybeAskForReview(): void {
+    const s = this.save.data;
+    const now = Date.now();
+    if (!this.platform.native || s.stats.runs < 8 || s.review.count >= 3 || now - s.review.last < 30 * 86_400_000) return;
+    s.review = { last: now, count: s.review.count + 1 };
+    this.save.save();
+    window.setTimeout(() => {
+      if (this.state === 'gameover') void this.platform.requestReview();
+    }, 1800);
   }
 
   /** Rewarded ad at the end of a run: doubles the shards collected. */

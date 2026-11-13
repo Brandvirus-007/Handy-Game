@@ -38,7 +38,7 @@ Unter **Bestenlisten** fünf Listen anlegen (Sortierung: höher ist besser) und 
 
 ## 4. Erfolge anlegen
 
-Unter **Erfolge** diese 32 Erfolge anlegen und die IDs in `src/platform/games-ids.ts` bei
+Unter **Erfolge** diese 33 Erfolge anlegen und die IDs in `src/platform/games-ids.ts` bei
 `ACHIEVEMENT_IDS` eintragen, zum Beispiel `first_loop: 'CgkI…'`. Fehlende Einträge werden einfach übersprungen.
 
 | Schlüssel | Name (DE) | Beschreibung (DE) | Name (EN) |
@@ -75,6 +75,7 @@ Unter **Erfolge** diese 32 Erfolge anlegen und die IDs in `src/platform/games-id
 | `galaxy` | Sternensystem | Wähle die Fusion Galaxie. | Star System |
 | `blitz` | Blitzlicht | Hol 10.000 Punkte im Blitz-Modus. | Flashlight |
 | `hunter` | Bossjäger | Besiege 5 Bosse in einer Bossjagd. | Boss Hunter |
+| `master` | Meister des Lichts | Bring einen Funken auf Meisterschaft 10. | Master of Light |
 
 ## 5. Testen
 

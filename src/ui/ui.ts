@@ -29,6 +29,7 @@ import { anyMetaBuyable, levelPath, nextUnlockLevel, type Unlock } from '../econ
 import { PASS_FREE, PASS_PREMIUM, PASS_TIERS, PASS_XP_PER_TIER, canClaim, hasPremium, passClaimable, passTier, premiumTotals, seasonDaysLeft, type PassReward, type PassTrack } from '../economy/pass';
 import { localDateKey } from '../core/rng';
 import { WEEKLY_REWARDS, weekOf, weeklyDaysLeft, weeklyTheme } from '../economy/weekly';
+import { MASTERY_MAX, masteryBonus, masteryLevel, masteryReward, masteryXpFor } from '../economy/mastery';
 import { achievementDiamonds, availableBoosters, boosterCost, canClaimMissionBonus, missionsClaimable } from '../economy/profile';
 import { privacyHtml } from './privacy';
 import { icon } from './icons';
@@ -610,6 +611,13 @@ export class UI {
           <div class="ev-foot"><span>${t('weekly.best')}: <b>${fmt(weekBest)}</b></span>
             <button class="btn small primary" data-act="weekly">${icon('play', 16)}${t('daily.start')}</button></div>
         </div>
+        <div class="panel event-card challenge">
+          <div class="ev-head"><span class="ev-title">${t('challenge.title')}</span></div>
+          <p class="hint">${t('challenge.desc')}</p>
+          <div class="code-row"><input id="challenge-code" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="${t('challenge.placeholder')}" aria-label="${t('challenge.title')}" />
+            <button class="btn small primary" data-act="accept">${t('challenge.accept')}</button></div>
+          <p class="hint code-error" hidden>${t('challenge.invalid')}</p>
+        </div>
       </div>`;
     this.open('events', html, {
       onAction: (act) => {
@@ -620,6 +628,11 @@ export class UI {
         } else if (act === 'weekly') {
           this.app.audio.uiSelect();
           this.app.startRun(false, true);
+        } else if (act === 'accept') {
+          const field = document.getElementById('challenge-code') as HTMLInputElement | null;
+          if (!this.app.startChallenge(field?.value ?? '')) {
+            document.querySelector<HTMLElement>('.code-error')?.removeAttribute('hidden');
+          }
         }
       },
     });
@@ -753,6 +766,18 @@ export class UI {
         <span class="tname">${t(`trail.${tr.id}` as I18nKey)}</span>${state}</button>`;
     }).join('');
     return `<div class="panel"><h3>${t('trails.title')}</h3><div class="trail-grid">${tiles}</div></div>`;
+  }
+
+  /** Mastery progress of an owned spark: level, bar and current bonus. */
+  private masteryLine(id: CharacterId): string {
+    const xp = this.app.save.data.mastery[id] ?? 0;
+    const lv = masteryLevel(xp);
+    const max = lv >= MASTERY_MAX;
+    const from = lv === 0 ? 0 : masteryXpFor(lv);
+    const pct = max ? 100 : Math.round(((xp - from) / (masteryXpFor(lv + 1) - from)) * 100);
+    const bonus = lv > 0 ? t('mastery.bonus', { n: Math.round(masteryBonus(lv) * 100) }) : '';
+    return `<div class="mastery ${max ? 'max' : ''}"><div class="m-top"><span>${max ? t('mastery.master') : t('mastery.level', { n: lv, max: MASTERY_MAX })}</span><span class="m-bonus">${bonus}</span></div>
+      <span class="m-bar"><i style="width:${pct}%"></i></span></div>`;
   }
 
   /** Ability chips on a spark card; a spark without any gets one neutral line. */
@@ -930,10 +955,11 @@ export class UI {
             ? `<span class="premium-tag legend">${t('sparks.legend')}</span>`
             : '';
       const locked = !owned && !c.exclusive && c.unlockLevel > s.level;
-      return `<div class="spark-card ${sel ? 'selected' : ''} ${c.premium ? 'premium' : ''} ${c.exclusive ? 'exclusive' : ''} ${locked ? 'locked' : ''}">${orb(c.id, true)}
+      const master = owned && masteryLevel(s.mastery[c.id] ?? 0) >= MASTERY_MAX;
+      return `<div class="spark-card ${sel ? 'selected' : ''} ${c.premium ? 'premium' : ''} ${c.exclusive ? 'exclusive' : ''} ${locked ? 'locked' : ''} ${master ? 'master' : ''}">${orb(c.id, true)}
         <div class="body"><div class="name" style="font-weight:750;font-size:18px">${t(`char.${c.id}.name` as I18nKey)}
           ${tag}</div>
-          ${this.perkChips(c.id)}
+          ${this.perkChips(c.id)}${owned ? this.masteryLine(c.id) : ''}
           <div class="bars">${bar(t('sparks.agility'), 1 / c.hitMul / 1.45, c.color)}${bar(t('sparks.trail'), c.trailMul / 1.35, c.color)}${bar(t('sparks.hearts'), hearts, '#ff5577')}</div>
           ${btn}</div></div>`;
     }).join('');
@@ -1334,6 +1360,10 @@ export class UI {
     }
     for (const g of r.weeklyGoals)
       rewards.push(`<div class="reward-row hl">${icon('trophy', 18)}<span>${t('over.weekly', { medal: t(`weekly.medal${g}` as I18nKey) })}</span>${this.rewardChips(WEEKLY_REWARDS[g])}</div>`);
+    if (r.mastery.gained.length > 0) {
+      const gems = r.mastery.gained.reduce((n, lv) => n + masteryReward(lv), 0);
+      rewards.push(`<div class="reward-row hl">${this.unlockIcon({ kind: 'char', id: r.mastery.spark }, 18)}<span>${t('over.mastery', { name: t(`char.${r.mastery.spark}.name` as I18nKey), n: r.mastery.level })}</span>${this.price('diamonds', gems)}</div>`);
+    }
     if (r.pass.gained > 0) rewards.push(`<div class="reward-row hl">${icon('crown', 18)}<span>${t('over.pass', { n: r.pass.tier })}</span></div>`);
     for (const u of r.unlocked) rewards.push(`<div class="reward-row unlock">${this.unlockIcon(u, 18)}<span>${t('over.unlocked', { name: this.unlockName(u) })}</span></div>`);
     for (const m of r.milestones) rewards.push(`<div class="reward-row hl">${icon('gem', 18)}<span>${t('over.milestone', { n: m.wave })}</span>${this.price('diamonds', m.diamonds)}</div>`);
@@ -1353,7 +1383,14 @@ export class UI {
           <div class="earned">${icon('shard', 22)}<span id="earned-shards">+${fmt(r.shards)}</span> <span style="color:var(--muted);font-weight:550;font-size:15px">${t('over.shards')}</span></div>
           ${r.canDouble ? `<button class="btn double" data-act="double">${icon('ad', 20)}<span class="col"><b>${t('over.double')}</b><small>${t('over.doubleSub', { n: fmt(r.shards) })}</small></span></button>` : ''}
         </div>
+        ${
+          r.challenge
+            ? `<div class="panel duel ${r.challenge.won ? 'won' : 'lost'}"><div class="duel-title">${t(r.challenge.won ? 'challenge.won' : 'challenge.lost')}</div>
+          <div class="duel-scores"><span>${t('challenge.you')}<b>${fmt(r.score)}</b></span><span>${t('challenge.friend')}<b>${fmt(r.challenge.target)}</b></span></div></div>`
+            : ''
+        }
         <div class="panel"><h3>${t('over.rewards')}</h3><div class="rewards">${rewards.join('')}</div>${ach}</div>
+        ${r.shareCode ? `<button class="btn ghost" data-act="share">${icon('share', 20)}${t(r.challenge ? 'challenge.shareBack' : 'challenge.shareBtn')}</button>` : ''}
         ${r.canAfford ? `<p class="hint" style="margin:0">${t('over.workshopHint')}</p>` : ''}
         <button class="btn primary" data-act="again">${icon('refresh', 22)}${t('over.again')}</button>
         <div class="grid2">
@@ -1364,6 +1401,11 @@ export class UI {
     const el = this.open('gameover', html, {
       dim: true,
       onAction: (act, btn) => {
+        if (act === 'share') {
+          this.app.audio.uiClick();
+          void this.app.shareRun();
+          return;
+        }
         if (act === 'double') {
           btn.setAttribute('disabled', '');
           void this.app.doubleShards().then((ok) => {

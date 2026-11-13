@@ -1,7 +1,7 @@
-import type { PluginListenerHandle } from '@capacitor/core';
+import { registerPlugin, type PluginListenerHandle } from '@capacitor/core';
 import { PRODUCTS, getProduct, type ProductId } from '../economy/defs';
 import { ADMOB, ADS_ARE_TEST } from './config';
-import type { AdPlacement, CompletedPurchase, Platform, PurchaseOutcome, RewardResult, StoreProduct } from './types';
+import { copyText, type AdPlacement, type CompletedPurchase, type Platform, type PurchaseOutcome, type RewardResult, type ShareResult, type StoreProduct } from './types';
 
 type AdMobModule = typeof import('@capacitor-community/admob');
 type PurchasesModule = typeof import('@capgo/native-purchases');
@@ -277,6 +277,24 @@ export class NativePlatform implements Platform {
 
   exitApp(): void {
     void this.app?.App.exitApp();
+  }
+
+  async share(text: string): Promise<ShareResult> {
+    try {
+      const { Share } = await import('@capacitor/share');
+      await Share.share({ text });
+      return 'shared';
+    } catch {
+      return copyText(text);
+    }
+  }
+
+  async requestReview(): Promise<void> {
+    try {
+      await registerPlugin<{ request(): Promise<void> }>('InAppReview').request();
+    } catch {
+      /* not available – nothing to do */
+    }
   }
 
   private async whenApp() {

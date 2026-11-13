@@ -49,6 +49,8 @@ export interface RunOptions {
   level?: number;
   /** Blitz mode: the run ends after this many seconds. */
   timeLimit?: number;
+  /** Mastery level of the spark (each level: +1 % score and shards). */
+  mastery?: number;
 }
 
 export type WavePhase = 'intro' | 'active' | 'cleared' | 'upgrade' | 'idle';
@@ -173,9 +175,10 @@ export class World {
     }
   }
 
-  private bonus(): { hearts: number; shardMul: number } {
+  private bonus(): { hearts: number; shardMul: number; scoreMul: number } {
     const b = this.opts.boosters ?? [];
-    return { hearts: b.includes('heart') ? 1 : 0, shardMul: b.includes('magnet') ? 1.5 : 1 };
+    const mastery = 1 + 0.01 * (this.opts.mastery ?? 0);
+    return { hearts: b.includes('heart') ? 1 : 0, shardMul: (b.includes('magnet') ? 1.5 : 1) * mastery, scoreMul: mastery };
   }
 
   has(booster: BoosterId): boolean {

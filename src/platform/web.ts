@@ -1,6 +1,6 @@
 import { t } from '../core/i18n';
 import { PRODUCTS, type ProductId } from '../economy/defs';
-import type { AdPlacement, CompletedPurchase, Platform, PurchaseOutcome, RewardResult, StoreProduct } from './types';
+import { copyText, type AdPlacement, type CompletedPurchase, type Platform, type PurchaseOutcome, type RewardResult, type ShareResult, type StoreProduct } from './types';
 
 /**
  * Browser implementation: ads and purchases are simulated with clearly labelled demo
@@ -71,6 +71,23 @@ export class WebPlatform implements Platform {
   onBackButton(): void {}
   onPauseResume(): void {}
   exitApp(): void {}
+
+  async share(text: string): Promise<ShareResult> {
+    const nav = navigator as Navigator & { share?: (d: { text: string }) => Promise<void> };
+    if (nav.share) {
+      try {
+        await nav.share({ text });
+        return 'shared';
+      } catch {
+        /* cancelled or blocked → copy instead */
+      }
+    }
+    return copyText(text);
+  }
+
+  async requestReview(): Promise<void> {
+    /* Only the Play Store app has a rating dialog. */
+  }
 }
 
 function demoOverlay(opts: { seconds: number; rewarded: boolean }): Promise<boolean> {

@@ -10,7 +10,7 @@ export function computeStats(
   meta: MetaLevels,
   up: UpgradeLevels,
   modifiers: readonly ModifierId[],
-  bonus: { hearts?: number; shardMul?: number } = {},
+  bonus: { hearts?: number; shardMul?: number; scoreMul?: number } = {},
 ): PlayerStats {
   const c = getCharacter(characterId);
   const lv = (k: keyof UpgradeLevels) => up[k] ?? 0;
@@ -35,7 +35,7 @@ export function computeStats(
     magnet: TUNING.magnet * (1 + 0.15 * m('magnet')) * (1 + UPGRADE_VALUES.magnet(lv('magnet'))),
     maxHearts,
     shardMul: c.shardMul * (1 + 0.1 * m('shards')) * (1 + UPGRADE_VALUES.shardrain(lv('shardrain'))) * (modifiers.includes('glass') ? 2 : 1) * (bonus.shardMul ?? 1),
-    scoreMul: c.scoreMul * (1 + UPGRADE_VALUES.stardust(lv('stardust'))) * (1 + META_VALUES.score(m('score'))),
+    scoreMul: c.scoreMul * (1 + UPGRADE_VALUES.stardust(lv('stardust'))) * (1 + META_VALUES.score(m('score'))) * (bonus.scoreMul ?? 1),
     comboWindow: TUNING.combo.window + UPGRADE_VALUES.combo(lv('combo')) + META_VALUES.combo(m('combo')),
     loopDamage: 1 + lv('double'),
     shockwave: lv('shockwave') + c.innateShockwave,

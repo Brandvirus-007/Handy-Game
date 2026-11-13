@@ -3498,3 +3498,132 @@ button.level-chip:active b {
   background: rgba(255, 209, 102, 0.2);
   color: var(--gold);
 }
+
+/* Spark mastery */
+.mastery {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.mastery .m-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--muted);
+}
+
+.mastery .m-bonus {
+  color: var(--gold);
+  text-align: right;
+}
+
+.mastery .m-bar {
+  display: block;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.mastery .m-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #ffd166, #ff9f43);
+}
+
+.mastery.max .m-top span:first-child {
+  color: var(--gold);
+}
+
+.spark-card.master {
+  border-color: rgba(255, 209, 102, 0.6);
+  box-shadow: 0 0 0 1px rgba(255, 209, 102, 0.2), 0 0 22px rgba(255, 209, 102, 0.12);
+}
+
+.spark-card.master .orb {
+  outline: 2px solid rgba(255, 209, 102, 0.75);
+  outline-offset: 4px;
+}
+
+/* Friend challenge */
+.event-card.challenge {
+  border-color: rgba(125, 249, 255, 0.3);
+}
+
+.code-row {
+  display: flex;
+  gap: 8px;
+}
+
+.code-row input {
+  flex: 1;
+  min-width: 0;
+  height: var(--bar-h);
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line-strong);
+  background: rgba(10, 8, 26, 0.8);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.code-row input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.code-error {
+  margin: 0;
+  color: var(--danger);
+}
+
+.panel.duel {
+  text-align: center;
+}
+
+.panel.duel.won {
+  border-color: rgba(125, 255, 200, 0.45);
+}
+
+.panel.duel.lost {
+  border-color: rgba(255, 85, 119, 0.35);
+}
+
+.duel-title {
+  font-size: 22px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.panel.duel.won .duel-title {
+  color: #7dffc8;
+}
+
+.duel-scores {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.duel-scores span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.duel-scores b {
+  color: var(--text);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
