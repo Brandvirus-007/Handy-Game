@@ -36,14 +36,17 @@ UPGRADES
 FUNKEN
 10 Funken, die sich unterschiedlich spielen. Der Komet ist klein und schwer zu treffen, die Glut hat eine brennende Spur, das Phantom ignoriert den ersten Treffer jeder Welle, den Sonnenkern gibt es ab Stufe 50.
 
+KAMPAGNE
+60 Level in 6 Welten. Jedes Level hat feste Wellen, manche eine Sonderregel, am Ende jeder Welt wartet ein Boss. Pro Level gibt es bis zu 3 Sterne.
+
 MODI
 Normal mit Bossen alle 5 Wellen, Blitz mit 3 Minuten auf Zeit und Bossjagd, bei der jede Welle ein Boss ist.
 
 FORTSCHRITT
-Eine tägliche Herausforderung, drei Tagesmissionen, ein Bonus für jeden Tag, an dem du spielst, Stufen bis 50 mit neuen Freischaltungen, eine Werkstatt für dauerhafte Verbesserungen, ein Lichtpass mit 30 Stufen pro Saison, Spur-Designs, ein Wochen-Event mit Bronze, Silber und Gold Funken, die durchs Spielen aufsteigen, und 33 Erfolge. Mit Google Play Games gibt es Bestenlisten. Fordere Freunde mit einem Code heraus: Sie spielen genau deinen Lauf.
+Eine tägliche Herausforderung, drei Tagesmissionen, ein Bonus für jeden Tag, an dem du spielst, Stufen bis 50 mit neuen Freischaltungen, eine Werkstatt für dauerhafte Verbesserungen, ein Lichtpass mit 30 Stufen pro Saison, Spur-Designs, ein Wochen-Event mit Bronze, Silber und Gold, Funken, die durchs Spielen aufsteigen, und 35 Erfolge. Mit Google Play Games gibt es Bestenlisten, und dein Fortschritt wird in deinem Google-Konto gesichert. Fordere Freunde mit einem Code heraus: Sie spielen genau deinen Lauf.
 
 SONST NOCH
-6 Gebiete mit eigenen Farben. Musik und Sounds erzeugt das Spiel selbst. Vibration, Spielen ohne Internet, und wenn du die App wechselst, pausiert das Spiel.
+6 Gebiete mit eigenen Farben und eigener Musik. Musik und Sounds erzeugt das Spiel selbst. Ein Leuchtfilter lässt helles Licht nachglühen, du kannst ihn ausschalten. Vibration, Spielen ohne Internet, und wenn du die App wechselst, pausiert das Spiel.
 
 Das Spiel ist kostenlos. Es enthält Werbung und freiwillige In-App-Käufe.
 ```
@@ -79,14 +82,17 @@ UPGRADES
 SPARKS
 10 sparks that each play differently. The Comet is small and hard to hit, the Ember leaves a burning trail, the Phantom ignores the first hit of every wave, and the Sun Core unlocks at level 50.
 
+CAMPAIGN
+60 levels in 6 worlds. Every level has set waves, some have a special rule, and a boss waits at the end of each world. Every level has up to 3 stars.
+
 MODES
 Normal with a boss every 5 waves, Blitz with 3 minutes on the clock, and Boss Hunt, where every wave is a boss.
 
 PROGRESS
-A daily challenge, three daily missions, a bonus for every day you play, levels up to 50 with new unlocks, a workshop for permanent upgrades, a Light Pass with 30 tiers per season, trail designs, a weekly event with bronze, silver and gold, sparks that level up as you play them, and 33 achievements. With Google Play Games there are leaderboards. Challenge friends with a code: they play exactly your run.
+A daily challenge, three daily missions, a bonus for every day you play, levels up to 50 with new unlocks, a workshop for permanent upgrades, a Light Pass with 30 tiers per season, trail designs, a weekly event with bronze, silver and gold, sparks that level up as you play them, and 35 achievements. With Google Play Games there are leaderboards, and your progress is saved to your Google account. Challenge friends with a code: they play exactly your run.
 
 ALSO
-6 regions with their own colours. The game makes its own music and sounds. Vibration, offline play, and the game pauses when you switch apps.
+6 regions with their own colours and music. The game makes its own music and sounds. A glow filter makes bright light shine, and you can turn it off. Vibration, offline play, and the game pauses when you switch apps.
 
 The game is free. It contains ads and optional in-app purchases.
 ```
@@ -177,4 +183,24 @@ EN: First release. Draw loops of light, catch the shadows and last as many waves
 • Spark mastery: every spark levels up as you play it
 • Challenge friends: share a code, same run, who scores more?
 • Small improvements and bug fixes
+```
+
+## Versionshinweise 3.0.0
+
+**Deutsch:**
+```
+• Kampagne: 60 Level in 6 Welten mit bis zu 3 Sternen
+• Leuchtfilter: Licht glüht nach, Explosionen verzerren kurz das Bild
+• Neue Musik: jedes Gebiet hat seine eigene Melodie
+• Cloud-Speicherstand und Bestenlisten im Spiel mit Google Play Games
+• Zwei neue Erfolge und Fehlerbehebungen
+```
+
+**English:**
+```
+• Campaign: 60 levels in 6 worlds with up to 3 stars
+• Glow filter: light glows, explosions briefly bend the picture
+• New music: every region has its own melody
+• Cloud save and in-game leaderboards with Google Play Games
+• Two new achievements and bug fixes
 ```

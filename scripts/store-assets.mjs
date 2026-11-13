@@ -94,7 +94,8 @@ try {
       tick();
     });
     await page.evaluate(() => window.app.launchRun(false, []));
-    await page.evaluate(() => window.app.world.beginWave(13));
+    // A run that starts at wave 13 shows a score that fits it, as if the first 12 waves were played.
+    await page.evaluate(() => { const w = window.app.world; w.beginWave(13); w.run.score = 18640; w.run.shards = 214; });
     await sleep(3200);
     // Staged scene: a mixed group of shadows in the middle that the spark is circling.
     await page.evaluate(() => {
@@ -123,7 +124,7 @@ try {
     }
     await shot('2-gameplay');
 
-    await page.evaluate(() => { const w = window.app.world; for (const e of w.enemies) e.dead = true; w.markers.length = 0; w.beginWave(25); });
+    await page.evaluate(() => { const w = window.app.world; for (const e of w.enemies) e.dead = true; w.markers.length = 0; w.beginWave(25); w.run.score = Math.max(w.run.score, 41250); });
     for (let i = 0; i < 40; i++) {
       const firing = await page.evaluate(() =>
         window.app.world.enemies.some((e) => e.type === 'eye' && e.state === 1 && e.t > 4 && e.timer < 3.2 && e.timer > 1.2) && window.app.fx.flashes.length === 0);

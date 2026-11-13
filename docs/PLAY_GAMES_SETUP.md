@@ -1,6 +1,6 @@
 # Google Play Games einrichten
 
-Das Spiel hat Bestenlisten und Erfolge für Google Play Games eingebaut. Solange nichts eingerichtet ist, ist das
+Das Spiel hat Bestenlisten, Erfolge und einen Cloud-Speicherstand für Google Play Games eingebaut. Solange nichts eingerichtet ist, ist das
 abgeschaltet: Die App läuft normal, und in den Einstellungen taucht der Bereich „Google Play Games“ nicht auf.
 
 ## 1. Projekt in der Play Console anlegen
@@ -38,7 +38,7 @@ Unter **Bestenlisten** fünf Listen anlegen (Sortierung: höher ist besser) und 
 
 ## 4. Erfolge anlegen
 
-Unter **Erfolge** diese 33 Erfolge anlegen und die IDs in `src/platform/games-ids.ts` bei
+Unter **Erfolge** diese 35 Erfolge anlegen und die IDs in `src/platform/games-ids.ts` bei
 `ACHIEVEMENT_IDS` eintragen, zum Beispiel `first_loop: 'CgkI…'`. Fehlende Einträge werden einfach übersprungen.
 
 | Schlüssel | Name (DE) | Beschreibung (DE) | Name (EN) |
@@ -76,11 +76,32 @@ Unter **Erfolge** diese 33 Erfolge anlegen und die IDs in `src/platform/games-id
 | `blitz` | Blitzlicht | Hol 10.000 Punkte im Blitz-Modus. | Flashlight |
 | `hunter` | Bossjäger | Besiege 5 Bosse in einer Bossjagd. | Boss Hunter |
 | `master` | Meister des Lichts | Bring einen Funken auf Meisterschaft 10. | Master of Light |
+| `campaign` | Weltenbummler | Schaffe alle 60 Level der Kampagne. | World Traveller |
+| `allstars` | Sternenhimmel | Hol in allen 60 Leveln 3 Sterne. | Starry Sky |
 
-## 5. Testen
+## 5. Cloud-Speicherstand einschalten
+
+Unter **Play Games-Dienste → Einrichtung und Verwaltung → Konfiguration** bei **Gespeicherte Spiele** (Saved Games)
+auf **Aktiviert** stellen. Ohne diesen Schalter schlägt das Sichern fehl, das Spiel läuft aber normal weiter.
+
+So arbeitet der Speicherstand im Spiel:
+
+- Nach dem Start lädt das Spiel den Stand aus dem Google-Konto. Hat das Konto mehr Fortschritt als das Handy
+  (zuerst Stufe, dann Runden, dann Spielzeit), fragt das Spiel, welcher Stand bleiben soll.
+- Einstellungen bleiben immer die des Handys. Käufe von diesem Handy (Kauf-Tokens, Funken, Spuren, Werbefrei,
+  Lichtpass) gehen beim Laden nicht verloren.
+- Danach wird bei jeder Änderung gesichert, gesammelt höchstens alle 20 Sekunden und sofort, wenn die App in den
+  Hintergrund geht. In den Einstellungen gibt es zusätzlich „Sichern“.
+- Hochgeladen wird erst, nachdem der Stand im Konto geprüft wurde. Ein neues Handy überschreibt also nie
+  ungefragt einen älteren Fortschritt.
+
+## 6. Testen
 
 1. Play-Games-Projekt unter **Tester** um das eigene Google-Konto ergänzen.
 2. App bauen und installieren. Beim Start meldet Play Games dich automatisch an.
-3. In den Einstellungen erscheinen „Bestenlisten“ und „Erfolge“. Erreichte Rekorde und Erfolge werden beim Start
-   und nach jeder Runde übertragen.
-4. Wenn alles passt, das Play-Games-Projekt in der Play Console **veröffentlichen**.
+3. In den Einstellungen erscheinen „Bestenlisten“, „Erfolge“ und „Spielstand – Sichern“. Erreichte Rekorde und
+   Erfolge werden beim Start und nach jeder Runde übertragen. „Bestenlisten“ zeigt die Top 10 und den eigenen Platz
+   direkt im Spiel, sobald mindestens eine Bestenlisten-ID eingetragen ist.
+4. Cloud testen: Ein paar Runden spielen, App-Daten löschen, App neu starten. Das Spiel fragt dann, ob der Stand
+   aus dem Konto geladen werden soll.
+5. Wenn alles passt, das Play-Games-Projekt in der Play Console **veröffentlichen**.

@@ -62,7 +62,7 @@ Grundlage: [Googles Datenoffenlegung für AdMob](https://developers.google.com/a
 |---|---|
 | Erhebt oder teilt die App Nutzerdaten? | Ja |
 | Verschlüsselung bei der Übertragung | Ja |
-| Löschanfrage möglich? | Spieldaten liegen nur lokal (Löschen über *Einstellungen → Spielstand löschen* oder Deinstallation) |
+| Löschanfrage möglich? | Spieldaten liegen lokal (Löschen über *Einstellungen → Spielstand löschen* oder Deinstallation). Mit Play Games liegt eine Kopie im Google-Konto des Spielers, die er über Play Games / Google-Konto löscht. |
 
 | Datentyp | Erhoben | Geteilt | Zweck |
 |---|---|---|---|
@@ -70,6 +70,11 @@ Grundlage: [Googles Datenoffenlegung für AdMob](https://developers.google.com/a
 | App-Aktivität → App-Interaktionen | Ja | Ja | Werbung, Analyse, Betrugsprävention |
 | App-Info und -Leistung → Diagnosedaten | Ja | Ja | Analyse, Betrugsprävention |
 | Geräte- oder andere IDs | Ja | Ja | Werbung, Analyse, Betrugsprävention |
+
+**Google Play Games** (nur wenn eingerichtet, siehe `docs/PLAY_GAMES_SETUP.md`): Punkte, Erfolge und der Cloud-Speicherstand
+gehen an Google und liegen im Google-Konto des Spielers. Vor dem Absenden in Googles aktueller Hilfe zur
+Datensicherheit nachsehen, ob und wie Play-Games-Daten anzugeben sind (z. B. „App-Aktivität → Sonstige
+nutzergenerierte Inhalte“ oder „Spielfortschritt“), und die Antwort entsprechend ergänzen.
 
 ## E. Testen → Veröffentlichen
 

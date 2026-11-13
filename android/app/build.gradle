@@ -17,7 +17,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         // CI passes LUMEN_VERSION_CODE (must increase with every Play upload).
         versionCode Integer.parseInt(env['LUMEN_VERSION_CODE'] ?: '1')
-        versionName "2.4.0"
+        versionName "3.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

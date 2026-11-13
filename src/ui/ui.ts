@@ -450,7 +450,7 @@ export class UI {
 
   // ───────────────────────── Light pass ─────────────────────────
 
-  /** Wide entry under the play button: current tier, progress and a badge when rewards wait. */
+  /** Half-width entry next to the campaign: current tier, progress and a badge when rewards wait. */
   private passBar(): string {
     const s = this.app.save.data;
     const tier = passTier(s.pass.points);
@@ -459,8 +459,8 @@ export class UI {
     return `<button class="pass-bar" data-act="pass">
       <span class="pass-ico">${icon('crown', 20)}</span>
       <span class="pass-body"><span class="pass-name">${t('pass.title')}</span>
-        <span class="pass-track"><i style="width:${Math.round(into * 100)}%"></i></span></span>
-      <span class="pass-tier">${t('pass.tier', { n: tier, max: PASS_TIERS })}</span>
+        <span class="pass-sub"><span class="pass-tier">${t('pass.tier', { n: tier, max: PASS_TIERS })}</span>
+        <span class="pass-track"><i style="width:${Math.round(into * 100)}%"></i></span></span></span>
       ${ready ? `<span class="count">${ready}</span>` : ''}
     </button>`;
   }
@@ -590,7 +590,8 @@ export class UI {
   showWhatsNew(onClose: () => void): void {
     const wrap = document.createElement('div');
     wrap.className = 'dialog-wrap';
-    const keys: I18nKey[] = ['news.1', 'news.2', 'news.3', 'news.4', 'news.5'];
+    // The Play Games line only when Play Games is set up in this build.
+    const keys: I18nKey[] = ['news.1', 'news.2', 'news.3', ...(this.app.games.configured ? (['news.4'] as I18nKey[]) : []), 'news.5'];
     const items = keys.map((k) => `<li>${esc(t(k))}</li>`).join('');
     wrap.innerHTML = `<div class="dialog news">
       <div class="news-icon">${icon('news', 30)}</div>
