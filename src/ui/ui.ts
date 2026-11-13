@@ -27,7 +27,7 @@ import {
   type Reward,
 } from '../economy/defs';
 import { anyMetaBuyable, levelPath, nextUnlockLevel, type Unlock } from '../economy/unlocks';
-import { PASS_FREE, PASS_PREMIUM, PASS_TIERS, PASS_XP_PER_TIER, canClaim, hasPremium, passClaimable, passTier, premiumTotals, seasonDaysLeft, type PassReward, type PassTrack } from '../economy/pass';
+import { PASS_BONUS_XP, PASS_FREE, PASS_MISSION_XP, PASS_PREMIUM, PASS_TIERS, PASS_XP_PER_TIER, canClaim, hasPremium, passClaimable, passTier, premiumTotals, seasonDaysLeft, type PassReward, type PassTrack } from '../economy/pass';
 import { localDateKey } from '../core/rng';
 import { WEEKLY_REWARDS, weekOf, weeklyDaysLeft, weeklyTheme } from '../economy/weekly';
 import { MASTERY_MAX, masteryBonus, masteryLevel, masteryReward, masteryXpFor } from '../economy/mastery';
@@ -119,9 +119,17 @@ export class UI {
   // ───────────────────────── Infrastructure ─────────────────────────
 
   private open(name: string, html: string, opts: { dim?: boolean; onAction?: (act: string, el: HTMLElement) => void } = {}): HTMLElement {
-    this.close();
+    // Re-drawing the screen that is already open (after claiming, buying …) keeps the scroll position
+    // and skips the slide-in, so the list does not jump back to the top.
+    const old = this.current;
+    const refresh = !!old && old.dataset.screen === name;
+    const scroll = refresh ? old!.scrollTop : 0;
+    if (refresh) {
+      old!.remove();
+      this.current = null;
+    } else this.close();
     const el = document.createElement('div');
-    el.className = `screen ${opts.dim ? 'dim' : ''}`;
+    el.className = `screen ${opts.dim ? 'dim' : ''} ${refresh ? 'refresh' : ''}`;
     el.dataset.screen = name;
     el.innerHTML = html;
     el.addEventListener('click', (e) => {
@@ -130,6 +138,7 @@ export class UI {
       opts.onAction?.(target.dataset.act!, target);
     });
     this.root.appendChild(el);
+    if (scroll) el.scrollTop = scroll;
     this.current = el;
     this.screenName = name;
     return el;
@@ -270,6 +279,10 @@ export class UI {
   private gemCost(amount: number, stacked = false): string {
     if (!SHOW_MONEY_VALUES) return this.price('diamonds', amount);
     return `<span class="gem-cost ${stacked ? 'stacked' : ''}">${this.price('diamonds', amount)}<span class="eur">≈ ${esc(this.app.diamondValue(amount))}</span></span>`;
+  }
+
+  private epChip(n: number): string {
+    return `<span class="price ep">${icon('crown', 14)}${t('pass.ep', { n: fmt(n) })}</span>`;
   }
 
   private rewardChips(r: Reward): string {
@@ -929,7 +942,7 @@ export class UI {
           <div class="ico-wrap">${icon(m.claimed ? 'check' : 'target', 22)}</div>
           <div class="body"><div class="name">${t(`mission.${m.type}` as I18nKey, { n: m.target })}</div>
             <div class="bar"><i style="width:${pct}%"></i></div>
-            <div class="desc">${t('missions.progress', { n: fmt(m.progress), max: fmt(m.target) })} · ${this.rewardChips(m.reward)}</div></div>
+            <div class="desc">${t('missions.progress', { n: fmt(m.progress), max: fmt(m.target) })} · ${this.rewardChips(m.reward)}${this.epChip(PASS_MISSION_XP)}</div></div>
           <button class="btn small" data-act="claim" data-i="${i}" ${done && !m.claimed ? '' : 'disabled'}>${m.claimed ? t('missions.claimed') : t('missions.claim')}</button>
         </div>`;
       })
@@ -941,7 +954,7 @@ export class UI {
         <div class="list">${items}</div>
         <div class="panel"><div class="item">
           <div class="ico-wrap">${icon('gift', 24)}</div>
-          <div class="body"><div class="name">${t('missions.bonus')}</div><div class="desc">${this.rewardChips(MISSION_BONUS)}</div></div>
+          <div class="body"><div class="name">${t('missions.bonus')}</div><div class="desc">${this.rewardChips(MISSION_BONUS)}${this.epChip(PASS_BONUS_XP)}</div></div>
           <button class="btn small" data-act="bonus" ${bonusReady ? '' : 'disabled'}>${s.missions.bonusClaimed ? t('missions.claimed') : t('missions.claim')}</button>
         </div></div>
       </div>`;
@@ -1585,7 +1598,10 @@ export class UI {
       const gems = r.mastery.gained.reduce((n, lv) => n + masteryReward(lv), 0);
       rewards.push(`<div class="reward-row hl">${this.unlockIcon({ kind: 'char', id: r.mastery.spark }, 18)}<span>${t('over.mastery', { name: t(`char.${r.mastery.spark}.name` as I18nKey), n: r.mastery.level })}</span>${this.price('diamonds', gems)}</div>`);
     }
-    if (r.pass.gained > 0) rewards.push(`<div class="reward-row hl">${icon('crown', 18)}<span>${t('over.pass', { n: r.pass.tier })}</span></div>`);
+    if (r.pass.xp > 0)
+      rewards.push(
+        `<div class="reward-row ${r.pass.gained > 0 ? 'hl' : ''}">${icon('crown', 18)}<span>${r.pass.gained > 0 ? t('over.pass', { n: r.pass.tier }) : t('pass.title')}</span>${this.epChip(r.pass.xp)}</div>`,
+      );
     for (const u of r.unlocked) rewards.push(`<div class="reward-row unlock">${this.unlockIcon(u, 18)}<span>${t('over.unlocked', { name: this.unlockName(u) })}</span></div>`);
     for (const m of r.milestones) rewards.push(`<div class="reward-row hl">${icon('gem', 18)}<span>${t('over.milestone', { n: m.wave })}</span>${this.price('diamonds', m.diamonds)}</div>`);
     if (r.missionsDone) rewards.push(`<div class="reward-row">${icon('target', 18)}<span>${t('over.missionsDone', { n: r.missionsDone })}</span></div>`);

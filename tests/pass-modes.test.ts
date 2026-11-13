@@ -13,6 +13,10 @@ import {
   ensureSeason,
   hasPremium,
   passClaimable,
+  passXpForRun,
+  PASS_RUN_MAX,
+  PASS_MISSION_XP,
+  PASS_BONUS_XP,
   premiumTotals,
   seasonDaysLeft,
   seasonOf,
@@ -42,6 +46,17 @@ describe('light pass seasons', () => {
       const def = TRAILS.find((t) => t.id === r.trail);
       expect(def?.price).toBe(0);
     }
+  });
+
+  it('pass XP comes from waves, not from the score, and is capped per run', () => {
+    expect(passXpForRun(0)).toBe(10);
+    expect(passXpForRun(5)).toBe(30);
+    expect(passXpForRun(22)).toBe(98);
+    expect(passXpForRun(80)).toBe(PASS_RUN_MAX);
+    // Even perfect runs need weeks: at least 60 maxed runs for all tiers (missions add 180 a day).
+    expect((PASS_TIERS * PASS_XP_PER_TIER) / PASS_RUN_MAX).toBeGreaterThanOrEqual(60);
+    const perDayCasual = 3 * passXpForRun(8) + 3 * PASS_MISSION_XP + PASS_BONUS_XP;
+    expect((PASS_TIERS * PASS_XP_PER_TIER) / perDayCasual).toBeLessThan(28);
   });
 
   it('free rewards can be claimed once per reached tier', () => {

@@ -23,7 +23,7 @@ Berührst du einen Schatten selbst, kostet das ein Herz.
   Schlund, Weberin, Zwillinge, Hydra, Auge und Wirbel. Alle fünf Wellen kommt ein Boss, mit jedem Durchgang stärker.
 - **31 Upgrades** mit Synergien (davon 4 legendäre Fusionen), **10 Funken** (zwei Premium, einer exklusiv im Shop, der Sonnenkern ab Stufe 50) und **6 Gebiete** mit eigener Farbwelt.
 - **Fortschritt:** Lichtstufen mit Stufenpfad (Funken, Upgrades und Werkstatt-Ränge werden bis Stufe 50 freigeschaltet), Etappen, 3 Tagesmissionen, 7-Tage-Bonus, Werkstatt mit 10 Verbesserungen, Booster, 35 Erfolge, tägliche Herausforderung, Wochen-Event mit Bronze/Silber/Gold.
-- **Lichtpass:** 28-Tage-Saisons mit 30 Stufen, Gratis- und Premium-Belohnungen (`light_pass`, 4,99 €), dazu 7 Spur-Designs.
+- **Lichtpass:** 28-Tage-Saisons mit 30 Stufen, Gratis- und Premium-Belohnungen (`light_pass`, 4,99 €), dazu 7 Spur-Designs. Pass-EP gibt es fürs Spielen, nicht für die Punktzahl: 10 + 4 pro Welle (höchstens 100 pro Runde), 40 pro Tagesmission, 60 für den Missionsbonus; 250 EP pro Stufe.
 - **Kampagne:** 60 Level in 6 Welten mit festen Wellenplänen, Sonderregeln und einem Boss am Ende jeder Welt. Pro Level bis zu 3 Sterne (geschafft, höchstens ein Treffer, Punkteziel).
 - **Modi:** Normal, Blitz (3 Minuten auf Punkte, ab Stufe 5) und Bossjagd (jede Welle ein Boss, ab Stufe 12).
 - **Funken-Meisterschaft** (10 Stufen pro Funke, +1 % Punkte und Splitter pro Stufe) und **Freunde herausfordern** per Code (gleicher Lauf, gleicher Funke, ohne Booster).

@@ -4,7 +4,16 @@ import type { TrailId } from '../game/trails';
 /* Light pass: a 28-day season with a free and a premium reward track. Pure rules on the save data. */
 
 export const PASS_TIERS = 30;
-export const PASS_XP_PER_TIER = 500;
+export const PASS_XP_PER_TIER = 250;
+/**
+ * Pass XP comes from playing regularly, not from the score: a run gives 10 plus 4 per cleared wave
+ * (at most 100), each daily mission 40 and the bonus for all three 60. All 30 tiers take about two to
+ * three and a half weeks of daily play.
+ */
+export const PASS_RUN_MAX = 100;
+export const PASS_MISSION_XP = 40;
+export const PASS_BONUS_XP = 60;
+export const passXpForRun = (wavesCleared: number): number => Math.min(PASS_RUN_MAX, 10 + 4 * Math.max(0, Math.floor(wavesCleared)));
 export const SEASON_DAYS = 28;
 /** Day 0 of season 1 (a Monday, launch of the light pass). */
 const SEASON_START = Date.UTC(2026, 10, 2);

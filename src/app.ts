@@ -9,7 +9,7 @@ import { getTrail, type TrailId } from './game/trails';
 import { getMode, type GameMode } from './game/modes';
 import { META_VALUES, metaCost, metaLevelReq, getMeta } from './game/meta';
 import { anyMetaBuyable, unlocksBetween, type Unlock } from './economy/unlocks';
-import { addPassXp, claimAllPass, claimPass, ensureSeason, passTier, type PassTrack } from './economy/pass';
+import { PASS_BONUS_XP, PASS_MISSION_XP, addPassXp, claimAllPass, claimPass, ensureSeason, passTier, passXpForRun, type PassTrack } from './economy/pass';
 import { ensureWeek, recordWeekly, weekOf, weeklyTheme } from './economy/weekly';
 import { addMastery, sparkMastery, MASTERY_MAX } from './economy/mastery';
 import { decodeChallenge, encodeChallenge } from './economy/challenge';
@@ -86,7 +86,7 @@ export interface RunResult {
   /** Content unlocked by this run's level-ups. */
   unlocked: Unlock[];
   /** Light pass tier after the run and tiers gained in it. */
-  pass: { tier: number; gained: number };
+  pass: { tier: number; gained: number; xp: number };
   mode: GameMode;
   /** Blitz run that ended because the time ran out. */
   timeUp: boolean;
@@ -834,7 +834,8 @@ export class App {
     const levelBefore = s.level;
     const levelUps = addXp(s, xp);
     const unlocked = unlocksBetween(levelBefore, s.level);
-    const passGained = addPassXp(s, xp, localDateKey());
+    const passXp = passXpForRun(r.wavesCleared);
+    const passGained = addPassXp(s, passXp, localDateKey());
     const masteryGained = s.chars.includes(setup.character) ? addMastery(s, setup.character, xp) : [];
     let campaignResult: RunResult['campaign'] = null;
     if (setup.campaign !== undefined) {
@@ -895,7 +896,7 @@ export class App {
       xp,
       levelUps,
       unlocked,
-      pass: { tier: passTier(s.pass.points), gained: passGained },
+      pass: { tier: passTier(s.pass.points), gained: passGained, xp: passXp },
       mode: setup.mode,
       timeUp: w.timeUp,
       weekly: setup.weekly,
@@ -1127,6 +1128,7 @@ export class App {
   claimMission(index: number): boolean {
     const r = claimMission(this.save.data, index);
     if (!r) return false;
+    addPassXp(this.save.data, PASS_MISSION_XP, localDateKey());
     this.save.save();
     this.audio.purchase();
     return true;
@@ -1135,6 +1137,7 @@ export class App {
   claimMissionBonus(): boolean {
     if (!canClaimMissionBonus(this.save.data)) return false;
     claimMissionBonus(this.save.data);
+    addPassXp(this.save.data, PASS_BONUS_XP, localDateKey());
     this.save.save();
     this.audio.purchase();
     return true;
