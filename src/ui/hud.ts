@@ -109,7 +109,11 @@ export class Hud {
       v.shield = w.shieldUp;
     }
     if (w.run.score !== v.score) {
-      if (w.run.score < this.shownScore || v.score < 0) this.shownScore = w.run.score; // new run
+      if (w.run.score < this.shownScore || v.score < 0) {
+        // New run: jump straight to the new score (otherwise the last run's number stays visible).
+        this.shownScore = w.run.score;
+        this.score.textContent = fmt(this.shownScore);
+      }
       this.score.classList.remove('bump');
       void this.score.offsetWidth;
       this.score.classList.add('bump');

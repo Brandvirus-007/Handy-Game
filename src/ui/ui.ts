@@ -31,6 +31,8 @@ import { PASS_FREE, PASS_PREMIUM, PASS_TIERS, PASS_XP_PER_TIER, canClaim, hasPre
 import { localDateKey } from '../core/rng';
 import { WEEKLY_REWARDS, weekOf, weeklyDaysLeft, weeklyTheme } from '../economy/weekly';
 import { MASTERY_MAX, masteryBonus, masteryLevel, masteryReward, masteryXpFor } from '../economy/mastery';
+import { LEVELS_PER_WORLD, LEVEL_COUNT, WORLDS, getLevel } from '../game/campaign';
+import { levelStars, levelUnlocked, nextLevel, totalStars, worldStars } from '../economy/campaign';
 import { achievementDiamonds, availableBoosters, boosterCost, canClaimMissionBonus, missionsClaimable } from '../economy/profile';
 import { privacyHtml } from './privacy';
 import { icon } from './icons';
@@ -296,7 +298,7 @@ export class UI {
         <div class="logo"><h1><span>LUMEN</span><span>LOOP</span></h1><p>${t('app.tagline')}</p></div>
         <button class="char-chip" data-act="sparks">${orb(s.selected)}<span>${t(`char.${s.selected}.name` as I18nKey)}</span></button>
         <button class="btn primary" data-act="play">${icon('play', 22)}${t('menu.play')}</button>
-        ${this.passBar()}
+        <div class="feature-row">${this.campaignCard()}${this.passBar()}</div>
         <div class="grid3">
           <button class="btn" data-act="missions">${icon('target', 24)}${t('menu.missions')}${missions ? `<span class="count">${missions}</span>` : ''}</button>
           <button class="btn" data-act="daily">${icon('calendar', 24)}${t('menu.events')}${dailyPlayed && weeklyPlayed ? '' : '<span class="badge"></span>'}</button>
@@ -325,6 +327,7 @@ export class UI {
         else if (act === 'settings') this.showSettings('menu');
         else if (act === 'levels') this.showLevels();
         else if (act === 'pass') this.showPass();
+        else if (act === 'campaign') this.showCampaign();
         else if (act === 'install') this.app.install();
       },
     });
@@ -337,6 +340,103 @@ export class UI {
   private back(): void {
     this.app.audio.uiBack();
     this.showMenu();
+  }
+
+  // ───────────────────────── Campaign ─────────────────────────
+
+  private stars(n: number, size = 14): string {
+    return `<span class="stars">${[0, 1, 2].map((i) => `<i class="${i < n ? 'on' : ''}">${icon('starFill', size)}</i>`).join('')}</span>`;
+  }
+
+  /** Half-width entry next to the light pass. */
+  private campaignCard(): string {
+    const s = this.app.save.data;
+    const lv = getLevel(nextLevel(s));
+    return `<button class="campaign-card" data-act="campaign">
+      <span class="cc-ico">${icon('map', 20)}</span>
+      <span class="cc-body"><span class="cc-name">${t('campaign.title')}</span>
+        <span class="cc-sub">${icon('starFill', 12)}${totalStars(s)}/${LEVEL_COUNT * 3} · ${lv.world + 1}-${lv.number}</span></span>
+    </button>`;
+  }
+
+  showCampaign(world?: number): void {
+    const s = this.app.save.data;
+    const current = world ?? getLevel(nextLevel(s)).world;
+    const worldOpen = (w: number) => levelUnlocked(s, w * LEVELS_PER_WORLD);
+    const tabs = WORLDS.map((_, i) => {
+      const open = worldOpen(i);
+      return `<button class="world-tab ${i === current ? 'on' : ''}" data-act="world" data-w="${i}" ${open ? '' : 'disabled'}>
+        <b>${i + 1}</b><span>${open ? `${icon('starFill', 11)}${worldStars(s, i)}/30` : icon('lock', 12)}</span></button>`;
+    }).join('');
+    const w = WORLDS[current];
+    const tiles = Array.from({ length: LEVELS_PER_WORLD }, (_, k) => {
+      const index = current * LEVELS_PER_WORLD + k;
+      const open = levelUnlocked(s, index);
+      const stars = levelStars(s, index);
+      const boss = k === LEVELS_PER_WORLD - 1;
+      return `<button class="level-tile ${boss ? 'boss' : ''} ${stars ? 'done' : ''} ${open && !stars ? 'next' : ''}" data-act="level" data-i="${index}" ${open ? '' : 'disabled'}>
+        <b>${open ? k + 1 : icon('lock', 16)}</b>${open ? this.stars(stars, 11) : ''}</button>`;
+    }).join('');
+    const fresh = w.fresh.map((e) => t(`enemy.${e}` as I18nKey)).join(', ');
+    const html = `${this.backBar(t('campaign.title'), this.wallet())}
+      <div class="screen-inner top">
+        <div class="world-tabs">${tabs}</div>
+        <div class="panel world-head">
+          <div class="wh-top"><span class="wh-name">${t(`biome.${['nebula', 'ember', 'deep', 'aurora', 'void', 'crystal'][w.biome]}` as I18nKey)}</span>
+            <span class="wh-stars">${icon('starFill', 13)}${worldStars(s, current)}/30</span></div>
+          <p class="hint">${t('campaign.worldInfo', { enemies: fresh, boss: t(`enemy.${w.boss === 'twins' ? 'twin' : w.boss}` as I18nKey) })}</p>
+          <div class="level-grid">${tiles}</div>
+        </div>
+        <p class="hint" style="margin:0">${t('campaign.desc')}</p>
+      </div>`;
+    this.open('campaign', html, {
+      onAction: (act, btn) => {
+        if (this.walletAction(act)) return;
+        if (act === 'back') this.back();
+        else if (act === 'world') {
+          this.app.audio.uiClick();
+          this.showCampaign(Number(btn.dataset.w));
+        } else if (act === 'level') {
+          this.app.audio.uiClick();
+          this.showLevelInfo(Number(btn.dataset.i));
+        }
+      },
+    });
+  }
+
+  /** Level details before starting: rules and the three star goals. */
+  private showLevelInfo(index: number): void {
+    const s = this.app.save.data;
+    const lv = getLevel(index);
+    const best = levelStars(s, index);
+    const wrap = document.createElement('div');
+    wrap.className = 'dialog-wrap';
+    const rules = lv.modifiers.length
+      ? `<ul class="perk-chips neutral">${lv.modifiers.map((m) => `<li>${icon('star', 13)}<span>${esc(t(`mod.${m}.name` as I18nKey))}: ${esc(t(`mod.${m}.desc` as I18nKey))}</span></li>`).join('')}</ul>`
+      : '';
+    const goals = [t('campaign.star1'), t('campaign.star2'), t('campaign.star3', { n: fmt(lv.starScore) })]
+      .map((g, i) => `<li class="${i < best ? 'done' : ''}">${icon(i < best ? 'check' : 'starFill', 15)}<span>${esc(g)}</span></li>`)
+      .join('');
+    wrap.innerHTML = `<div class="dialog level-info">
+      <h2>${t('campaign.level', { w: lv.world + 1, n: lv.number })}</h2>
+      ${this.stars(best, 22)}
+      <p class="hint">${t('campaign.waves', { n: lv.waves.length })}${lv.number === LEVELS_PER_WORLD ? ' ' + t('campaign.bossLevel') : ''}</p>
+      ${rules}
+      <ul class="star-goals">${goals}</ul>
+      <div class="grid2"><button class="btn ghost" data-act="close">${t('common.back')}</button>
+        <button class="btn primary" data-act="go">${icon('play', 18)}${t('campaign.play')}</button></div>
+    </div>`;
+    wrap.addEventListener('click', (e) => {
+      const act = (e.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset.act;
+      if (e.target === wrap || act === 'close') {
+        this.app.audio.uiBack();
+        wrap.remove();
+      } else if (act === 'go') {
+        wrap.remove();
+        this.app.startLevel(index);
+      }
+    });
+    document.body.appendChild(wrap);
   }
 
   // ───────────────────────── Light pass ─────────────────────────
@@ -1375,7 +1475,15 @@ export class UI {
       ? `<div class="chips">${r.newAchievements.map((a) => `<span class="chip">${icon('trophy', 16)}${t(`ach.${a}.name` as I18nKey)}</span>`).join('')}</div>`
       : '';
     const html = `<div class="screen-inner">
-        <div class="over-title"><h2>${t(r.timeUp ? 'over.timeUp' : 'over.title')}</h2><p>${r.weekly ? t('events.weekly') + ' · ' : r.mode !== 'normal' && !r.daily ? t(`mode.${r.mode}.name` as I18nKey) + ' · ' : ''}${t('over.subtitle')}</p></div>
+        <div class="over-title"><h2>${t(r.campaign?.victory ? 'campaign.won' : r.timeUp ? 'over.timeUp' : 'over.title')}</h2><p>${
+           r.campaign
+             ? t('campaign.level', { w: getLevel(r.campaign.level).world + 1, n: getLevel(r.campaign.level).number }) + ' · '
+             : r.weekly
+               ? t('events.weekly') + ' · '
+               : r.mode !== 'normal' && !r.daily
+                 ? t(`mode.${r.mode}.name` as I18nKey) + ' · '
+                 : ''
+         }${t('over.subtitle')}</p></div>
         <div class="big-score"><div class="l">${t('over.score')}</div><div class="v" id="final-score">0</div>
           ${r.newBest ? `<div class="new-best">${t(r.daily ? 'over.newDaily' : 'over.newBest')}</div>` : ''}</div>
         <div class="stats">
@@ -1387,6 +1495,17 @@ export class UI {
           ${r.canDouble ? `<button class="btn double" data-act="double">${icon('ad', 20)}<span class="col"><b>${t('over.double')}</b><small>${t('over.doubleSub', { n: fmt(r.shards) })}</small></span></button>` : ''}
         </div>
         ${
+          r.campaign
+            ? `<div class="panel level-result ${r.campaign.victory ? 'won' : 'lost'}">
+          ${this.stars(r.campaign.stars.filter(Boolean).length, 30)}
+          <ul class="star-goals">${[t('campaign.star1'), t('campaign.star2'), t('campaign.star3', { n: fmt(getLevel(r.campaign.level).starScore) })]
+            .map((g, i) => `<li class="${r.campaign!.stars[i] ? 'done' : ''}">${icon(r.campaign!.stars[i] ? 'check' : 'starFill', 15)}<span>${esc(g)}</span></li>`)
+            .join('')}</ul>
+          ${r.campaign.reward.coins || r.campaign.reward.diamonds ? `<div class="reward-row hl">${icon('gift', 18)}<span>${t('campaign.reward')}</span>${this.rewardChips(r.campaign.reward)}</div>` : ''}
+        </div>`
+            : ''
+        }
+        ${
           r.challenge
             ? `<div class="panel duel ${r.challenge.won ? 'won' : 'lost'}"><div class="duel-title">${t(r.challenge.won ? 'challenge.won' : 'challenge.lost')}</div>
           <div class="duel-scores"><span>${t('challenge.you')}<b>${fmt(r.score)}</b></span><span>${t('challenge.friend')}<b>${fmt(r.challenge.target)}</b></span></div></div>`
@@ -1395,11 +1514,22 @@ export class UI {
         <div class="panel"><h3>${t('over.rewards')}</h3><div class="rewards">${rewards.join('')}</div>${ach}</div>
         ${r.shareCode ? `<button class="btn ghost" data-act="share">${icon('share', 20)}${t(r.challenge ? 'challenge.shareBack' : 'challenge.shareBtn')}</button>` : ''}
         ${r.canAfford ? `<p class="hint" style="margin:0">${t('over.workshopHint')}</p>` : ''}
-        <button class="btn primary" data-act="again">${icon('refresh', 22)}${t('over.again')}</button>
+        ${
+          r.campaign
+            ? (() => {
+                const next = r.campaign.victory && r.campaign.level + 1 < LEVEL_COUNT;
+                return `${next ? `<button class="btn primary" data-act="nextlevel">${icon('play', 22)}${t('campaign.next')}</button>` : `<button class="btn primary" data-act="again">${icon('refresh', 22)}${t('over.again')}</button>`}
+        <div class="grid2">
+          ${next ? `<button class="btn" data-act="again">${icon('refresh', 24)}${t('over.again')}</button>` : `<button class="btn" data-act="workshop">${icon('wrench', 24)}${t('menu.workshop')}</button>`}
+          <button class="btn" data-act="campaign">${icon('map', 24)}${t('campaign.title')}</button>
+        </div>`;
+              })()
+            : `<button class="btn primary" data-act="again">${icon('refresh', 22)}${t('over.again')}</button>
         <div class="grid2">
           <button class="btn" data-act="workshop">${icon('wrench', 24)}${t('menu.workshop')}</button>
           <button class="btn" data-act="menu">${icon('back', 24)}${t('over.menu')}</button>
-        </div>
+        </div>`
+        }
       </div>`;
     const el = this.open('gameover', html, {
       dim: true,
@@ -1420,7 +1550,15 @@ export class UI {
           return;
         }
         this.app.audio.uiClick();
-        if (act === 'again') void this.app.afterRun(() => this.app.startRun(r.daily));
+        if (act === 'again') void this.app.afterRun(() => this.app.replay());
+        else if (act === 'nextlevel' && r.campaign) {
+          const next = r.campaign.level + 1;
+          void this.app.afterRun(() => this.app.startLevel(next));
+        } else if (act === 'campaign')
+          void this.app.afterRun(() => {
+            this.app.toMenuState();
+            this.showCampaign();
+          });
         else if (act === 'workshop')
           void this.app.afterRun(() => {
             this.app.toMenuState();

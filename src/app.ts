@@ -13,6 +13,8 @@ import { addPassXp, claimAllPass, claimPass, ensureSeason, passTier, type PassTr
 import { ensureWeek, recordWeekly, weekOf, weeklyTheme } from './economy/weekly';
 import { addMastery, sparkMastery, MASTERY_MAX } from './economy/mastery';
 import { decodeChallenge, encodeChallenge } from './economy/challenge';
+import { getLevel, starsFor, WORLDS, LEVEL_COUNT } from './game/campaign';
+import { levelUnlocked, recordLevel } from './economy/campaign';
 import { getUpgrade } from './game/upgrades';
 import { dailySetup, type DailySetup } from './game/modifiers';
 import type { AchievementId } from './game/achievements';
@@ -96,6 +98,8 @@ export interface RunResult {
   shareCode: string | null;
   /** Result of a friend challenge. */
   challenge: { target: number; won: boolean } | null;
+  /** Campaign level result. */
+  campaign: { level: number; victory: boolean; stars: [boolean, boolean, boolean]; gained: number; reward: { coins?: number; diamonds?: number } } | null;
   milestones: { wave: number; diamonds: number }[];
   missionsDone: number;
   canDouble: boolean;
@@ -115,6 +119,8 @@ interface RunSetup {
   weekly: boolean;
   /** Friend challenge: the score to beat (same seed, spark and mode as the friend). */
   challenge?: { score: number };
+  /** Campaign level index. */
+  campaign?: number;
   mode: GameMode;
   tutorial: boolean;
   character: CharacterId;
@@ -391,6 +397,43 @@ export class App {
     this.ui.showPrerun(daily, weekly);
   }
 
+  /** Starts a campaign level (with the selected spark, no boosters). */
+  startLevel(index: number): boolean {
+    const s = this.save.data;
+    if (index < 0 || index >= LEVEL_COUNT || !levelUnlocked(s, index)) {
+      this.audio.denied();
+      return false;
+    }
+    const lv = getLevel(index);
+    this.audio.uiSelect();
+    this.toMenuState();
+    this.begin({
+      daily: false,
+      weekly: false,
+      campaign: index,
+      mode: 'normal',
+      tutorial: false,
+      character: s.selected,
+      modifiers: [...lv.modifiers],
+      seed: 7919 * (index + 1),
+      boosters: [],
+    });
+    return true;
+  }
+
+  /** "Again" after a run or from the pause menu: the same kind of run as before. */
+  replay(): void {
+    const s = this.setup;
+    if (!s || s.tutorial) {
+      if (s?.tutorial) this.startTutorial();
+      else this.startRun(false);
+      return;
+    }
+    if (s.campaign !== undefined) this.startLevel(s.campaign);
+    else if (s.challenge) this.startChallenge(encodeChallenge({ seed: s.seed, character: s.character, mode: s.mode, score: s.challenge.score }));
+    else this.startRun(s.daily, s.weekly);
+  }
+
   /** Starts a friend challenge from a code. Returns false when the code is not valid. */
   startChallenge(code: string): boolean {
     const c = decodeChallenge(code);
@@ -491,10 +534,11 @@ export class App {
       level: this.save.data.level,
       timeLimit: getMode(setup.mode).timeLimit || undefined,
       mastery: setup.tutorial ? 0 : sparkMastery(this.save.data, setup.character),
+      script: setup.campaign !== undefined ? getLevel(setup.campaign).waves : undefined,
     });
     this.world = world;
     this.renderer.layout(world.w, world.h, this.arena);
-    this.renderer.setBiome(0);
+    this.renderer.setBiome(setup.campaign !== undefined ? WORLDS[getLevel(setup.campaign).world].biome : 0);
     this.fx.playerColor = getCharacter(setup.character).color;
     world.start();
     this.newAch = [];
@@ -545,9 +589,7 @@ export class App {
   }
 
   restart(): void {
-    const s = this.setup;
-    if (s?.tutorial) this.startTutorial();
-    else this.startRun(s?.daily ?? false);
+    this.replay();
   }
 
   /** Leaves the run without showing a screen (caller decides what comes next). */
@@ -726,6 +768,7 @@ export class App {
   }
 
   private endRun(): void {
+    this.ui.clearBanner();
     const w = this.world!;
     const r = w.run;
     const s = this.save.data;
@@ -761,8 +804,8 @@ export class App {
         newBest = true;
       }
       this.unlock('daily');
-    } else if (setup.challenge) {
-      // Friend challenges replay a known run – they never count as records.
+    } else if (setup.challenge || setup.campaign !== undefined) {
+      // Friend challenges and campaign levels are fixed runs – they never count as records.
     } else if (setup.mode !== 'normal') {
       // Extra modes keep their own records.
       const key = setup.mode;
@@ -787,6 +830,14 @@ export class App {
     const unlocked = unlocksBetween(levelBefore, s.level);
     const passGained = addPassXp(s, xp, localDateKey());
     const masteryGained = s.chars.includes(setup.character) ? addMastery(s, setup.character, xp) : [];
+    let campaignResult: RunResult['campaign'] = null;
+    if (setup.campaign !== undefined) {
+      const stars = starsFor(getLevel(setup.campaign), w.victory, r.damageTaken, r.score);
+      const { gained, reward } = recordLevel(s, setup.campaign, stars);
+      campaignResult = { level: setup.campaign, victory: w.victory, stars, gained, reward };
+      if (s.campaign.filter((v) => v > 0).length >= LEVEL_COUNT) this.unlock('campaign');
+      if (s.campaign.filter((v) => v >= 3).length >= LEVEL_COUNT) this.unlock('allstars');
+    }
     if (sparkMastery(s, setup.character) >= MASTERY_MAX) this.unlock('master');
     // Level-ups are listed on the result screen – no extra toasts on top of it.
     if (s.level >= 10) this.unlock('level10');
@@ -810,8 +861,8 @@ export class App {
     this.save.save();
 
     // Leaderboards: each mode reports into its own board.
-    if (setup.challenge) {
-      /* no leaderboard entries for replayed runs */
+    if (setup.challenge || setup.campaign !== undefined) {
+      /* no leaderboard entries for fixed runs */
     } else if (setup.weekly) this.games.submit('weekly', r.score);
     else if (!setup.daily && setup.mode === 'normal') {
       this.games.submit('score', r.score);
@@ -844,8 +895,9 @@ export class App {
       weekly: setup.weekly,
       weeklyGoals,
       mastery: { spark: setup.character, level: sparkMastery(s, setup.character), gained: masteryGained },
-      shareCode: setup.daily || setup.weekly || setup.tutorial ? null : encodeChallenge({ seed: setup.seed, character: setup.character, mode: setup.mode, score: r.score }),
+      shareCode: setup.daily || setup.weekly || setup.tutorial || setup.campaign !== undefined ? null : encodeChallenge({ seed: setup.seed, character: setup.character, mode: setup.mode, score: r.score }),
       challenge: setup.challenge ? { target: setup.challenge.score, won: r.score > setup.challenge.score } : null,
+      campaign: campaignResult,
       milestones: [...this.runMilestones],
       missionsDone: done.length,
       canDouble: r.shards > 0,
@@ -1432,7 +1484,7 @@ export class App {
     this.tutorial?.update(rdt);
 
     if (this.state === 'playing' && w.awaitingUpgrade) this.openUpgrade();
-    if (this.state === 'playing' && w.over && w.timeUp) {
+    if (this.state === 'playing' && w.over && (w.timeUp || w.victory)) {
       // Blitz: time is up – straight to the results, no continue offer.
       this.input.enabled = false;
       this.endRun();
@@ -1528,9 +1580,10 @@ export class App {
           break;
         case 'waveStart': {
           this.audio.waveStart(!!e.boss);
-          const biome = biomeForWave(e.wave);
+          const campaignLevel = this.setup?.campaign;
+          const biome = campaignLevel !== undefined ? WORLDS[getLevel(campaignLevel).world].biome : biomeForWave(e.wave);
           this.renderer.setBiome(biome);
-          const newRegion = e.wave > 1 && (e.wave - 1) % 10 === 0;
+          const newRegion = campaignLevel === undefined && e.wave > 1 && (e.wave - 1) % 10 === 0;
           if (e.boss) {
             const type = e.boss === 'twins' ? 'twin' : e.boss;
             this.ui.showBanner(t('banner.bossWave', { n: e.wave }), `<b>${t(`enemy.${type}` as I18nKey)}</b> – ${t(`hint.${type}` as I18nKey)}`, true, 2600);

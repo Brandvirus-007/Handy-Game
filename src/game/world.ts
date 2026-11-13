@@ -51,6 +51,8 @@ export interface RunOptions {
   timeLimit?: number;
   /** Mastery level of the spark (each level: +1 % score and shards). */
   mastery?: number;
+  /** Campaign level: fixed waves instead of generated ones; clearing the last one wins the level. */
+  script?: WavePlan[];
 }
 
 export type WavePhase = 'intro' | 'active' | 'cleared' | 'upgrade' | 'idle';
@@ -87,6 +89,8 @@ export class World {
   over = false;
   /** The run ended because the blitz timer ran out (not by dying). */
   timeUp = false;
+  /** Campaign: every scripted wave was cleared. */
+  victory = false;
   /** Phantom spark: hits it can still ignore this wave. */
   phaseCharges = 0;
 
@@ -265,7 +269,7 @@ export class World {
   private beginWave(n: number): void {
     this.wave = n;
     this.run.wave = n;
-    this.plan = buildWave(n, this.rng, this.opts.modifiers);
+    this.plan = this.opts.script?.[n - 1] ?? buildWave(n, this.rng, this.opts.modifiers);
     this.speedMul = this.plan.speedMul;
     this.groupIdx = 0;
     this.waveTime = 0;
@@ -851,6 +855,10 @@ export class World {
     this.phase = 'cleared';
     this.phaseTimer = TUNING.wave.breakDelay;
     this.emit({ type: 'waveClear', wave: this.wave, flawless, bonus, boss: this.plan?.boss != null });
+    if (this.opts.script && this.wave >= this.opts.script.length) {
+      this.victory = true;
+      this.over = true;
+    }
   }
 
   private addShards(raw: number): void {

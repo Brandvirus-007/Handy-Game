@@ -3641,3 +3641,262 @@ button.level-chip:active b {
 body.postfx #game {
   opacity: 0;
 }
+
+/* ───────────── Campaign ───────────── */
+
+.feature-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.feature-row .pass-bar {
+  min-height: 58px;
+  padding: 8px 10px;
+  gap: 8px;
+}
+
+.feature-row .pass-bar .pass-tier {
+  font-size: 12.5px;
+}
+
+.campaign-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 58px;
+  padding: 8px 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(125, 249, 255, 0.35);
+  background: linear-gradient(135deg, rgba(20, 60, 80, 0.55), rgba(24, 18, 52, 0.85));
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.campaign-card .cc-ico {
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+}
+
+.campaign-card .cc-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.campaign-card .cc-name {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.campaign-card .cc-sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--gold);
+  font-size: 12.5px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.stars {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.stars i {
+  display: grid;
+  color: rgba(255, 255, 255, 0.16);
+}
+
+.stars i.on {
+  color: var(--gold);
+  filter: drop-shadow(0 0 4px rgba(255, 209, 102, 0.5));
+}
+
+.world-tabs {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+
+.world-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-height: var(--bar-h);
+  padding: 6px 2px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(22, 17, 48, 0.7);
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.world-tab b {
+  font-size: 16px;
+  color: var(--text);
+}
+
+.world-tab span {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 10.5px;
+  font-weight: 650;
+}
+
+.world-tab.on {
+  border-color: var(--accent);
+  background: rgba(125, 249, 255, 0.12);
+}
+
+.world-tab[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.world-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.world-head .wh-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.world-head .wh-name {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.world-head .wh-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.world-head .hint {
+  margin: 0;
+  text-align: left;
+}
+
+.level-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.level-tile {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(22, 17, 48, 0.75);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.level-tile b {
+  display: grid;
+  font-size: 18px;
+}
+
+.level-tile.boss {
+  border-color: rgba(255, 77, 109, 0.5);
+}
+
+.level-tile.next {
+  border-color: var(--accent);
+  box-shadow: 0 0 14px rgba(125, 249, 255, 0.25);
+}
+
+.level-tile[disabled] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.dialog.level-info {
+  text-align: center;
+  gap: 12px;
+}
+
+.dialog.level-info .stars {
+  justify-content: center;
+}
+
+.star-goals {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.star-goals li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.star-goals li .ico {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.star-goals li.done {
+  color: var(--text);
+  border-color: rgba(255, 209, 102, 0.35);
+}
+
+.star-goals li.done .ico {
+  color: var(--gold);
+}
+
+.panel.level-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.panel.level-result.won {
+  border-color: rgba(255, 209, 102, 0.45);
+}
+
+.panel.level-result .star-goals {
+  width: 100%;
+}
+
+@media (max-width: 360px) {
+  .feature-row .pass-bar .pass-ico,
+  .campaign-card .cc-ico {
+    display: none;
+  }
+
+  .world-tab span {
+    font-size: 9.5px;
+  }
+}

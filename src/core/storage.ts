@@ -81,6 +81,8 @@ export interface SaveData {
   /** Trail designs owned and the one in use. */
   trails: TrailId[];
   trail: TrailId;
+  /** Campaign: stars per level (index 0 = world 1, level 1). */
+  campaign: number[];
   /** Mastery XP per spark. */
   mastery: Partial<Record<CharacterId, number>>;
   /** In-app review prompt: when it was last requested and how often. */
@@ -143,6 +145,7 @@ export const defaultSave = (): SaveData => ({
   weekly: { week: 0, best: 0, reached: 0 },
   mastery: {},
   review: { last: 0, count: 0 },
+  campaign: [],
 });
 
 const num = (v: unknown, def: number, min = -Infinity, max = Infinity): number =>
@@ -262,6 +265,7 @@ export function sanitize(raw: unknown): SaveData {
       Object.entries(obj(r.mastery)).filter(([k, v]) => (charIds as string[]).includes(k) && typeof v === 'number' && v > 0).map(([k, v]) => [k, Math.floor(v as number)]),
     ) as SaveData['mastery'],
     review: { last: num(obj(r.review).last, 0, 0), count: int(obj(r.review).count, 0, 0, 99) },
+    campaign: Array.isArray(r.campaign) ? r.campaign.slice(0, 60).map((v) => int(v, 0, 0, 3)) : [],
     weekly: { week: int(obj(r.weekly).week, 0), best: int(obj(r.weekly).best, 0), reached: int(obj(r.weekly).reached, 0, 0, 3) },
     modeBest: { blitz: int(obj(r.modeBest).blitz, 0), bosses: int(obj(r.modeBest).bosses, 0) },
     pass: {

@@ -220,4 +220,6 @@ export const ACHIEVEMENT_DIAMONDS: Record<string, number> = {
   hunter: 30,
   boss_vortex: 20,
   master: 50,
+  campaign: 60,
+  allstars: 150,
 };

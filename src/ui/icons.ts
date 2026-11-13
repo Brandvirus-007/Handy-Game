@@ -31,6 +31,8 @@ const P: Record<string, string> = {
   orbit: '<circle cx="12" cy="12" r="2.5" fill="currentColor"/><ellipse cx="12" cy="12" rx="9" ry="5"/><circle cx="20" cy="10" r="1.8" fill="currentColor"/>',
   galaxy: '<circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 10c4-4 9-1 8 3M14 12c4 4 1 9-3 8M12 14c-4 4-9 1-8-3M10 12c-4-4-1-9 3-8"/>',
   crown: '<path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/>',
+  map: '<path d="M9 4l6 2 6-2v14l-6 2-6-2-6 2V6z"/><path d="M9 4v14M15 6v14"/>',
+  starFill: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" fill="currentColor"/>',
   share: '<circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.9l7.6-4.3M8.2 13.1l7.6 4.3"/>',
   news: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h10M7 16h6"/>',
   pause: '<path d="M9 5v14M15 5v14" stroke-width="3"/>',
