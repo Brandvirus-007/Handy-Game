@@ -16,6 +16,8 @@ import { decodeChallenge, encodeChallenge } from './economy/challenge';
 import { getLevel, starsFor, WORLDS, LEVEL_COUNT } from './game/campaign';
 import { levelUnlocked, recordLevel } from './economy/campaign';
 import { cloudLabel, compareProgress, mergeForImport, packCloud, unpackCloud, type CloudSave } from './economy/cloud';
+import { nextGoals, type Goal } from './economy/goals';
+import { reminderTime } from './economy/reminder';
 import { getUpgrade } from './game/upgrades';
 import { dailySetup, type DailySetup } from './game/modifiers';
 import type { AchievementId } from './game/achievements';
@@ -104,6 +106,8 @@ export interface RunResult {
   milestones: { wave: number; diamonds: number }[];
   missionsDone: number;
   canDouble: boolean;
+  /** What the player can reach next (closest first). */
+  goals: Goal[];
 }
 
 export interface ContinueOffer {
@@ -259,8 +263,10 @@ export class App {
     void this.platform.recoverPurchases((p) => void this.credit(p));
     void this.restoreEntitlements(true);
     this.save.onSave = () => this.scheduleCloudSave();
+    if (this.save.data.settings.reminder) void this.platform.cancelReminder();
     void this.games.init().then(() => this.onSignedIn());
     this.afterUpdate();
+    window.setTimeout(() => this.maybeAskReminder(), 2500);
   }
 
   /** Shows the "What's new" notes once per app version to returning players, then the daily login. */
@@ -284,7 +290,9 @@ export class App {
       if (this.state === 'playing') this.pause();
       this.save.save();
       if (this.cloudTimer) void this.uploadCloud();
+      this.planReminder();
     } else {
+      if (this.save.data.settings.reminder) void this.platform.cancelReminder();
       if (this.state === 'playing') this.platform.keepAwake(true);
       // Android keeps apps alive for days: a new day must still bring new missions and the login bonus.
       this.refreshDay();
@@ -617,6 +625,7 @@ export class App {
     this.toMenuState();
     this.ui.showMenu();
     this.refreshDay();
+    window.setTimeout(() => this.maybeAskReminder(), 700);
   }
 
   pulse(): void {
@@ -880,6 +889,22 @@ export class App {
     this.audio.duck(true);
     this.audio.setIntensity(0);
     this.platform.keepAwake(false);
+    const goals = setup.tutorial
+      ? []
+      : nextGoals(
+          s,
+          {
+            score: r.score,
+            wavesCleared: r.wavesCleared,
+            mode: setup.mode,
+            daily: setup.daily,
+            weekly: setup.weekly,
+            campaign: setup.campaign !== undefined,
+            challenge: !!setup.challenge,
+            newBest,
+          },
+          localDateKey(),
+        );
     this.lastResult = {
       score: r.score,
       wave: r.wave,
@@ -908,6 +933,7 @@ export class App {
       milestones: [...this.runMilestones],
       missionsDone: done.length,
       canDouble: r.shards > 0,
+      goals,
     };
     this.ui.showGameOver(this.lastResult);
     if (newBest && !setup.daily && !setup.weekly && !setup.challenge) this.maybeAskForReview();
@@ -1156,6 +1182,8 @@ export class App {
         this.haptics.buzz(30);
       }
       if (this.ui.screenName === 'menu') this.ui.showMenu();
+      // A good moment to offer the reminder: the next bonus comes tomorrow.
+      window.setTimeout(() => this.maybeAskReminder(), 600);
     });
   }
 
@@ -1267,6 +1295,53 @@ export class App {
     this.cloudReady = false;
     this.cloudChecked = false;
     void this.cloudCheck();
+  }
+
+  // ───────────────────────── Daily reminder ─────────────────────────
+
+  /** Plans the one reminder for about a day from now (when the player switched it on). */
+  private planReminder(): void {
+    const s = this.save.data;
+    if (!this.platform.remindersSupported || !s.settings.reminder) return;
+    const at = reminderTime(new Date());
+    const body = s.best > 0 && at.getDate() % 2 === 0 ? t('reminder.body2', { n: fmt(s.best) }) : t('reminder.body1');
+    void this.platform.scheduleReminder({ at, title: 'LUMEN LOOP', body, channel: t('reminder.channel'), channelDesc: t('reminder.channelDesc') });
+  }
+
+  /** Switches the reminder on (asks Android for permission) or off. */
+  async setReminder(on: boolean): Promise<'on' | 'off' | 'blocked'> {
+    const s = this.save.data;
+    s.reminderAsked = true;
+    if (!on) {
+      s.settings.reminder = false;
+      this.save.save();
+      void this.platform.cancelReminder();
+      return 'off';
+    }
+    const allowed = await this.platform.requestReminderPermission();
+    s.settings.reminder = allowed;
+    this.save.save();
+    return allowed ? 'on' : 'blocked';
+  }
+
+  /** After the third run, back in the menu: ask once whether the player wants a reminder. */
+  private maybeAskReminder(): void {
+    const s = this.save.data;
+    if (!this.platform.remindersSupported || s.reminderAsked || s.settings.reminder || s.stats.runs < 3 || !s.tutorialDone) return;
+    if (this.state !== 'menu' || this.ui.screenName !== 'menu' || document.querySelector('.dialog-wrap')) return;
+    // Notifications switched off for the app in Android: the question could only end in "blocked".
+    void this.platform.reminderPermission().then((perm) => {
+      if (perm === 'denied' || this.save.data.reminderAsked || document.querySelector('.dialog-wrap')) return;
+      if (this.state !== 'menu' || this.ui.screenName !== 'menu') return;
+      this.ui.askReminder((yes) => {
+        if (!yes) {
+          this.save.data.reminderAsked = true;
+          this.save.save();
+          return;
+        }
+        void this.setReminder(true).then((res) => this.ui.toast(t('settings.reminder'), t(res === 'on' ? 'reminder.on' : 'reminder.blocked'), 'bell'));
+      });
+    });
   }
 
   // ───────────────────────── Cloud save ─────────────────────────

@@ -88,6 +88,21 @@ export class WebPlatform implements Platform {
   async requestReview(): Promise<void> {
     /* Only the Play Store app has a rating dialog. */
   }
+
+  /* Reminders are an Android feature; the browser demo has none. */
+  readonly remindersSupported = false;
+
+  async reminderPermission(): Promise<'granted' | 'denied' | 'prompt'> {
+    return 'denied';
+  }
+
+  async requestReminderPermission(): Promise<boolean> {
+    return false;
+  }
+
+  async scheduleReminder(): Promise<void> {}
+
+  async cancelReminder(): Promise<void> {}
 }
 
 function demoOverlay(opts: { seconds: number; rewarded: boolean }): Promise<boolean> {

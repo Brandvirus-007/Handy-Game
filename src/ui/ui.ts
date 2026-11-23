@@ -40,6 +40,7 @@ import type { CloudSave } from '../economy/cloud';
 import type { SaveData } from '../core/storage';
 import type { LeaderboardKey } from '../platform/games-ids';
 import type { TopScores } from '../platform/games';
+import type { Goal } from '../economy/goals';
 import { Hud } from './hud';
 
 const esc = (s: string): string => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
@@ -1180,6 +1181,27 @@ export class UI {
     document.body.appendChild(wrap);
   }
 
+  /** Asked once after a few runs: does the player want a daily reminder? */
+  askReminder(done: (yes: boolean) => void): void {
+    const wrap = document.createElement('div');
+    wrap.className = 'dialog-wrap';
+    wrap.innerHTML = `<div class="dialog ask-reminder">
+      <h3>${icon('bell', 20)}${t('settings.reminder')}</h3>
+      <p>${t('reminder.ask')}</p>
+      <div class="list">
+        <button class="btn primary" data-act="yes">${t('reminder.yes')}</button>
+        <button class="btn ghost" data-act="no">${t('reminder.no')}</button></div></div>`;
+    wrap.addEventListener('click', (e) => {
+      const act = (e.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset.act;
+      // Only the two buttons answer – a stray tap next to the dialog must not count as "no".
+      if (act !== 'yes' && act !== 'no') return;
+      this.app.audio.uiClick();
+      wrap.remove();
+      done(act === 'yes');
+    });
+    document.body.appendChild(wrap);
+  }
+
   /** Leaderboards inside the game: top 10 plus the player's own place. */
   showRanks(back: () => void, key?: LeaderboardKey): void {
     const boards = this.app.games.boards();
@@ -1277,6 +1299,13 @@ export class UI {
           ${seg('lang', 'settings.lang', st.lang, [['auto', t('settings.lang.auto')], ['de', 'DE'], ['en', 'EN']])}
         </div>
         ${
+          this.app.platform.remindersSupported
+            ? `<div class="panel"><h3>${t('settings.reminderTitle')}</h3>
+          <div class="row"><label>${t('settings.reminder')}</label><button class="toggle ${st.reminder ? 'on' : ''}" data-act="reminder" aria-pressed="${st.reminder}" aria-label="${t('settings.reminder')}"></button></div>
+          <p class="hint">${t('settings.reminderHint')}</p></div>`
+            : ''
+        }
+        ${
           this.app.games.configured
             ? `<div class="panel"><h3>${t('games.title')}</h3><div class="grid2">
           <button class="btn" data-act="leaderboards">${icon('trophy', 20)}${t('games.leaderboards')}</button>
@@ -1336,6 +1365,15 @@ export class UI {
           void open.then((ok) => {
             if (ok) this.app.onSignedIn();
             else this.toast(t('games.title'), t('games.failed'), 'trophy');
+          });
+        } else if (act === 'reminder') {
+          this.app.audio.uiClick();
+          btn.setAttribute('disabled', '');
+          void this.app.setReminder(!st.reminder).then((res) => {
+            btn.removeAttribute('disabled');
+            btn.classList.toggle('on', res === 'on');
+            btn.setAttribute('aria-pressed', String(res === 'on'));
+            if (res === 'blocked') this.toast(t('settings.reminder'), t('reminder.blocked'), 'bell');
           });
         } else if (act === 'cloudsave') {
           this.app.audio.uiClick();
@@ -1577,6 +1615,59 @@ export class UI {
 
   // ───────────────────────── Game over ─────────────────────────
 
+  /** "Next goals" on the result screen: name, reward, progress bar and what is still missing. */
+  private goalsPanel(goals: Goal[]): string {
+    if (!goals.length) return '';
+    const rows = goals
+      .map((g) => {
+        let ico = 'trophy';
+        let name = '';
+        let chip = '';
+        let miss = '';
+        switch (g.kind) {
+          case 'best':
+            name = t('goals.best', { n: fmt(g.target) });
+            miss = t('goals.points', { n: fmt(g.missing) });
+            break;
+          case 'weekly':
+            ico = 'calendar';
+            name = t('goals.weekly', { medal: t(`weekly.medal${g.medal}` as I18nKey) });
+            chip = this.rewardChips(g.reward);
+            miss = t('goals.points', { n: fmt(g.missing) });
+            break;
+          case 'milestone':
+            ico = 'bolt';
+            name = t('over.milestone', { n: g.wave });
+            chip = this.rewardChips(g.reward);
+            miss = g.missing === 1 ? t('goals.wave1') : t('goals.waves', { n: fmt(g.missing) });
+            break;
+          case 'pass':
+            ico = 'crown';
+            name = t('goals.pass', { n: g.tier });
+            chip = this.passRewardHtml(g.reward);
+            miss = t('goals.ep', { n: fmt(g.missing) });
+            break;
+          case 'mission':
+            ico = 'target';
+            name = t(`mission.${g.type}` as I18nKey, { n: g.target });
+            chip = this.rewardChips(g.reward);
+            miss = t('missions.progress', { n: fmt(g.current), max: fmt(g.target) });
+            break;
+          case 'level':
+            ico = 'star';
+            name = t('goals.level', { n: g.level, name: this.unlockName(g.unlock) });
+            miss = t('goals.ep', { n: fmt(g.missing) });
+            break;
+        }
+        return `<div class="goal"><span class="g-ico">${icon(ico, 18)}</span><div class="g-main">
+          <div class="g-top"><span class="g-name">${esc(name)}</span>${chip}</div>
+          <div class="g-bottom"><span class="xpbar"><i style="width:${Math.round(g.progress * 100)}%"></i></span><span class="g-miss">${esc(miss)}</span></div>
+        </div></div>`;
+      })
+      .join('');
+    return `<div class="panel goals"><h3>${t('goals.title')}</h3>${rows}</div>`;
+  }
+
   showGameOver(r: RunResult): void {
     const stat = (k: I18nKey, v: string) => `<div class="stat"><div class="v">${v}</div><div class="l">${t(k)}</div></div>`;
     const s = this.app.save.data;
@@ -1646,6 +1737,7 @@ export class UI {
             : ''
         }
         <div class="panel"><h3>${t('over.rewards')}</h3><div class="rewards">${rewards.join('')}</div>${ach}</div>
+        ${this.goalsPanel(r.goals)}
         ${r.shareCode ? `<button class="btn ghost" data-act="share">${icon('share', 20)}${t(r.challenge ? 'challenge.shareBack' : 'challenge.shareBtn')}</button>` : ''}
         ${r.canAfford ? `<p class="hint" style="margin:0">${t('over.workshopHint')}</p>` : ''}
         ${

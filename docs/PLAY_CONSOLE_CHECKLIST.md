@@ -54,6 +54,13 @@ Technische Details zum Bauen und Signieren: [`android/README.md`](../android/REA
 | Inhaltsbewertung (IARC) | Spiel; keine realistische Gewalt (abstrakte Lichtformen), keine Nutzerinteraktion/Chats, **In-App-Käufe: ja**. Erwartet: USK 0 / PEGI 3 mit Hinweis „In-Game-Käufe“ |
 | Nachrichten-, Gesundheits-, Finanz-, Regierungs-App | Nein |
 
+### Berechtigungen
+
+Die App fragt nur nach Benachrichtigungen (`POST_NOTIFICATIONS`, für die freiwillige tägliche Erinnerung). Dafür
+braucht es in der Play Console keine Erklärung. Die Berechtigung für exakte Wecker (`SCHEDULE_EXACT_ALARM`), die das
+Erinnerungs-Plugin mitbringt, wird im Manifest entfernt: Eine Erinnerung braucht keinen exakten Zeitpunkt, und Google
+erlaubt exakte Wecker nur für Wecker- und Kalender-Apps.
+
 ### Datensicherheit
 Die App selbst sammelt nichts; erhoben wird ausschließlich durch das **Google Mobile Ads SDK**.
 Grundlage: [Googles Datenoffenlegung für AdMob](https://developers.google.com/admob/android/privacy/play-data-disclosure) – vor dem Absenden bitte mit der aktuellen Fassung abgleichen.

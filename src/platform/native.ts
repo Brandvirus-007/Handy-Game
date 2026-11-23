@@ -1,13 +1,15 @@
 import { registerPlugin, type PluginListenerHandle } from '@capacitor/core';
 import { PRODUCTS, getProduct, type ProductId } from '../economy/defs';
 import { ADMOB, ADS_ARE_TEST } from './config';
-import { copyText, type AdPlacement, type CompletedPurchase, type Platform, type PurchaseOutcome, type RewardResult, type ShareResult, type StoreProduct } from './types';
+import { copyText, type AdPlacement, type CompletedPurchase, type Platform, type PurchaseOutcome, type ReminderSpec, type RewardResult, type ShareResult, type StoreProduct } from './types';
 
 type AdMobModule = typeof import('@capacitor-community/admob');
 type PurchasesModule = typeof import('@capgo/native-purchases');
 type Transaction = import('@capgo/native-purchases').Transaction;
 
 const PURCHASED = '1';
+const REMINDER_ID = 4101;
+const REMINDER_CHANNEL = 'reminders';
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /**
@@ -294,6 +296,72 @@ export class NativePlatform implements Platform {
       await registerPlugin<{ request(): Promise<void> }>('InAppReview').request();
     } catch {
       /* not available – nothing to do */
+    }
+  }
+
+  // ── Daily reminder ──
+
+  readonly remindersSupported = true;
+  private notes: typeof import('@capacitor/local-notifications') | null = null;
+  private channelReady = false;
+
+  private async notifications() {
+    if (!this.notes) this.notes = await import('@capacitor/local-notifications');
+    return this.notes.LocalNotifications;
+  }
+
+  async reminderPermission(): Promise<'granted' | 'denied' | 'prompt'> {
+    try {
+      const p = await (await this.notifications()).checkPermissions();
+      return p.display === 'granted' ? 'granted' : p.display === 'denied' ? 'denied' : 'prompt';
+    } catch {
+      return 'denied';
+    }
+  }
+
+  async requestReminderPermission(): Promise<boolean> {
+    try {
+      return (await (await this.notifications()).requestPermissions()).display === 'granted';
+    } catch {
+      return false;
+    }
+  }
+
+  async scheduleReminder(r: ReminderSpec): Promise<void> {
+    try {
+      const ln = await this.notifications();
+      // Scheduling would show the permission prompt by itself – only plan when it is already allowed.
+      if ((await ln.checkPermissions()).display !== 'granted') return;
+      if (!this.channelReady) {
+        await ln.createChannel({ id: REMINDER_CHANNEL, name: r.channel, description: r.channelDesc, importance: 3, visibility: 1 });
+        this.channelReady = true;
+      }
+      await ln.schedule({
+        notifications: [
+          {
+            id: REMINDER_ID,
+            title: r.title,
+            body: r.body,
+            channelId: REMINDER_CHANNEL,
+            smallIcon: 'ic_stat_lumen',
+            iconColor: '#7DF9FF',
+            autoCancel: true,
+            // A reminder does not need to be on the minute: no exact alarm, no "Alarms & reminders" screen.
+            isExactNotification: false,
+            schedule: { at: r.at, allowWhileIdle: true },
+          },
+        ],
+      });
+    } catch {
+      /* a reminder is a nice-to-have – never break the game for it */
+    }
+  }
+
+  async cancelReminder(): Promise<void> {
+    try {
+      await (await this.notifications()).cancel({ notifications: [{ id: REMINDER_ID }] });
+    } catch {
+      /* nothing planned */
     }
   }
 

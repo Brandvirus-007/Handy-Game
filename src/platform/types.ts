@@ -58,6 +58,25 @@ export interface Platform {
   share(text: string): Promise<ShareResult>;
   /** Asks Google Play for its in-app rating dialog (Google decides whether it shows). */
   requestReview(): Promise<void>;
+
+  // ── Daily reminder (local notification, nothing leaves the device) ──
+  readonly remindersSupported: boolean;
+  /** Current notification permission. */
+  reminderPermission(): Promise<'granted' | 'denied' | 'prompt'>;
+  /** Shows the Android permission prompt when needed. True when notifications are allowed. */
+  requestReminderPermission(): Promise<boolean>;
+  /** Plans the one reminder (replaces an earlier one). Does nothing without permission – never prompts. */
+  scheduleReminder(r: ReminderSpec): Promise<void>;
+  cancelReminder(): Promise<void>;
+}
+
+export interface ReminderSpec {
+  at: Date;
+  title: string;
+  body: string;
+  /** Name and description of the notification channel shown in the Android settings. */
+  channel: string;
+  channelDesc: string;
 }
 
 /** Copies text to the clipboard (used when sharing is not possible). */

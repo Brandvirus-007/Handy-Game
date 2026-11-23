@@ -27,6 +27,8 @@ Berührst du einen Schatten selbst, kostet das ein Herz.
 - **Kampagne:** 60 Level in 6 Welten mit festen Wellenplänen, Sonderregeln und einem Boss am Ende jeder Welt. Pro Level bis zu 3 Sterne (geschafft, höchstens ein Treffer, Punkteziel).
 - **Modi:** Normal, Blitz (3 Minuten auf Punkte, ab Stufe 5) und Bossjagd (jede Welle ein Boss, ab Stufe 12).
 - **Funken-Meisterschaft** (10 Stufen pro Funke, +1 % Punkte und Splitter pro Stufe) und **Freunde herausfordern** per Code (gleicher Lauf, gleicher Funke, ohne Booster).
+- **Nächste Ziele:** Nach jeder Runde zeigt das Spiel die zwei nächsten Ziele, die in Reichweite sind (Rekord, Etappe, Pass-Stufe, Tagesmission, Wochen-Medaille oder eine Stufe mit Freischaltung), mit Fortschrittsbalken und was noch fehlt.
+- **Tägliche Erinnerung (freiwillig):** Nach der dritten Runde fragt das Spiel einmal, ob es erinnern soll; danach in den Einstellungen abschaltbar. Eine lokale Benachrichtigung etwa einen Tag nach der letzten Runde (10 bis 20:30 Uhr), keine exakten Wecker, keine Daten nach außen.
 - **Bewertung im Spiel:** Nach einem neuen Rekord fragt die App über Googles In-App-Review nach einer Bewertung (höchstens dreimal, mit 30 Tagen Abstand).
 - **Wirtschaft:** Splitter (im Spiel verdient) und Diamanten (Etappen, Erfolge, Stufen, Missionen, Gratis-Werbung oder Kauf).
   Nach dem Tod kann man einmal pro Runde per Werbung weiterspielen (auch eine abgebrochene Werbung zählt), danach mit Splittern oder Diamanten.

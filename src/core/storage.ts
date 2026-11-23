@@ -25,6 +25,8 @@ export interface Settings {
   reducedMotion: boolean;
   /** WebGL light filter (bloom, distortion). */
   glow: boolean;
+  /** Daily reminder notification (Android, opt-in). */
+  reminder: boolean;
 }
 
 export interface LifetimeStats {
@@ -87,6 +89,8 @@ export interface SaveData {
   mastery: Partial<Record<CharacterId, number>>;
   /** In-app review prompt: when it was last requested and how often. */
   review: { last: number; count: number };
+  /** The player was asked once whether they want the daily reminder. */
+  reminderAsked: boolean;
   /** Weekly event: week number, best event score and how many goals were reached. */
   weekly: { week: number; best: number; reached: number };
   /** Last picked mode and best scores of the extra modes. */
@@ -111,6 +115,7 @@ export const defaultSettings = (): Settings => ({
   lang: 'auto',
   reducedMotion: false,
   glow: true,
+  reminder: false,
 });
 
 export const defaultSave = (): SaveData => ({
@@ -145,6 +150,7 @@ export const defaultSave = (): SaveData => ({
   weekly: { week: 0, best: 0, reached: 0 },
   mastery: {},
   review: { last: 0, count: 0 },
+  reminderAsked: false,
   campaign: [],
 });
 
@@ -208,6 +214,7 @@ export function sanitize(raw: unknown): SaveData {
     lang: oneOf(st.lang, ['auto', 'de', 'en'] as const, ds.lang),
     reducedMotion: bool(st.reducedMotion, ds.reducedMotion),
     glow: bool(st.glow, ds.glow),
+    reminder: bool(st.reminder, ds.reminder),
   };
 
   const daily = obj(r.daily);
@@ -265,6 +272,7 @@ export function sanitize(raw: unknown): SaveData {
       Object.entries(obj(r.mastery)).filter(([k, v]) => (charIds as string[]).includes(k) && typeof v === 'number' && v > 0).map(([k, v]) => [k, Math.floor(v as number)]),
     ) as SaveData['mastery'],
     review: { last: num(obj(r.review).last, 0, 0), count: int(obj(r.review).count, 0, 0, 99) },
+    reminderAsked: bool(r.reminderAsked, false),
     campaign: Array.isArray(r.campaign) ? r.campaign.slice(0, 60).map((v) => int(v, 0, 0, 3)) : [],
     weekly: { week: int(obj(r.weekly).week, 0), best: int(obj(r.weekly).best, 0), reached: int(obj(r.weekly).reached, 0, 0, 3) },
     modeBest: { blitz: int(obj(r.modeBest).blitz, 0), bosses: int(obj(r.modeBest).bosses, 0) },

@@ -4040,3 +4040,75 @@ body.postfx #game {
   margin: 8px 0;
   text-align: center;
 }
+
+/* ───────────── Next goals (result screen) ───────────── */
+
+.panel.goals {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.goal {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.goal .g-ico {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  color: var(--accent);
+}
+
+.goal .g-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.goal .g-top,
+.goal .g-bottom {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  font-size: 14px;
+}
+
+.goal .g-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.goal .g-top > :not(.g-name) {
+  flex: none;
+}
+
+.goal .g-miss {
+  flex: none;
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ───────────── Reminder question ───────────── */
+
+.ask-reminder .list .btn {
+  min-height: 52px;
+}
+
+.ask-reminder h3 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+}
